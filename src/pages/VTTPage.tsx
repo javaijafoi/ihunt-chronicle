@@ -9,8 +9,12 @@ import { Dock } from '@/components/vtt/Dock';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
+import { CharacterSelect } from '@/components/vtt/CharacterSelect';
+import { Character } from '@/types/game';
 
 export function VTTPage() {
+  const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+  
   const {
     gameState,
     selectedCharacter,
@@ -21,11 +25,16 @@ export function VTTPage() {
     addSceneAspect,
     invokeAspect,
     addLog,
-  } = useGameState();
+  } = useGameState(activeCharacter || undefined);
 
   const [isDiceOpen, setIsDiceOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Show character select if no active character
+  if (!activeCharacter) {
+    return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
+  }
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
