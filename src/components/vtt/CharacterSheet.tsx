@@ -1,0 +1,255 @@
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, User, Sparkles, Heart, Brain, Zap, Target } from 'lucide-react';
+import { Character } from '@/types/game';
+import { FatePointDisplay } from './FatePointDisplay';
+
+interface CharacterSheetProps {
+  character: Character;
+  isOpen: boolean;
+  onClose: () => void;
+  onSpendFate: () => void;
+  onGainFate: () => void;
+  onToggleStress: (track: 'physical' | 'mental', index: number) => void;
+}
+
+export function CharacterSheet({ 
+  character, 
+  isOpen, 
+  onClose, 
+  onSpendFate,
+  onGainFate,
+  onToggleStress 
+}: CharacterSheetProps) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={(e) => e.target === e.currentTarget && onClose()}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+          
+          {/* Sheet */}
+          <motion.div
+            className="relative glass-panel w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 glass-panel rounded-t-lg border-b border-border p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border-2 border-primary">
+                  {character.avatar ? (
+                    <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="font-display text-3xl text-glow-primary text-primary">
+                    {character.name}
+                  </h2>
+                  <p className="text-muted-foreground font-ui">
+                    {character.aspects.highConcept}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Fate Points */}
+                <div className="glass-panel p-4">
+                  <FatePointDisplay
+                    points={character.fatePoints}
+                    maxPoints={character.refresh + 2}
+                    onSpend={onSpendFate}
+                    onGain={onGainFate}
+                  />
+                </div>
+
+                {/* Aspects */}
+                <div className="glass-panel p-4">
+                  <h3 className="font-display text-xl text-primary mb-4 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    Aspectos
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
+                      <div className="aspect-tag mt-1">{character.aspects.highConcept}</div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
+                      <div className="aspect-tag mt-1">{character.aspects.drama}</div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
+                      <div className="aspect-tag mt-1">{character.aspects.job}</div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
+                      <div className="aspect-tag mt-1">{character.aspects.dreamBoard}</div>
+                    </div>
+                    {character.aspects.free.map((aspect, i) => (
+                      <div key={i}>
+                        <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
+                        <div className="aspect-tag mt-1">{aspect}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Maneuvers */}
+                <div className="glass-panel p-4">
+                  <h3 className="font-display text-xl text-secondary mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    Manobras
+                  </h3>
+                  <div className="space-y-2">
+                    {character.maneuvers.map((maneuver, i) => (
+                      <div key={i} className="px-3 py-2 rounded-md bg-muted font-ui text-sm">
+                        {maneuver}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Skills */}
+                <div className="glass-panel p-4">
+                  <h3 className="font-display text-xl text-primary mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5" />
+                    Habilidades
+                  </h3>
+                  <div className="space-y-2">
+                    {Object.entries(character.skills)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([skill, value]) => (
+                        <div key={skill} className="flex items-center justify-between px-3 py-2 rounded-md bg-muted">
+                          <span className="font-ui">{skill}</span>
+                          <span className="font-display text-xl text-primary">+{value}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Stress */}
+                <div className="glass-panel p-4">
+                  <h3 className="font-display text-xl text-destructive mb-4 flex items-center gap-2">
+                    <Heart className="w-5 h-5" />
+                    Estresse
+                  </h3>
+                  
+                  {/* Physical */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Heart className="w-4 h-4 text-destructive" />
+                      <span className="text-sm font-ui uppercase tracking-wider">Físico</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {character.stress.physical.map((filled, index) => (
+                        <button
+                          key={index}
+                          onClick={() => onToggleStress('physical', index)}
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''}`}
+                        >
+                          <span className="font-display">{index + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mental */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-4 h-4 text-secondary" />
+                      <span className="text-sm font-ui uppercase tracking-wider">Mental</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {character.stress.mental.map((filled, index) => (
+                        <button
+                          key={index}
+                          onClick={() => onToggleStress('mental', index)}
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''}`}
+                          style={{ 
+                            borderColor: filled ? 'hsl(var(--secondary))' : undefined,
+                            background: filled ? 'hsl(var(--secondary))' : undefined 
+                          }}
+                        >
+                          <span className="font-display">{index + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consequences */}
+                <div className="glass-panel p-4">
+                  <h3 className="font-display text-xl text-destructive mb-4">
+                    Consequências
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center font-display text-sm">2</span>
+                        Leve
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Vazio"
+                        defaultValue={character.consequences.mild || ''}
+                        className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
+                                 focus:border-primary focus:outline-none font-ui text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center font-display text-sm">4</span>
+                        Moderada
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Vazio"
+                        defaultValue={character.consequences.moderate || ''}
+                        className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
+                                 focus:border-primary focus:outline-none font-ui text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center font-display text-sm">6</span>
+                        Grave
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Vazio"
+                        defaultValue={character.consequences.severe || ''}
+                        className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
+                                 focus:border-primary focus:outline-none font-ui text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
