@@ -1,39 +1,11 @@
-import { useState, useCallback } from 'react';
-import { GameState, Character, DiceResult, LogEntry, SceneAspect, Token } from '@/types/game';
+import { useState, useCallback, useEffect } from 'react';
+import { GameState, Character, DiceResult, LogEntry, SceneAspect } from '@/types/game';
 import sceneBackground from '@/assets/scene-default.jpg';
+import { useLocalStorage } from './useLocalStorage';
 
-const createDefaultCharacter = (): Character => ({
-  id: crypto.randomUUID(),
-  name: 'Nova Caçadora',
-  aspects: {
-    highConcept: 'Caçadora de Monstros da Gig Economy',
-    drama: 'Sempre precisando de grana',
-    job: 'Motorista de app de dia, caçadora de noite',
-    dreamBoard: 'Um dia vou sair dessa vida',
-    free: ['Eu sei onde os monstros se escondem'],
-  },
-  skills: {
-    'Atirar': 3,
-    'Combate': 2,
-    'Atletismo': 2,
-    'Furtividade': 1,
-    'Percepção': 1,
-  },
-  maneuvers: ['Golpe Rasteiro', 'Tiro Certeiro'],
-  stress: {
-    physical: [false, false, false],
-    mental: [false, false, false],
-  },
-  consequences: {
-    mild: null,
-    moderate: null,
-    severe: null,
-  },
-  fatePoints: 3,
-  refresh: 3,
-});
+const GAME_STATE_KEY = 'ihunt-vtt-game-state';
 
-const initialState: GameState = {
+const createInitialState = (character?: Character): GameState => ({
   currentScene: {
     id: '1',
     name: 'Beco Escuro',
@@ -44,7 +16,7 @@ const initialState: GameState = {
     ],
     isActive: true,
   },
-  characters: [createDefaultCharacter()],
+  characters: character ? [character] : [],
   tokens: [],
   logs: [
     {
@@ -55,13 +27,25 @@ const initialState: GameState = {
     },
   ],
   gmFatePool: 3,
-};
+});
 
-export function useGameState() {
-  const [gameState, setGameState] = useState<GameState>(initialState);
+export function useGameState(initialCharacter?: Character) {
+  const [gameState, setGameState] = useState<GameState>(() => createInitialState(initialCharacter));
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(
-    initialState.characters[0] || null
+    initialCharacter || null
   );
+  
+  // Persist character changes to localStorage
+  const [, setSavedCharacters] = useLocalStorage<Character[]>('ihunt-vtt-characters', []);
+  
+  // Sync character state changes back to localStorage
+  useEffect(() => {
+    if (selectedCharacter) {
+      setSavedCharacters(prev => 
+        prev.map(c => c.id === selectedCharacter.id ? selectedCharacter : c)
+      );
+    }
+  }, [selectedCharacter, setSavedCharacters]);
 
   const rollDice = useCallback((modifier: number = 0, skill?: string, type: 'normal' | 'advantage' = 'normal'): DiceResult => {
     const faces: ('plus' | 'minus' | 'blank')[] = ['plus', 'minus', 'blank'];
