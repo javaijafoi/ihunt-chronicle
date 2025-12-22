@@ -194,6 +194,43 @@ export function useGameState(initialCharacter?: Character) {
     }
   }, [selectedCharacter]);
 
+  const setConsequence = useCallback(
+    (
+      characterId: string,
+      severity: 'mild' | 'moderate' | 'severe',
+      value: string | null
+    ) => {
+      setGameState(prev => ({
+        ...prev,
+        characters: prev.characters.map(c =>
+          c.id === characterId
+            ? {
+                ...c,
+                consequences: {
+                  ...c.consequences,
+                  [severity]: value,
+                },
+              }
+            : c
+        ),
+      }));
+
+      if (selectedCharacter?.id === characterId) {
+        setSelectedCharacter(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            consequences: {
+              ...prev.consequences,
+              [severity]: value,
+            },
+          };
+        });
+      }
+    },
+    [selectedCharacter]
+  );
+
   const addSceneAspect = useCallback((name: string, freeInvokes: number = 1) => {
     const aspect: SceneAspect = {
       id: crypto.randomUUID(),
@@ -272,6 +309,7 @@ export function useGameState(initialCharacter?: Character) {
     spendFatePoint,
     gainFatePoint,
     toggleStress,
+    setConsequence,
     addSceneAspect,
     invokeAspect,
     addLog,
