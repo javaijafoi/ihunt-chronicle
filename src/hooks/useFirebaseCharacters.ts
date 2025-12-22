@@ -9,11 +9,13 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  type FirestoreError
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
+import { toast } from '@/hooks/use-toast';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
   ownerId: string;
@@ -39,14 +41,30 @@ export function useFirebaseCharacters() {
       where('ownerId', '==', user.uid)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chars: Character[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Character));
-      setCharacters(chars);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const chars: Character[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Character));
+        setCharacters(chars);
+        setLoading(false);
+      },
+      (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          toast({
+            title: 'Acesso negado',
+            description: 'Perdemos o acesso aos seus personagens. Entre novamente para continuar.',
+            variant: 'destructive',
+          });
+          setCharacters([]);
+        } else {
+          console.error('Erro ao escutar personagens do usuário:', error);
+        }
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [user]);

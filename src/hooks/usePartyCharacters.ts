@@ -4,13 +4,15 @@ import {
   query,
   where,
   onSnapshot,
-  documentId
+  documentId,
+  type FirestoreError
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
 import { useSession } from './useSession';
 import { Character } from '@/types/game';
 import { PartyCharacter, SessionPresence } from '@/types/session';
+import { toast } from '@/hooks/use-toast';
 
 export function usePartyCharacters() {
   const { user } = useAuth();
@@ -34,6 +36,21 @@ export function usePartyCharacters() {
           presence[doc.id] = doc.data() as SessionPresence;
         });
         setPresenceMap(presence);
+      },
+      (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          toast({
+            title: 'Acesso negado',
+            description: 'Perdemos o acesso à sessão. Entre novamente para continuar acompanhando o grupo.',
+            variant: 'destructive',
+          });
+          localStorage.removeItem('ihunt-current-session');
+          setPresenceMap({});
+          setPartyCharacters([]);
+        } else {
+          console.error('Erro ao escutar presença da sessão:', error);
+        }
+        setLoading(false);
       }
     );
 
@@ -56,23 +73,40 @@ export function usePartyCharacters() {
       where(documentId(), 'in', characterIds)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chars: PartyCharacter[] = snapshot.docs.map(docSnap => {
-        const data = docSnap.data() as Character & { ownerId: string };
-        const ownerPresence = Object.values(presenceMap).find(p => p.characterId === docSnap.id);
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const chars: PartyCharacter[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data() as Character & { ownerId: string };
+          const ownerPresence = Object.values(presenceMap).find(p => p.characterId === docSnap.id);
+          
+          return {
+            ...data,
+            id: docSnap.id,
+            oderId: data.ownerId,
+            ownerName: ownerPresence?.ownerName || 'Desconhecido',
+            isOnline: !!ownerPresence?.online,
+          };
+        });
         
-        return {
-          ...data,
-          id: docSnap.id,
-          oderId: data.ownerId,
-          ownerName: ownerPresence?.ownerName || 'Desconhecido',
-          isOnline: !!ownerPresence?.online,
-        };
-      });
-      
-      setPartyCharacters(chars);
-      setLoading(false);
-    });
+        setPartyCharacters(chars);
+        setLoading(false);
+      },
+      (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          toast({
+            title: 'Acesso negado',
+            description: 'Perdemos o acesso aos personagens do grupo. Entre novamente para continuar.',
+            variant: 'destructive',
+          });
+          setPartyCharacters([]);
+          localStorage.removeItem('ihunt-current-session');
+        } else {
+          console.error('Erro ao escutar personagens do grupo:', error);
+        }
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [currentSession, presenceMap]);

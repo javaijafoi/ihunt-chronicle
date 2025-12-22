@@ -10,12 +10,14 @@ import {
   setDoc,
   serverTimestamp,
   arrayUnion,
-  Timestamp
+  Timestamp,
+  type FirestoreError
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
 import { GameSession } from '@/types/session';
 import { SceneAspect } from '@/types/game';
+import { toast } from '@/hooks/use-toast';
 
 export function useSession() {
   const { user, userProfile } = useAuth();
@@ -32,20 +34,38 @@ export function useSession() {
       return;
     }
 
-    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snapshot) => {
-      if (snapshot.exists()) {
-        setCurrentSession({
-          id: snapshot.id,
-          ...snapshot.data(),
-          createdAt: (snapshot.data().createdAt as Timestamp)?.toDate() || new Date(),
-          updatedAt: (snapshot.data().updatedAt as Timestamp)?.toDate() || new Date(),
-        } as GameSession);
-      } else {
-        setCurrentSession(null);
-        localStorage.removeItem('ihunt-current-session');
-        setSessionId(null);
+    const unsubscribe = onSnapshot(
+      doc(db, 'sessions', sessionId),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setCurrentSession({
+            id: snapshot.id,
+            ...snapshot.data(),
+            createdAt: (snapshot.data().createdAt as Timestamp)?.toDate() || new Date(),
+            updatedAt: (snapshot.data().updatedAt as Timestamp)?.toDate() || new Date(),
+          } as GameSession);
+        } else {
+          setCurrentSession(null);
+          localStorage.removeItem('ihunt-current-session');
+          setSessionId(null);
+        }
+      },
+      (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          toast({
+            title: 'Sessão expirada',
+            description: 'Perdemos o acesso à sessão. Entre novamente para continuar.',
+            variant: 'destructive',
+          });
+          localStorage.removeItem('ihunt-current-session');
+          setSessionId(null);
+          setCurrentSession(null);
+        } else {
+          console.error('Erro ao escutar sessão:', error);
+        }
+        setLoading(false);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [sessionId]);
