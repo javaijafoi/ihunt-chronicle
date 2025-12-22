@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Sparkles, Heart, Brain, Zap, Target } from 'lucide-react';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
+import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 
 interface CharacterSheetProps {
   character: Character;
@@ -57,6 +58,12 @@ export function CharacterSheet({
                   <p className="text-muted-foreground font-ui">
                     {character.aspects.highConcept}
                   </p>
+                  {character.drive && (
+                    <p className="text-sm text-secondary flex items-center gap-1 mt-1">
+                      <span>{getDriveById(character.drive)?.icon}</span>
+                      {getDriveById(character.drive)?.name}
+                    </p>
+                  )}
                 </div>
               </div>
               <button
@@ -119,11 +126,33 @@ export function CharacterSheet({
                     Manobras
                   </h3>
                   <div className="space-y-2">
-                    {character.maneuvers.map((maneuver, i) => (
-                      <div key={i} className="px-3 py-2 rounded-md bg-muted font-ui text-sm">
-                        {maneuver}
-                      </div>
-                    ))}
+                    {character.maneuvers.map((maneuverId, i) => {
+                      // Resolve maneuver name from ID
+                      const drive = character.drive ? getDriveById(character.drive) : undefined;
+                      let maneuverName = maneuverId;
+                      let isFree = false;
+                      
+                      if (drive) {
+                        if (drive.freeManeuver.id === maneuverId) {
+                          maneuverName = drive.freeManeuver.name;
+                          isFree = true;
+                        } else {
+                          const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
+                          if (exclusive) maneuverName = exclusive.name;
+                        }
+                      }
+                      const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
+                      if (general) maneuverName = general.name;
+
+                      return (
+                        <div key={i} className={`px-3 py-2 rounded-md font-ui text-sm ${
+                          isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                        }`}>
+                          {maneuverName}
+                          {isFree && <span className="ml-2 text-xs opacity-70">(grátis)</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

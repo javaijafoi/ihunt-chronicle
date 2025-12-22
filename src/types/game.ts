@@ -1,9 +1,29 @@
 // iHunt VTT Core Types
 
+export type DriveName = 'malina' | 'cavalo' | 'fui' | 'os66';
+
+export interface Maneuver {
+  id: string;
+  name: string;
+  description: string;
+  driveExclusive?: DriveName; // undefined = available for all
+  cost: number; // 0 = free, 1 = costs 1 refresh
+}
+
+export interface Drive {
+  id: DriveName;
+  name: string;
+  icon: string;
+  summary: string;
+  freeManeuver: Maneuver;
+  exclusiveManeuvers: Maneuver[];
+}
+
 export interface Character {
   id: string;
   name: string;
   avatar?: string;
+  drive?: DriveName;
   aspects: {
     highConcept: string;
     drama: string;
