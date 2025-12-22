@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogIn, 
   UserCircle, 
-  Plus, 
-  Users, 
-  ArrowRight,
   Loader2,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  Crown,
+  Sword
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from '@/hooks/useSession';
@@ -17,11 +16,11 @@ import { useSession } from '@/hooks/useSession';
 export function LobbyPage() {
   const navigate = useNavigate();
   const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
-  const { claimGmRole, loading: sessionLoading } = useSession();
+  const { claimGmRole, currentSession } = useSession();
   
-  const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
-  const [error, setError] = useState('');
   const [authError, setAuthError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [gmActionLoading, setGmActionLoading] = useState(false);
 
   // Show login if not authenticated
   if (!userProfile) {
@@ -118,16 +117,41 @@ export function LobbyPage() {
     );
   }
 
-  const handleCreateSession = async () => {
-    setError('');
-    await claimGmRole();
-    navigate('/vtt', { state: { isGM: true } });
+  const handlePlayAsHunter = () => {
+    navigate('/vtt', { state: { isGM: false } });
   };
 
-  const handleJoinSession = () => {
-    setError('');
-    // Navigate to VTT; joining happens when selecting character
-    navigate('/vtt', { state: { isGM: false } });
+  const handleAssumeAsGm = async () => {
+    setActionError('');
+
+    if (!currentSession) {
+      setActionError('Sessão não disponível no momento. Tente novamente.');
+      return;
+    }
+
+    setGmActionLoading(true);
+
+    try {
+      const gmId = currentSession.gmId;
+
+      if (!gmId || gmId === userProfile.uid) {
+        await claimGmRole();
+        navigate('/vtt', { state: { isGM: true } });
+        return;
+      }
+
+      const confirmed = confirm('Golpe de Estado: deseja assumir a mesa como Mestre?');
+
+      if (confirmed) {
+        await claimGmRole();
+        navigate('/vtt', { state: { isGM: true } });
+      }
+    } catch (error) {
+      console.error('Erro ao assumir como Mestre:', error);
+      setActionError('Não foi possível assumir como Mestre. Tente novamente.');
+    } finally {
+      setGmActionLoading(false);
+    }
   };
 
   return (
@@ -189,148 +213,52 @@ export function LobbyPage() {
         </div>
 
         {/* Main Content */}
-        <div className="glass-panel p-6">
-          <AnimatePresence mode="wait">
-            {mode === 'menu' && (
-              <motion.div
-                key="menu"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
-                <h2 className="font-display text-xl text-center mb-6">O que deseja fazer?</h2>
-                
-                <button
-                  onClick={() => navigate('/vtt')}
-                  className="w-full flex items-center justify-between p-4 rounded-lg
-                           bg-primary/10 hover:bg-primary/20 border border-primary/20
-                           transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <UserCircle className="w-6 h-6 text-primary" />
-                    <div className="text-left">
-                      <p className="font-display">Meus Personagens</p>
-                      <p className="text-xs text-muted-foreground">Gerenciar fichas e jogar solo</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+        <div className="glass-panel p-6 space-y-4">
+          <h2 className="font-display text-xl text-center">Escolha como entrar</h2>
 
-                <button
-                  onClick={() => setMode('create')}
-                  className="w-full flex items-center justify-between p-4 rounded-lg
-                           bg-accent/10 hover:bg-accent/20 border border-accent/20
-                           transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <Plus className="w-6 h-6 text-accent" />
-                    <div className="text-left">
-                      <p className="font-display">Criar Sessão</p>
-                      <p className="text-xs text-muted-foreground">Mestrar uma nova mesa</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+          {actionError && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-destructive">{actionError}</p>
+            </div>
+          )}
+          
+          <button
+            onClick={handlePlayAsHunter}
+            className="w-full flex items-center justify-between p-4 rounded-lg
+                     bg-primary/10 hover:bg-primary/20 border border-primary/20
+                     transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <Sword className="w-6 h-6 text-primary" />
+              <div className="text-left">
+                <p className="font-display">Jogar como Caçador</p>
+                <p className="text-xs text-muted-foreground">Entrar como jogador na sessão</p>
+              </div>
+            </div>
+            <LogIn className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
 
-                <button
-                  onClick={() => setMode('join')}
-                  className="w-full flex items-center justify-between p-4 rounded-lg
-                           bg-muted hover:bg-muted/80 border border-border
-                           transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <Users className="w-6 h-6 text-foreground" />
-                    <div className="text-left">
-                      <p className="font-display">Entrar em Sessão</p>
-                      <p className="text-xs text-muted-foreground">Juntar-se a uma mesa existente</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              </motion.div>
+          <button
+            onClick={handleAssumeAsGm}
+            disabled={gmActionLoading}
+            className="w-full flex items-center justify-between p-4 rounded-lg
+                     bg-accent/10 hover:bg-accent/20 border border-accent/20
+                     transition-colors group disabled:opacity-50"
+          >
+            <div className="flex items-center gap-3">
+              <Crown className="w-6 h-6 text-accent" />
+              <div className="text-left">
+                <p className="font-display">Assumir como Mestre</p>
+                <p className="text-xs text-muted-foreground">Tomar o controle da mesa</p>
+              </div>
+            </div>
+            {gmActionLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-accent" />
+            ) : (
+              <LogIn className="w-5 h-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
-
-            {mode === 'create' && (
-              <motion.div
-                key="create"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <button
-                  onClick={() => setMode('menu')}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  ← Voltar
-                </button>
-                
-                <h2 className="font-display text-xl">Criar Nova Sessão</h2>
-                
-                {error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
-
-                <button
-                  onClick={handleCreateSession}
-                  disabled={sessionLoading}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg
-                           bg-accent text-accent-foreground font-ui
-                           hover:bg-accent/90 disabled:opacity-50 transition-colors"
-                >
-                  {sessionLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      <Plus className="w-5 h-5" />
-                      Criar Sessão
-                    </>
-                  )}
-                </button>
-              </motion.div>
-            )}
-
-            {mode === 'join' && (
-              <motion.div
-                key="join"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <button
-                  onClick={() => setMode('menu')}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  ← Voltar
-                </button>
-                
-                <h2 className="font-display text-xl">Entrar em Sessão</h2>
-                
-                {error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
-
-                <button
-                  onClick={handleJoinSession}
-                  disabled={sessionLoading}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg
-                           bg-primary text-primary-foreground font-ui
-                           hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  {sessionLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      <Users className="w-5 h-5" />
-                      Entrar na Sessão
-                    </>
-                  )}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </button>
         </div>
       </motion.div>
     </div>
