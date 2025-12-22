@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, User, Sparkles, Target, Zap, Check, Plus, Trash2 } from 'lucide-react';
-import { Character } from '@/types/game';
+import { X, ChevronLeft, ChevronRight, User, Sparkles, Target, Zap, Check, Plus, Trash2, Heart } from 'lucide-react';
+import { Character, DriveName, Maneuver } from '@/types/game';
 import { SkillPyramid } from './SkillPyramid';
+import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 
 interface CharacterCreatorProps {
   isOpen: boolean;
@@ -13,15 +14,19 @@ interface CharacterCreatorProps {
 
 const STEPS = [
   { id: 'identity', title: 'Identidade', icon: User },
+  { id: 'drive', title: 'Tara', icon: Heart },
   { id: 'aspects', title: 'Aspectos', icon: Sparkles },
   { id: 'skills', title: 'Habilidades', icon: Target },
   { id: 'maneuvers', title: 'Manobras', icon: Zap },
   { id: 'review', title: 'Revisão', icon: Check },
 ];
 
+const BASE_REFRESH = 5;
+
 const DEFAULT_CHARACTER: Omit<Character, 'id'> = {
   name: '',
   avatar: '',
+  drive: undefined,
   aspects: {
     highConcept: '',
     drama: '',
@@ -49,8 +54,26 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
   const [character, setCharacter] = useState<Omit<Character, 'id'>>(
     editingCharacter ? { ...editingCharacter } : { ...DEFAULT_CHARACTER }
   );
-  const [newManeuver, setNewManeuver] = useState('');
+  const [selectedManeuverIds, setSelectedManeuverIds] = useState<string[]>(
+    editingCharacter?.maneuvers || []
+  );
   const [newFreeAspect, setNewFreeAspect] = useState('');
+
+  // Get current drive info
+  const currentDrive = useMemo(() => {
+    return character.drive ? getDriveById(character.drive) : undefined;
+  }, [character.drive]);
+
+  // Calculate available refresh
+  const purchasedManeuversCount = useMemo(() => {
+    if (!currentDrive) return selectedManeuverIds.length;
+    
+    // Count only non-free maneuvers
+    const freeId = currentDrive.freeManeuver.id;
+    return selectedManeuverIds.filter(id => id !== freeId).length;
+  }, [selectedManeuverIds, currentDrive]);
+
+  const availableRefresh = BASE_REFRESH - purchasedManeuversCount;
 
   const updateField = <K extends keyof typeof character>(
     field: K,
@@ -66,20 +89,30 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
     }));
   };
 
-  const addManeuver = () => {
-    if (!newManeuver.trim()) return;
-    setCharacter(prev => ({
-      ...prev,
-      maneuvers: [...prev.maneuvers, newManeuver.trim()],
-    }));
-    setNewManeuver('');
+  const selectDrive = (driveId: DriveName) => {
+    const drive = getDriveById(driveId);
+    if (!drive) return;
+
+    setCharacter(prev => ({ ...prev, drive: driveId }));
+    // Auto-select the free maneuver
+    setSelectedManeuverIds([drive.freeManeuver.id]);
   };
 
-  const removeManeuver = (index: number) => {
-    setCharacter(prev => ({
-      ...prev,
-      maneuvers: prev.maneuvers.filter((_, i) => i !== index),
-    }));
+  const toggleManeuver = (maneuver: Maneuver) => {
+    // Can't remove free maneuver from drive
+    if (currentDrive && maneuver.id === currentDrive.freeManeuver.id) return;
+
+    setSelectedManeuverIds(prev => {
+      const isSelected = prev.includes(maneuver.id);
+      
+      if (isSelected) {
+        return prev.filter(id => id !== maneuver.id);
+      } else {
+        // Check if we have refresh available
+        if (availableRefresh <= 0 && maneuver.cost > 0) return prev;
+        return [...prev, maneuver.id];
+      }
+    });
   };
 
   const addFreeAspect = () => {
@@ -96,6 +129,8 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
     switch (STEPS[currentStep].id) {
       case 'identity':
         return character.name.trim().length > 0;
+      case 'drive':
+        return character.drive !== undefined;
       case 'aspects':
         return character.aspects.highConcept.trim().length > 0;
       case 'skills':
@@ -106,14 +141,22 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
   };
 
   const handleSave = () => {
-    onSave(character);
+    const finalCharacter: Omit<Character, 'id'> = {
+      ...character,
+      maneuvers: selectedManeuverIds,
+      refresh: availableRefresh,
+      fatePoints: availableRefresh,
+    };
+    onSave(finalCharacter);
     setCharacter({ ...DEFAULT_CHARACTER });
+    setSelectedManeuverIds([]);
     setCurrentStep(0);
     onClose();
   };
 
   const handleClose = () => {
     setCharacter(editingCharacter ? { ...editingCharacter } : { ...DEFAULT_CHARACTER });
+    setSelectedManeuverIds(editingCharacter?.maneuvers || []);
     setCurrentStep(0);
     onClose();
   };
@@ -151,33 +194,62 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                          focus:border-primary focus:outline-none font-ui"
               />
             </div>
+          </div>
+        );
 
-            <div>
-              <label className="block text-sm font-ui uppercase tracking-wider text-muted-foreground mb-2">
-                Refresh (Pontos de Destino Iniciais)
-              </label>
-              <div className="flex items-center gap-4">
-                {[2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => {
-                      updateField('refresh', n);
-                      updateField('fatePoints', n);
-                    }}
-                    className={`w-12 h-12 rounded-lg font-display text-xl transition-all ${
-                      character.refresh === n
-                        ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Padrão: 3. Menos refresh = mais manobras.
-              </p>
+      case 'drive':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Sua Tara define seu estilo de caçar. Cada uma traz uma manobra grátis e acesso a manobras exclusivas.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {DRIVES.map(drive => (
+                <motion.button
+                  key={drive.id}
+                  onClick={() => selectDrive(drive.id)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`p-4 rounded-xl text-left transition-all border-2 ${
+                    character.drive === drive.id
+                      ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                      : 'border-border bg-muted/50 hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{drive.icon}</span>
+                    <h3 className="font-display text-lg text-primary">{drive.name}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    {drive.summary}
+                  </p>
+                  <div className="p-2 rounded-lg bg-accent/10 border border-accent/30">
+                    <p className="text-xs text-accent font-ui uppercase tracking-wider mb-1">
+                      Manobra Grátis
+                    </p>
+                    <p className="text-sm font-medium text-foreground">
+                      {drive.freeManeuver.name}
+                    </p>
+                  </div>
+                </motion.button>
+              ))}
             </div>
+
+            {currentDrive && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 rounded-xl bg-muted border border-border"
+              >
+                <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2">
+                  {currentDrive.freeManeuver.name}
+                </h4>
+                <p className="text-sm text-foreground">
+                  {currentDrive.freeManeuver.description}
+                </p>
+              </motion.div>
+            )}
           </div>
         );
 
@@ -310,74 +382,130 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
       case 'maneuvers':
         return (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Manobras são truques especiais que seu personagem aprendeu. Geralmente você começa com 3 manobras.
-            </p>
-            
-            <div className="space-y-2">
-              {character.maneuvers.map((maneuver, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted"
-                >
-                  <Zap className="w-4 h-4 text-secondary flex-shrink-0" />
-                  <span className="flex-1 font-ui">{maneuver}</span>
-                  <button
-                    onClick={() => removeManeuver(index)}
-                    className="p-1.5 rounded hover:bg-destructive/20 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </button>
-                </motion.div>
-              ))}
+            {/* Refresh Counter */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-accent/10 border border-accent/30">
+              <div>
+                <span className="font-ui text-sm uppercase tracking-wider text-muted-foreground">
+                  Refresh Disponível
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Base 5 - {purchasedManeuversCount} manobras compradas
+                </p>
+              </div>
+              <span className={`font-display text-4xl ${
+                availableRefresh <= 1 ? 'text-destructive' : 'text-accent'
+              }`}>
+                {availableRefresh}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newManeuver}
-                onChange={(e) => setNewManeuver(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addManeuver()}
-                placeholder="Nome da manobra..."
-                className="flex-1 px-4 py-3 rounded-lg bg-input border border-border 
-                         focus:border-primary focus:outline-none font-ui"
-              />
-              <button
-                onClick={addManeuver}
-                disabled={!newManeuver.trim()}
-                className="px-4 py-3 rounded-lg bg-secondary text-secondary-foreground font-ui
-                         hover:bg-secondary/90 disabled:opacity-50 transition-colors"
-              >
-                Adicionar
-              </button>
-            </div>
+            {/* Free Maneuver from Drive */}
+            {currentDrive && (
+              <div>
+                <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+                  <span className="text-lg">{currentDrive.icon}</span>
+                  Manobra Grátis ({currentDrive.name})
+                </h4>
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-primary">{currentDrive.freeManeuver.name}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                      Grátis
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {currentDrive.freeManeuver.description}
+                  </p>
+                </div>
+              </div>
+            )}
 
-            <div className="pt-4 border-t border-border">
-              <h4 className="text-sm font-ui uppercase tracking-wider text-muted-foreground mb-3">
-                Sugestões de Manobras
+            {/* Exclusive Drive Maneuvers */}
+            {currentDrive && currentDrive.exclusiveManeuvers.length > 0 && (
+              <div>
+                <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2">
+                  Manobras Exclusivas ({currentDrive.name})
+                </h4>
+                <div className="space-y-2">
+                  {currentDrive.exclusiveManeuvers.map(maneuver => {
+                    const isSelected = selectedManeuverIds.includes(maneuver.id);
+                    const canAfford = availableRefresh > 0 || isSelected;
+                    
+                    return (
+                      <button
+                        key={maneuver.id}
+                        onClick={() => toggleManeuver(maneuver)}
+                        disabled={!canAfford && !isSelected}
+                        className={`w-full p-3 rounded-lg text-left transition-all border ${
+                          isSelected
+                            ? 'border-secondary bg-secondary/10'
+                            : canAfford
+                            ? 'border-border bg-muted/50 hover:border-secondary/50'
+                            : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Zap className={`w-4 h-4 ${isSelected ? 'text-secondary' : 'text-muted-foreground'}`} />
+                            <span className={`font-medium ${isSelected ? 'text-secondary' : 'text-foreground'}`}>
+                              {maneuver.name}
+                            </span>
+                          </div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            -1 Refresh
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{maneuver.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* General Maneuvers */}
+            <div>
+              <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2">
+                Manobras Gerais
               </h4>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  'Golpe Rasteiro', 'Tiro Certeiro', 'Corrida Rápida',
-                  'Contatos no Submundo', 'Eu Conheço Um Cara', 'Instinto de Sobrevivência',
-                  'Rastreador Urbano', 'Primeiros Socorros', 'Mecânico de Ocasião'
-                ].filter(s => !character.maneuvers.includes(s)).map(suggestion => (
-                  <button
-                    key={suggestion}
-                    onClick={() => {
-                      setCharacter(prev => ({
-                        ...prev,
-                        maneuvers: [...prev.maneuvers, suggestion],
-                      }));
-                    }}
-                    className="px-3 py-1.5 rounded-md bg-muted text-sm font-ui
-                             hover:bg-primary/20 hover:text-primary transition-colors"
-                  >
-                    + {suggestion}
-                  </button>
-                ))}
+              <div className="space-y-2">
+                {GENERAL_MANEUVERS.map(maneuver => {
+                  const isSelected = selectedManeuverIds.includes(maneuver.id);
+                  const canAfford = availableRefresh > 0 || isSelected;
+                  
+                  return (
+                    <button
+                      key={maneuver.id}
+                      onClick={() => toggleManeuver(maneuver)}
+                      disabled={!canAfford && !isSelected}
+                      className={`w-full p-3 rounded-lg text-left transition-all border ${
+                        isSelected
+                          ? 'border-secondary bg-secondary/10'
+                          : canAfford
+                          ? 'border-border bg-muted/50 hover:border-secondary/50'
+                          : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Zap className={`w-4 h-4 ${isSelected ? 'text-secondary' : 'text-muted-foreground'}`} />
+                          <span className={`font-medium ${isSelected ? 'text-secondary' : 'text-foreground'}`}>
+                            {maneuver.name}
+                          </span>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          -1 Refresh
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{maneuver.description}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -397,6 +525,11 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
               <div>
                 <h3 className="font-display text-2xl text-primary">{character.name || 'Sem nome'}</h3>
                 <p className="text-muted-foreground">{character.aspects.highConcept || 'Sem alto conceito'}</p>
+                {currentDrive && (
+                  <p className="text-sm text-secondary flex items-center gap-1">
+                    <span>{currentDrive.icon}</span> {currentDrive.name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -433,10 +566,35 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
               <div className="glass-panel p-4 col-span-2">
                 <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2">Manobras</h4>
                 <div className="flex flex-wrap gap-2">
-                  {character.maneuvers.map((m, i) => (
-                    <span key={i} className="px-2 py-1 rounded-md bg-muted text-sm">{m}</span>
-                  ))}
-                  {character.maneuvers.length === 0 && (
+                  {selectedManeuverIds.map(id => {
+                    // Find maneuver name
+                    let maneuverName = id;
+                    if (currentDrive) {
+                      if (currentDrive.freeManeuver.id === id) {
+                        maneuverName = currentDrive.freeManeuver.name;
+                      } else {
+                        const exclusive = currentDrive.exclusiveManeuvers.find(m => m.id === id);
+                        if (exclusive) maneuverName = exclusive.name;
+                      }
+                    }
+                    const general = GENERAL_MANEUVERS.find(m => m.id === id);
+                    if (general) maneuverName = general.name;
+
+                    const isFree = currentDrive?.freeManeuver.id === id;
+
+                    return (
+                      <span 
+                        key={id} 
+                        className={`px-2 py-1 rounded-md text-sm ${
+                          isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                        }`}
+                      >
+                        {maneuverName}
+                        {isFree && <span className="ml-1 text-xs opacity-70">(grátis)</span>}
+                      </span>
+                    );
+                  })}
+                  {selectedManeuverIds.length === 0 && (
                     <p className="text-muted-foreground text-sm">Nenhuma manobra</p>
                   )}
                 </div>
@@ -444,8 +602,8 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-lg bg-accent/10 border border-accent/30">
-              <span className="font-ui text-accent">Pontos de Destino Iniciais</span>
-              <span className="font-display text-3xl text-accent">{character.refresh}</span>
+              <span className="font-ui text-accent">Refresh Final</span>
+              <span className="font-display text-3xl text-accent">{availableRefresh}</span>
             </div>
           </div>
         );
