@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Dices, Sparkles, Bookmark, Info, Send } from 'lucide-react';
-import { LogEntry } from '@/types/game';
+import { LogEntry, RollLogDetails } from '@/types/game';
 
 interface GameLogProps {
   logs: LogEntry[];
@@ -26,6 +26,18 @@ const getLogColor = (type: LogEntry['type']) => {
     case 'system': return 'border-l-muted';
     default: return 'border-l-foreground/30';
   }
+};
+
+const isRollDetails = (details?: LogEntry['details']): details is RollLogDetails => {
+  return Boolean(details && typeof details === 'object' && 'kind' in details && (details as RollLogDetails).kind === 'roll');
+};
+
+const formatModifier = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
+
+const formatFace = (face: 'plus' | 'minus' | 'blank') => {
+  if (face === 'plus') return '+';
+  if (face === 'minus') return '−';
+  return '0';
 };
 
 export function GameLog({ logs, onSendMessage }: GameLogProps) {
@@ -73,27 +85,69 @@ export function GameLog({ logs, onSendMessage }: GameLogProps) {
         className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0"
       >
         <AnimatePresence initial={false}>
-          {logs.map((log) => (
-            <motion.div
-              key={log.id}
-              className={`border-l-2 pl-2 py-1 ${getLogColor(log.type)}`}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="flex items-start gap-2">
-                <span className="mt-0.5">{getLogIcon(log.type)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-ui ${log.type === 'system' ? 'text-muted-foreground italic' : ''}`}>
-                    {log.message}
-                  </p>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {formatTime(log.timestamp)}
-                  </span>
+          {logs.map((log) => {
+            const rollDetails = isRollDetails(log.details) ? log.details : null;
+            const message = rollDetails
+              ? `${log.character || 'Jogador'} rolou ${rollDetails.actionLabel}${rollDetails.skill ? ` com ${rollDetails.skill} (${formatModifier(rollDetails.skillBonus ?? 0)})` : ''}`
+              : log.message;
+
+            return (
+              <motion.div
+                key={log.id}
+                className={`border-l-2 pl-2 py-1 ${getLogColor(log.type)}`}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5">{getLogIcon(log.type)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-ui ${log.type === 'system' ? 'text-muted-foreground italic' : ''}`}>
+                      {message}
+                    </p>
+                    {rollDetails && (
+                      <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground font-ui">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-foreground">Total {formatModifier(rollDetails.total)}</span>
+                          <span className="text-[11px] uppercase tracking-wide">{rollDetails.outcome}</span>
+                        </div>
+                        <div className="flex items-center flex-wrap gap-1.5">
+                          {rollDetails.fateDice.map((face, index) => (
+                            <span
+                              key={`${log.id}-df-${index}`}
+                              className="px-2 py-1 rounded border border-border bg-muted text-foreground font-mono text-[11px] leading-none"
+                              title={`dF ${index + 1}: ${formatFace(face)}`}
+                            >
+                              {formatFace(face)}
+                            </span>
+                          ))}
+                          {rollDetails.type === 'advantage' && typeof rollDetails.d6 === 'number' && (
+                            <span
+                              className="px-2 py-1 rounded border border-secondary text-secondary bg-secondary/10 font-mono text-[11px] leading-none"
+                              title={`d6 (vantagem): ${rollDetails.d6}`}
+                            >
+                              d6: {rollDetails.d6}
+                            </span>
+                          )}
+                          {rollDetails.type !== 'advantage' && typeof rollDetails.d6 === 'number' && (
+                            <span
+                              className="px-2 py-1 rounded border border-border bg-muted text-foreground font-mono text-[11px] leading-none"
+                              title={`d6: ${rollDetails.d6}`}
+                            >
+                              d6: {rollDetails.d6}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {formatTime(log.timestamp)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
 

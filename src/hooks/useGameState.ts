@@ -73,6 +73,13 @@ export function useGameState(initialCharacter?: Character) {
       }, 0);
     }
 
+    const actionLabels: Record<ActionType, string> = {
+      superar: 'Superar',
+      criarVantagem: 'Criar Vantagem',
+      atacar: 'Atacar',
+      defender: 'Defender',
+    };
+
     const result: DiceResult = {
       id: crypto.randomUUID(),
       fateDice,
@@ -86,23 +93,30 @@ export function useGameState(initialCharacter?: Character) {
       type,
     };
 
-    const actionLabels: Record<ActionType, string> = {
-      superar: 'Superar',
-      criarVantagem: 'Criar Vantagem',
-      atacar: 'Atacar',
-      defender: 'Defender',
-    };
-
-    const resultText = result.total >= 3 ? 'Sucesso com Estilo!' : 
+    const resultText = result.total >= 3 ? 'Sucesso com Estilo!' :
                        result.total >= 0 ? 'Sucesso' : 'Falha';
+
+    const details = {
+      kind: 'roll' as const,
+      action,
+      actionLabel: actionLabels[action],
+      skill,
+      skillBonus: modifier,
+      fateDice: result.fateDice,
+      d6: result.d6,
+      modifier,
+      total: result.total,
+      type: result.type,
+      outcome: resultText,
+    };
 
     const logEntry: LogEntry = {
       id: crypto.randomUUID(),
       type: 'roll',
-      message: `${result.character} (${actionLabels[action]}) ${skill ? `com ${skill}` : 'sem habilidade'}: ${result.total} (${resultText})`,
+      message: `${result.character} rolou ${actionLabels[action]}${skill ? ` com ${skill} (${modifier >= 0 ? '+' : ''}${modifier})` : ''}`,
       character: result.character,
       timestamp: new Date(),
-      details: { fateDice: result.fateDice, d6: result.d6, modifier, total: result.total, action },
+      details,
     };
 
     setGameState(prev => ({

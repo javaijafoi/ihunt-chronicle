@@ -69,13 +69,27 @@ export interface DiceResult {
   type: 'normal' | 'advantage';
 }
 
+export interface RollLogDetails {
+  kind: 'roll';
+  action: ActionType;
+  actionLabel: string;
+  skill?: string;
+  skillBonus?: number;
+  fateDice: ('plus' | 'minus' | 'blank')[];
+  d6?: number;
+  modifier: number;
+  total: number;
+  type: 'normal' | 'advantage';
+  outcome: string;
+}
+
 export interface LogEntry {
   id: string;
   type: 'roll' | 'aspect' | 'fate' | 'system' | 'chat';
   message: string;
   character?: string;
   timestamp: Date;
-  details?: Record<string, unknown>;
+  details?: RollLogDetails | Record<string, unknown>;
 }
 
 export interface Scene {
