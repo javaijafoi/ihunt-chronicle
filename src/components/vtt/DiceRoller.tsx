@@ -43,6 +43,23 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [actionPrompt, setActionPrompt] = useState(false);
+  const [hasAdvantage, setHasAdvantage] = useState(false);
+
+  const calculateDiceTotal = (diceResult: DiceResult) => {
+    const fateTotal = diceResult.fateDice.reduce((sum, die) => {
+      if (die === 'plus') return sum + 1;
+      if (die === 'minus') return sum - 1;
+      return sum;
+    }, 0);
+
+    const advantageValue = diceResult.type === 'advantage' && diceResult.d6
+      ? Math.ceil(diceResult.d6 / 2)
+      : 0;
+
+    return fateTotal + advantageValue;
+  };
+
+  const formatNumber = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,10 +67,11 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
       setResult(null);
       setSelectedAction(null);
       setActionPrompt(true);
+      setHasAdvantage(false);
     }
   }, [isOpen, presetSkill]);
 
-  const handleRoll = async (type: 'normal' | 'advantage' = 'normal') => {
+  const handleRoll = async () => {
     if (!selectedAction) {
       setActionPrompt(true);
       return;
@@ -65,7 +83,7 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
     await new Promise(r => setTimeout(r, 100));
     
     const modifier = selectedSkill ? skills[selectedSkill] || 0 : 0;
-    const diceResult = onRoll(modifier, selectedSkill || undefined, selectedAction, type);
+    const diceResult = onRoll(modifier, selectedSkill || undefined, selectedAction, hasAdvantage ? 'advantage' : 'normal');
     
     await new Promise(r => setTimeout(r, 600));
     
@@ -78,6 +96,8 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
     if (total >= 0) return { text: 'Sucesso', class: 'text-fate-plus' };
     return { text: 'Falha', class: 'text-destructive' };
   };
+
+  const diceTotal = result ? calculateDiceTotal(result) : 0;
 
   return (
     <AnimatePresence>
@@ -178,9 +198,22 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
                   <Dices className="w-12 h-12 text-primary" />
                 </motion.div>
               ) : result ? (
-                result.dice.map((face, i) => (
-                  <FateDie key={i} face={face} delay={i * 0.1} />
-                ))
+                <>
+                  {result.fateDice.map((face, i) => (
+                    <FateDie key={i} face={face} delay={i * 0.1} />
+                  ))}
+                  {result.type === 'advantage' && typeof result.d6 === 'number' && (
+                    <motion.div
+                      className="fate-die advantage-d6 border-2 border-secondary bg-secondary/10 text-secondary flex flex-col items-center justify-center px-3 py-2 rounded-lg shadow-lg glow-secondary"
+                      initial={{ rotateX: 720, rotateY: 720, scale: 0 }}
+                      animate={{ rotateX: 0, rotateY: 0, scale: 1 }}
+                      transition={{ delay: result.fateDice.length * 0.1, duration: 0.6, type: 'spring' }}
+                    >
+                      <span className="text-[10px] font-ui uppercase tracking-wider">d6</span>
+                      <span className="font-display text-xl">{result.d6}</span>
+                    </motion.div>
+                  )}
+                </>
               ) : (
                 <div className="text-muted-foreground text-center">
                   <Dices className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -206,13 +239,9 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
                   <p className={`font-display text-xl ${getResultLabel(result.total).class}`}>
                     {getResultLabel(result.total).text}
                   </p>
-                  {(result.modifier !== 0 || result.skill) && (
-                    <p className="text-sm text-muted-foreground mt-1 font-mono">
-                      {result.dice.map(d => d === 'plus' ? '+1' : d === 'minus' ? '-1' : '0').join(' ')} 
-                      {result.modifier >= 0 ? ` +${result.modifier}` : ` ${result.modifier}`} 
-                      {result.skill && ` (${result.skill})`}
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground mt-1 font-mono">
+                    Dados: {formatNumber(diceTotal)} | Perícia: {formatNumber(result.modifier)}{result.skill ? ` (${result.skill})` : ''} = Total: {formatNumber(result.total)}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1 font-ui uppercase tracking-wide">
                     Ação: {ACTIONS.find(a => a.value === result.action)?.label}
                   </p>
@@ -220,30 +249,34 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
               )}
             </AnimatePresence>
 
-            {/* Roll Buttons */}
-            <div className="flex gap-3">
-              <motion.button
-                onClick={() => handleRoll('normal')}
-                disabled={isRolling || !selectedAction}
-                className="flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-display text-lg
-                         hover:bg-primary/90 disabled:opacity-50 transition-all glow-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+            {/* Advantage Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-muted-foreground font-ui">Tenho a Vantagem</span>
+              <button
+                type="button"
+                onClick={() => setHasAdvantage((prev) => !prev)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${hasAdvantage ? 'border-secondary bg-secondary/10 text-secondary glow-secondary' : 'border-border hover:border-primary/60'}`}
+                aria-pressed={hasAdvantage}
               >
-                <Dices className="w-5 h-5 inline mr-2" />
-                Rolar 4dF
-              </motion.button>
-              <motion.button
-                onClick={() => handleRoll('advantage')}
-                disabled={isRolling || !selectedAction}
-                className="py-3 px-4 rounded-lg bg-secondary text-secondary-foreground font-display text-lg
-                         hover:bg-secondary/90 disabled:opacity-50 transition-all glow-secondary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Vantagem
-              </motion.button>
+                <span className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${hasAdvantage ? 'bg-secondary' : 'bg-muted'}`}>
+                  <span className={`absolute left-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform ${hasAdvantage ? 'translate-x-5' : ''}`} />
+                </span>
+                <span className="font-ui text-sm">{hasAdvantage ? 'Ativa' : 'Desativada'}</span>
+              </button>
             </div>
+
+            {/* Roll Button */}
+            <motion.button
+              onClick={handleRoll}
+              disabled={isRolling || !selectedAction}
+              className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground font-display text-lg
+                       hover:bg-primary/90 disabled:opacity-50 transition-all glow-primary flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Dices className="w-5 h-5" />
+              {hasAdvantage ? 'Rolar com Vantagem' : 'Rolar Dados'}
+            </motion.button>
           </motion.div>
         </motion.div>
       )}

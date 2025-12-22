@@ -58,7 +58,8 @@ export type ActionType = 'superar' | 'criarVantagem' | 'atacar' | 'defender';
 
 export interface DiceResult {
   id: string;
-  dice: ('plus' | 'minus' | 'blank')[];
+  fateDice: ('plus' | 'minus' | 'blank')[];
+  d6?: number;
   modifier: number;
   total: number;
   character: string;
