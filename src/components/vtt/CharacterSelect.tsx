@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles } from 'lucide-react';
+import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2 } from 'lucide-react';
 import { Character } from '@/types/game';
-import { useCharacters } from '@/hooks/useCharacters';
+import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
@@ -12,25 +12,25 @@ interface CharacterSelectProps {
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const { 
     characters, 
+    loading,
     createCharacter, 
     updateCharacter,
     deleteCharacter, 
     duplicateCharacter,
-    exportCharacters,
-    importCharacters 
-  } = useCharacters();
+  } = useFirebaseCharacters();
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCreate = (characterData: Omit<Character, 'id'>) => {
+  const handleCreate = async (characterData: Omit<Character, 'id'>) => {
     if (editingCharacter) {
-      updateCharacter(editingCharacter.id, characterData);
+      await updateCharacter(editingCharacter.id, characterData);
       setEditingCharacter(undefined);
     } else {
-      createCharacter(characterData);
+      await createCharacter(characterData);
     }
   };
 
@@ -40,7 +40,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   };
 
   const handleExport = () => {
-    const json = exportCharacters();
+    const json = JSON.stringify(characters, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -50,14 +50,26 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const json = event.target?.result as string;
-      importCharacters(json);
+    reader.onload = async (event) => {
+      try {
+        const json = event.target?.result as string;
+        const imported = JSON.parse(json) as Character[];
+        if (Array.isArray(imported)) {
+          for (const char of imported) {
+            const { id, ...data } = char;
+            await createCharacter(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error importing characters:', error);
+      }
+      setIsImporting(false);
     };
     reader.readAsText(file);
     
@@ -72,6 +84,15 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
       onSelectCharacter(character);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Carregando personagens...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
@@ -268,10 +289,15 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted
-                       hover:bg-muted/80 transition-colors font-ui text-sm"
+                       hover:bg-muted/80 disabled:opacity-50 transition-colors font-ui text-sm"
             >
-              <Upload className="w-4 h-4" />
+              {isImporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
               Importar
             </button>
             <input
