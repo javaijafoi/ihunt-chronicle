@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, Plus, Minus, X } from 'lucide-react';
-import { DiceResult } from '@/types/game';
+import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain } from 'lucide-react';
+import { ActionType, DiceResult } from '@/types/game';
 
 interface DiceRollerProps {
-  onRoll: (modifier: number, skill?: string, type?: 'normal' | 'advantage') => DiceResult;
+  onRoll: (modifier: number, skill: string | undefined, action: ActionType, type?: 'normal' | 'advantage') => DiceResult;
   skills?: Record<string, number>;
   isOpen: boolean;
   onClose: () => void;
+  presetSkill?: string | null;
 }
 
 const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: number }) => {
@@ -29,19 +30,42 @@ const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: num
   );
 };
 
-export function DiceRoller({ onRoll, skills = {}, isOpen, onClose }: DiceRollerProps) {
+const ACTIONS: { value: ActionType; label: string; icon: ReactNode; tooltip: string }[] = [
+  { value: 'superar', label: 'Superar', icon: <Mountain className="w-5 h-5" />, tooltip: 'Superar obstáculos' },
+  { value: 'criarVantagem', label: 'Criar Vantagem', icon: <Wand2 className="w-5 h-5" />, tooltip: 'Criar ou descobrir aspectos' },
+  { value: 'atacar', label: 'Atacar', icon: <Swords className="w-5 h-5" />, tooltip: 'Causar dano direto' },
+  { value: 'defender', label: 'Defender', icon: <Shield className="w-5 h-5" />, tooltip: 'Evitar ataques ou perigos' },
+];
+
+export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }: DiceRollerProps) {
   const [result, setResult] = useState<DiceResult | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [actionPrompt, setActionPrompt] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedSkill(presetSkill ?? null);
+      setResult(null);
+      setSelectedAction(null);
+      setActionPrompt(true);
+    }
+  }, [isOpen, presetSkill]);
 
   const handleRoll = async (type: 'normal' | 'advantage' = 'normal') => {
+    if (!selectedAction) {
+      setActionPrompt(true);
+      return;
+    }
+
     setIsRolling(true);
     setResult(null);
     
     await new Promise(r => setTimeout(r, 100));
     
     const modifier = selectedSkill ? skills[selectedSkill] || 0 : 0;
-    const diceResult = onRoll(modifier, selectedSkill || undefined, type);
+    const diceResult = onRoll(modifier, selectedSkill || undefined, selectedAction, type);
     
     await new Promise(r => setTimeout(r, 600));
     
@@ -109,6 +133,41 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose }: DiceRollerP
               </div>
             )}
 
+            {/* Action Selection */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">
+                  Ação
+                </label>
+                {actionPrompt && !selectedAction && (
+                  <span className="text-xs text-destructive font-ui">Qual ação?</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {ACTIONS.map((action) => (
+                  <button
+                    key={action.value}
+                    onClick={() => {
+                      setSelectedAction(action.value);
+                      setActionPrompt(false);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                      selectedAction === action.value
+                        ? 'border-primary bg-primary/10 text-primary glow-primary'
+                        : 'border-border hover:border-primary/60'
+                    }`}
+                    title={action.tooltip}
+                  >
+                    <span className="shrink-0">{action.icon}</span>
+                    <div>
+                      <div className="font-display text-sm leading-tight">{action.label}</div>
+                      <div className="text-[11px] text-muted-foreground leading-tight">{action.tooltip}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Dice Display */}
             <div className="flex justify-center gap-3 min-h-[80px] items-center mb-6">
               {isRolling ? (
@@ -147,13 +206,16 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose }: DiceRollerP
                   <p className={`font-display text-xl ${getResultLabel(result.total).class}`}>
                     {getResultLabel(result.total).text}
                   </p>
-                  {result.modifier !== 0 && (
+                  {(result.modifier !== 0 || result.skill) && (
                     <p className="text-sm text-muted-foreground mt-1 font-mono">
                       {result.dice.map(d => d === 'plus' ? '+1' : d === 'minus' ? '-1' : '0').join(' ')} 
                       {result.modifier >= 0 ? ` +${result.modifier}` : ` ${result.modifier}`} 
                       {result.skill && ` (${result.skill})`}
                     </p>
                   )}
+                  <p className="text-xs text-muted-foreground mt-1 font-ui uppercase tracking-wide">
+                    Ação: {ACTIONS.find(a => a.value === result.action)?.label}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -162,7 +224,7 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose }: DiceRollerP
             <div className="flex gap-3">
               <motion.button
                 onClick={() => handleRoll('normal')}
-                disabled={isRolling}
+                disabled={isRolling || !selectedAction}
                 className="flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-display text-lg
                          hover:bg-primary/90 disabled:opacity-50 transition-all glow-primary"
                 whileHover={{ scale: 1.02 }}
@@ -173,7 +235,7 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose }: DiceRollerP
               </motion.button>
               <motion.button
                 onClick={() => handleRoll('advantage')}
-                disabled={isRolling}
+                disabled={isRolling || !selectedAction}
                 className="py-3 px-4 rounded-lg bg-secondary text-secondary-foreground font-display text-lg
                          hover:bg-secondary/90 disabled:opacity-50 transition-all glow-secondary"
                 whileHover={{ scale: 1.02 }}

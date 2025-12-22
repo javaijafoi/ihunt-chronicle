@@ -54,6 +54,8 @@ export interface SceneAspect {
   isTemporary: boolean;
 }
 
+export type ActionType = 'superar' | 'criarVantagem' | 'atacar' | 'defender';
+
 export interface DiceResult {
   id: string;
   dice: ('plus' | 'minus' | 'blank')[];
@@ -61,6 +63,7 @@ export interface DiceResult {
   total: number;
   character: string;
   skill?: string;
+  action: ActionType;
   timestamp: Date;
   type: 'normal' | 'advantage';
 }

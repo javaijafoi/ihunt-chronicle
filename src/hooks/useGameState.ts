@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GameState, Character, DiceResult, LogEntry, SceneAspect } from '@/types/game';
+import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
 import sceneBackground from '@/assets/scene-default.jpg';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -47,7 +47,7 @@ export function useGameState(initialCharacter?: Character) {
     }
   }, [selectedCharacter, setSavedCharacters]);
 
-  const rollDice = useCallback((modifier: number = 0, skill?: string, type: 'normal' | 'advantage' = 'normal'): DiceResult => {
+  const rollDice = useCallback((modifier: number = 0, skill: string | undefined, action: ActionType, type: 'normal' | 'advantage' = 'normal'): DiceResult => {
     const faces: ('plus' | 'minus' | 'blank')[] = ['plus', 'minus', 'blank'];
     
     let dice: ('plus' | 'minus' | 'blank')[];
@@ -79,8 +79,16 @@ export function useGameState(initialCharacter?: Character) {
       total: diceSum + modifier,
       character: selectedCharacter?.name || 'Anônimo',
       skill,
+      action,
       timestamp: new Date(),
       type,
+    };
+
+    const actionLabels: Record<ActionType, string> = {
+      superar: 'Superar',
+      criarVantagem: 'Criar Vantagem',
+      atacar: 'Atacar',
+      defender: 'Defender',
     };
 
     const resultText = result.total >= 3 ? 'Sucesso com Estilo!' : 
@@ -89,10 +97,10 @@ export function useGameState(initialCharacter?: Character) {
     const logEntry: LogEntry = {
       id: crypto.randomUUID(),
       type: 'roll',
-      message: `${result.character} rolou ${skill ? skill : 'dados'}: ${result.total} (${resultText})`,
+      message: `${result.character} (${actionLabels[action]}) ${skill ? `com ${skill}` : 'sem habilidade'}: ${result.total} (${resultText})`,
       character: result.character,
       timestamp: new Date(),
-      details: { dice: result.dice, modifier, total: result.total },
+      details: { dice: result.dice, modifier, total: result.total, action },
     };
 
     setGameState(prev => ({
