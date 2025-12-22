@@ -1,15 +1,20 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2, Users, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
+import { useSession } from '@/hooks/useSession';
 import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
+  sessionId?: string | null;
+  isGM?: boolean;
 }
 
-export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
+export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: CharacterSelectProps) {
+  const navigate = useNavigate();
   const { 
     characters, 
     loading,
@@ -18,11 +23,13 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     deleteCharacter, 
     duplicateCharacter,
   } = useFirebaseCharacters();
+  const { joinSession } = useSession();
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async (characterData: Omit<Character, 'id'>) => {
@@ -78,11 +85,23 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     }
   };
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     const character = characters.find(c => c.id === selectedId);
-    if (character) {
-      onSelectCharacter(character);
+    if (!character) return;
+    
+    // If joining a session, add character to session first
+    if (sessionId) {
+      setIsJoining(true);
+      const success = await joinSession(sessionId, character.id);
+      setIsJoining(false);
+      
+      if (!success) {
+        alert('Erro ao entrar na sessão. Verifique o código.');
+        return;
+      }
     }
+    
+    onSelectCharacter(character);
   };
 
   if (loading) {
@@ -120,9 +139,28 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
             <span className="text-foreground">HUNT</span>
             <span className="text-muted-foreground text-2xl ml-3">VTT</span>
           </h1>
-          <p className="text-muted-foreground font-ui">
-            Selecione um personagem para começar
+          
+          {sessionId && (
+            <div className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-sm text-primary">
+                {isGM ? 'Criando sessão como Mestre' : `Entrando na sessão: ${sessionId.slice(0, 8)}...`}
+              </span>
+            </div>
+          )}
+          
+          <p className="text-muted-foreground font-ui mt-3">
+            {sessionId ? 'Escolha um personagem para entrar na sessão' : 'Selecione um personagem para começar'}
           </p>
+          
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Lobby
+          </button>
         </div>
 
         {/* Character Grid */}
@@ -311,14 +349,18 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
           <button
             onClick={handlePlay}
-            disabled={!selectedId}
+            disabled={!selectedId || isJoining}
             className="flex items-center gap-2 px-6 py-3 rounded-lg 
                      bg-primary text-primary-foreground font-ui
                      hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
                      transition-colors"
           >
-            <Play className="w-5 h-5" />
-            Jogar
+            {isJoining ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Play className="w-5 h-5" />
+            )}
+            {sessionId ? 'Entrar na Sessão' : 'Jogar'}
           </button>
         </div>
       </motion.div>

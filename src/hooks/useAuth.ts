@@ -60,8 +60,12 @@ export function useAuth() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google sign in error:', error);
+      // Handle unauthorized domain error
+      if (error?.code === 'auth/unauthorized-domain') {
+        throw new Error('Domínio não autorizado. Adicione este domínio no Firebase Console → Authentication → Settings → Authorized domains');
+      }
       throw error;
     }
   }, []);
@@ -69,8 +73,11 @@ export function useAuth() {
   const signInAnonymously = useCallback(async () => {
     try {
       await firebaseSignInAnonymously(auth);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Anonymous sign in error:', error);
+      if (error?.code === 'auth/unauthorized-domain') {
+        throw new Error('Domínio não autorizado. Adicione este domínio no Firebase Console');
+      }
       throw error;
     }
   }, []);

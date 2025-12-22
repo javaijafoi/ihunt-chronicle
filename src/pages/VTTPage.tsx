@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, Share2, Copy, Check } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, Share2, Check } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from '@/hooks/useSession';
@@ -18,15 +18,27 @@ import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Character } from '@/types/game';
 
+interface LocationState {
+  sessionId?: string;
+  isGM?: boolean;
+}
+
 export function VTTPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as LocationState | null;
+  
   const { userProfile, loading: authLoading } = useAuth();
-  const { currentSession, sessionId, leaveSession, isGM } = useSession();
+  const { currentSession, sessionId: activeSessionId, leaveSession, isGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<Character | null>(null);
   const [copiedSessionId, setCopiedSessionId] = useState(false);
+  
+  // Get session ID from navigation state or active session
+  const pendingSessionId = locationState?.sessionId;
+  const pendingIsGM = locationState?.isGM;
   
   const {
     gameState,
@@ -44,6 +56,14 @@ export function VTTPage() {
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
+  // Clear location state after reading to avoid re-joining on refresh
+  useEffect(() => {
+    if (locationState?.sessionId && activeCharacter) {
+      // Clear the state from history
+      window.history.replaceState({}, document.title);
+    }
+  }, [locationState, activeCharacter]);
+
   // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
     navigate('/');
@@ -52,12 +72,19 @@ export function VTTPage() {
 
   // Show character select if no active character
   if (!activeCharacter) {
-    return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
+    return (
+      <CharacterSelect 
+        onSelectCharacter={setActiveCharacter} 
+        sessionId={pendingSessionId || activeSessionId}
+        isGM={pendingIsGM}
+      />
+    );
   }
 
   const handleCopySessionId = () => {
-    if (sessionId) {
-      navigator.clipboard.writeText(sessionId);
+    const idToCopy = activeSessionId || pendingSessionId;
+    if (idToCopy) {
+      navigator.clipboard.writeText(idToCopy);
       setCopiedSessionId(true);
       setTimeout(() => setCopiedSessionId(false), 2000);
     }
