@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function sessionSnapshot(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId));
+    }
+
+    function sessionExists(sessionId) {
+      return exists(/databases/$(database)/documents/sessions/$(sessionId));
+    }
+
+    function isSessionGm(sessionId) {
+      let session = sessionSnapshot(sessionId);
+      return isSignedIn() && session.data != null && session.data.gmId == request.auth.uid;
+    }
+
+    function hasSessionPresence(sessionId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/sessions/$(sessionId)/presence/$(request.auth.uid));
+    }
+
+    function canAccessSession(sessionId) {
+      return isSessionGm(sessionId) || hasSessionPresence(sessionId);
+    }
+
+    match /characters/{characterId} {
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /sessions/{sessionId} {
+      allow create: if isSignedIn() && request.resource.data.gmId == request.auth.uid;
+      allow read, update, delete: if canAccessSession(sessionId);
+
+      match /presence/{userId} {
+        allow read: if canAccessSession(sessionId);
+
+        allow create: if isSignedIn()
+          && sessionExists(sessionId)
+          && (request.auth.uid == userId || isSessionGm(sessionId))
+          && request.resource.data.oderId == userId;
+
+        allow update, delete: if isSignedIn()
+          && (request.auth.uid == userId || isSessionGm(sessionId))
+          && canAccessSession(sessionId);
+      }
+    }
+  }
+}
