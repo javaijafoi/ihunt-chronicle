@@ -6,7 +6,6 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-  getDoc,
   setDoc,
   serverTimestamp,
   arrayUnion,
@@ -101,21 +100,7 @@ export function useSession() {
     setLoading(true);
 
     try {
-      const sessionRef = doc(db, 'sessions', id);
-      const sessionSnap = await getDoc(sessionRef);
-      
-      if (!sessionSnap.exists()) {
-        setLoading(false);
-        return false;
-      }
-
-      // Add character to session
-      await updateDoc(sessionRef, {
-        characterIds: arrayUnion(characterId),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Set presence
+      // Set presence first so Firestore rules recognize the user as part of the session
       const presenceRef = doc(db, 'sessions', id, 'presence', user.uid);
       await setDoc(presenceRef, {
         oderId: user.uid,
@@ -123,6 +108,12 @@ export function useSession() {
         characterId: characterId,
         lastSeen: serverTimestamp(),
         online: true,
+      });
+
+      const sessionRef = doc(db, 'sessions', id);
+      await updateDoc(sessionRef, {
+        characterIds: arrayUnion(characterId),
+        updatedAt: serverTimestamp(),
       });
 
       localStorage.setItem('ihunt-current-session', id);
