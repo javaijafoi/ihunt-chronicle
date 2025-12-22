@@ -64,50 +64,63 @@ export function usePartyCharacters() {
       return;
     }
 
-    // Firestore 'in' queries are limited to 10 items
-    const characterIds = currentSession.characterIds.slice(0, 10);
-    
-    const q = query(
-      collection(db, 'characters'),
-      where(documentId(), 'in', characterIds)
-    );
+    // Firestore 'in' queries are limited to 10 items, so we batch them
+    const characterIdChunks: string[][] = [];
+    for (let i = 0; i < currentSession.characterIds.length; i += 10) {
+      characterIdChunks.push(currentSession.characterIds.slice(i, i + 10));
+    }
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const chars: PartyCharacter[] = snapshot.docs.map(docSnap => {
-          const data = docSnap.data() as Character & { ownerId: string };
-          const ownerPresence = Object.values(presenceMap).find(p => p.characterId === docSnap.id);
-          
-          return {
-            ...data,
-            id: docSnap.id,
-            oderId: data.ownerId,
-            ownerName: ownerPresence?.ownerName || 'Desconhecido',
-            isOnline: !!ownerPresence?.online,
-          };
-        });
-        
-        setPartyCharacters(chars);
-        setLoading(false);
-      },
-      (error: FirestoreError) => {
-        if (error.code === 'permission-denied') {
-          toast({
-            title: 'Acesso negado',
-            description: 'Perdemos o acesso aos personagens do grupo. Entre novamente para continuar.',
-            variant: 'destructive',
+    const batchCharacters: Record<string, PartyCharacter> = {};
+
+    const unsubscribes = characterIdChunks.map(ids => {
+      const q = query(
+        collection(db, 'characters'),
+        where(documentId(), 'in', ids)
+      );
+
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data() as Character & { ownerId: string };
+            const ownerPresence = Object.values(presenceMap).find(p => p.characterId === docSnap.id);
+
+            batchCharacters[docSnap.id] = {
+              ...data,
+              id: docSnap.id,
+              oderId: data.ownerId,
+              ownerName: ownerPresence?.ownerName || 'Desconhecido',
+              isOnline: !!ownerPresence?.online,
+            };
           });
-          setPartyCharacters([]);
-          localStorage.removeItem('ihunt-current-session');
-        } else {
-          console.error('Erro ao escutar personagens do grupo:', error);
-        }
-        setLoading(false);
-      }
-    );
 
-    return () => unsubscribe();
+          const mergedCharacters = currentSession.characterIds
+            .map(id => batchCharacters[id])
+            .filter((character): character is PartyCharacter => Boolean(character));
+
+          setPartyCharacters(mergedCharacters);
+          setLoading(false);
+        },
+        (error: FirestoreError) => {
+          if (error.code === 'permission-denied') {
+            toast({
+              title: 'Acesso negado',
+              description: 'Perdemos o acesso aos personagens do grupo. Entre novamente para continuar.',
+              variant: 'destructive',
+            });
+            setPartyCharacters([]);
+            localStorage.removeItem('ihunt-current-session');
+          } else {
+            console.error('Erro ao escutar personagens do grupo:', error);
+          }
+          setLoading(false);
+        }
+      );
+    });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
   }, [currentSession, presenceMap]);
 
   const myCharacter = partyCharacters.find(c => c.oderId === user?.uid) || null;
