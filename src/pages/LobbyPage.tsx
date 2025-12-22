@@ -8,7 +8,8 @@ import {
   Users, 
   ArrowRight,
   Loader2,
-  LogOut
+  LogOut,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from '@/hooks/useSession';
@@ -16,12 +17,13 @@ import { useSession } from '@/hooks/useSession';
 export function LobbyPage() {
   const navigate = useNavigate();
   const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
-  const { createSession, joinSession, loading: sessionLoading } = useSession();
+  const { createSession, loading: sessionLoading } = useSession();
   
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
   const [sessionName, setSessionName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
+  const [authError, setAuthError] = useState('');
 
   // Show login if not authenticated
   if (!userProfile) {
@@ -61,8 +63,22 @@ export function LobbyPage() {
               </div>
             ) : (
               <>
+                {authError && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <p className="text-destructive">{authError}</p>
+                  </div>
+                )}
+                
                 <button
-                  onClick={signInWithGoogle}
+                  onClick={async () => {
+                    try {
+                      setAuthError('');
+                      await signInWithGoogle();
+                    } catch (e: any) {
+                      setAuthError(e.message || 'Erro ao fazer login');
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg
                            bg-primary text-primary-foreground font-ui
                            hover:bg-primary/90 transition-colors"
@@ -81,7 +97,14 @@ export function LobbyPage() {
                 </div>
 
                 <button
-                  onClick={signInAnonymously}
+                  onClick={async () => {
+                    try {
+                      setAuthError('');
+                      await signInAnonymously();
+                    } catch (e: any) {
+                      setAuthError(e.message || 'Erro ao entrar como visitante');
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg
                            bg-muted text-foreground font-ui
                            hover:bg-muted/80 transition-colors"
@@ -106,22 +129,22 @@ export function LobbyPage() {
     setError('');
     const id = await createSession(sessionName.trim());
     if (id) {
-      navigate('/vtt');
+      // Navigate to VTT with the session ID, user will select character there
+      navigate('/vtt', { state: { sessionId: id, isGM: true } });
     } else {
       setError('Erro ao criar sessão');
     }
   };
 
-  const handleJoinSession = async () => {
+  const handleJoinSession = () => {
     if (!joinCode.trim()) {
       setError('Digite o código da sessão');
       return;
     }
     
     setError('');
-    // For now, we'll join without a character and select one in CharacterSelect
-    // This is a simplified flow
-    navigate('/vtt', { state: { pendingSessionId: joinCode.trim() } });
+    // Navigate to VTT with pending session, user will select character there
+    navigate('/vtt', { state: { sessionId: joinCode.trim(), isGM: false } });
   };
 
   return (
