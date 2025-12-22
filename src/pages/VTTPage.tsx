@@ -242,6 +242,12 @@ export function VTTPage() {
         onRoll={rollDice}
         skills={selectedCharacter?.skills}
         presetSkill={presetSkill}
+        fatePoints={selectedCharacter?.fatePoints}
+        onSpendFate={() => {
+          if (selectedCharacter) {
+            spendFatePoint(selectedCharacter.id);
+          }
+        }}
       />
 
       <SafetyCard

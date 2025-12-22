@@ -9,6 +9,8 @@ interface DiceRollerProps {
   isOpen: boolean;
   onClose: () => void;
   presetSkill?: string | null;
+  fatePoints?: number;
+  onSpendFate?: () => void;
 }
 
 const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: number }) => {
@@ -37,7 +39,7 @@ const ACTIONS: { value: ActionType; label: string; icon: ReactNode; tooltip: str
   { value: 'defender', label: 'Defender', icon: <Shield className="w-5 h-5" />, tooltip: 'Evitar ataques ou perigos' },
 ];
 
-export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }: DiceRollerProps) {
+export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, fatePoints = 0, onSpendFate }: DiceRollerProps) {
   const [result, setResult] = useState<DiceResult | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
@@ -71,6 +73,8 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
     }
   }, [isOpen, presetSkill]);
 
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleRoll = async () => {
     if (!selectedAction) {
       setActionPrompt(true);
@@ -80,14 +84,39 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
     setIsRolling(true);
     setResult(null);
     
-    await new Promise(r => setTimeout(r, 100));
+    await sleep(100);
     
     const modifier = selectedSkill ? skills[selectedSkill] || 0 : 0;
     const diceResult = onRoll(modifier, selectedSkill || undefined, selectedAction, hasAdvantage ? 'advantage' : 'normal');
     
-    await new Promise(r => setTimeout(r, 600));
+    await sleep(600);
     
     setResult(diceResult);
+    setIsRolling(false);
+  };
+
+  const handleInvokeAspect = () => {
+    if (!result || fatePoints <= 0 || !onSpendFate) return;
+
+    onSpendFate();
+    setResult((prev) => prev ? { ...prev, total: prev.total + 2 } : prev);
+  };
+
+  const handleReroll = async () => {
+    if (!result || fatePoints <= 0 || !onSpendFate) return;
+
+    onSpendFate();
+    setIsRolling(true);
+    setResult(null);
+    setSelectedAction(result.action);
+    setSelectedSkill(result.skill ?? null);
+    setHasAdvantage(result.type === 'advantage');
+
+    await sleep(100);
+    const rerollResult = onRoll(result.modifier, result.skill, result.action, result.type);
+    await sleep(600);
+
+    setResult(rerollResult);
     setIsRolling(false);
   };
 
@@ -245,6 +274,26 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill }
                   <p className="text-xs text-muted-foreground mt-1 font-ui uppercase tracking-wide">
                     Ação: {ACTIONS.find(a => a.value === result.action)?.label}
                   </p>
+                  {fatePoints > 0 && onSpendFate && (
+                    <div className="mt-4 flex flex-wrap justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleInvokeAspect}
+                        disabled={isRolling}
+                        className="px-4 py-2 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-ui disabled:opacity-50"
+                      >
+                        Invocar Aspecto (+2)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleReroll}
+                        disabled={isRolling}
+                        className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 transition-colors font-ui disabled:opacity-50"
+                      >
+                        Rolar Novamente
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
