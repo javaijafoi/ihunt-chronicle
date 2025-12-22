@@ -17,6 +17,7 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Character } from '@/types/game';
+import { PartyCharacter } from '@/types/session';
 
 export function VTTPage() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export function VTTPage() {
   const { partyCharacters } = usePartyCharacters();
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
-  const [viewingCharacter, setViewingCharacter] = useState<Character | null>(null);
+  const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
   
   const {
     gameState,
@@ -69,6 +70,12 @@ export function VTTPage() {
   };
 
   const isSessionGM = user?.uid === currentSession?.gmId;
+  const viewingOwnerId = viewingCharacter
+    ? (viewingCharacter as PartyCharacter).oderId ?? (viewingCharacter as { ownerId?: string }).ownerId
+    : null;
+  const canEditViewingCharacter = viewingCharacter
+    ? isGM || (!!user?.uid && viewingOwnerId === user.uid)
+    : false;
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
@@ -251,6 +258,7 @@ export function VTTPage() {
           onSpendFate={() => {}}
           onGainFate={() => {}}
           onToggleStress={() => {}}
+          readOnly={!canEditViewingCharacter}
         />
       )}
     </div>
