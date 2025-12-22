@@ -50,22 +50,23 @@ export function useGameState(initialCharacter?: Character) {
   const rollDice = useCallback((modifier: number = 0, skill: string | undefined, action: ActionType, type: 'normal' | 'advantage' = 'normal'): DiceResult => {
     const faces: ('plus' | 'minus' | 'blank')[] = ['plus', 'minus', 'blank'];
     
-    let dice: ('plus' | 'minus' | 'blank')[];
+    let fateDice: ('plus' | 'minus' | 'blank')[];
     let diceSum: number;
+    let d6: number | undefined;
     
     if (type === 'advantage') {
       // 3dF + d6 for advantage
-      dice = Array.from({ length: 3 }, () => faces[Math.floor(Math.random() * 3)]);
-      const d6 = Math.floor(Math.random() * 6) + 1;
-      diceSum = dice.reduce((sum, die) => {
+      fateDice = Array.from({ length: 3 }, () => faces[Math.floor(Math.random() * 3)]);
+      d6 = Math.floor(Math.random() * 6) + 1;
+      diceSum = fateDice.reduce((sum, die) => {
         if (die === 'plus') return sum + 1;
         if (die === 'minus') return sum - 1;
         return sum;
       }, 0) + Math.ceil(d6 / 2); // d6 converted to 1-3 range
     } else {
       // Standard 4dF
-      dice = Array.from({ length: 4 }, () => faces[Math.floor(Math.random() * 3)]);
-      diceSum = dice.reduce((sum, die) => {
+      fateDice = Array.from({ length: 4 }, () => faces[Math.floor(Math.random() * 3)]);
+      diceSum = fateDice.reduce((sum, die) => {
         if (die === 'plus') return sum + 1;
         if (die === 'minus') return sum - 1;
         return sum;
@@ -74,7 +75,8 @@ export function useGameState(initialCharacter?: Character) {
 
     const result: DiceResult = {
       id: crypto.randomUUID(),
-      dice,
+      fateDice,
+      d6,
       modifier,
       total: diceSum + modifier,
       character: selectedCharacter?.name || 'Anônimo',
@@ -100,7 +102,7 @@ export function useGameState(initialCharacter?: Character) {
       message: `${result.character} (${actionLabels[action]}) ${skill ? `com ${skill}` : 'sem habilidade'}: ${result.total} (${resultText})`,
       character: result.character,
       timestamp: new Date(),
-      details: { dice: result.dice, modifier, total: result.total, action },
+      details: { fateDice: result.fateDice, d6: result.d6, modifier, total: result.total, action },
     };
 
     setGameState(prev => ({
