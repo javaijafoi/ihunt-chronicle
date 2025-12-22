@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Share2, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, Crown } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
-import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
+import { useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { CharacterHUD } from '@/components/vtt/CharacterHUD';
@@ -18,14 +18,8 @@ import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Character } from '@/types/game';
 
-interface LocationState {
-  isGM?: boolean;
-}
-
 export function VTTPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const locationState = location.state as LocationState | null;
   
   const { userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
@@ -33,10 +27,6 @@ export function VTTPage() {
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<Character | null>(null);
-  const [copiedSessionId, setCopiedSessionId] = useState(false);
-  
-  // Get session context from navigation state
-  const pendingIsGM = locationState?.isGM;
   
   const {
     gameState,
@@ -54,14 +44,6 @@ export function VTTPage() {
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  // Clear location state after reading to avoid re-joining on refresh
-  useEffect(() => {
-    if (locationState?.isGM !== undefined && activeCharacter) {
-      // Clear the state from history
-      window.history.replaceState({}, document.title);
-    }
-  }, [locationState, activeCharacter]);
-
   // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
     navigate('/');
@@ -73,16 +55,9 @@ export function VTTPage() {
     return (
       <CharacterSelect 
         onSelectCharacter={setActiveCharacter} 
-        isGM={pendingIsGM}
       />
     );
   }
-
-  const handleCopySessionId = () => {
-    navigator.clipboard.writeText(GLOBAL_SESSION_ID);
-    setCopiedSessionId(true);
-    setTimeout(() => setCopiedSessionId(false), 2000);
-  };
 
   const handleLeaveSession = async () => {
     await leaveSession();
@@ -116,25 +91,25 @@ export function VTTPage() {
 
           {/* Session Info */}
           {currentSession && (
-            <div className="glass-panel px-3 py-2 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {currentSession.name}
-              </span>
-              <button
-                onClick={handleCopySessionId}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                title="Copiar código da sessão"
-              >
-                {copiedSessionId ? (
-                  <Check className="w-3 h-3 text-green-500" />
-                ) : (
-                  <Share2 className="w-3 h-3 text-muted-foreground" />
-                )}
-              </button>
+            <div className="glass-panel px-3 py-2 flex items-center gap-3">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">
+                  {currentSession.name}
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                  Sessão Global
+                </span>
+              </div>
+              {isGM && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted text-xs text-secondary">
+                  <Crown className="w-3 h-3" />
+                  GM
+                </span>
+              )}
               <button
                 onClick={handleLeaveSession}
                 className="p-1 rounded hover:bg-muted transition-colors"
-                title="Sair da sessão"
+                title="Trocar de personagem"
               >
                 <LogOut className="w-3 h-3 text-muted-foreground" />
               </button>
@@ -187,6 +162,7 @@ export function VTTPage() {
             aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
             onAddAspect={addSceneAspect}
             onInvokeAspect={invokeAspect}
+            canEdit={isGM}
           />
         </div>
 

@@ -7,9 +7,10 @@ interface SceneAspectsProps {
   aspects: SceneAspect[];
   onAddAspect: (name: string, freeInvokes?: number) => void;
   onInvokeAspect: (aspectName: string, useFreeInvoke?: boolean) => void;
+  canEdit?: boolean;
 }
 
-export function SceneAspects({ aspects, onAddAspect, onInvokeAspect }: SceneAspectsProps) {
+export function SceneAspects({ aspects, onAddAspect, onInvokeAspect, canEdit = true }: SceneAspectsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newAspectName, setNewAspectName] = useState('');
 
@@ -34,17 +35,19 @@ export function SceneAspects({ aspects, onAddAspect, onInvokeAspect }: SceneAspe
           <Bookmark className="w-4 h-4" />
           Aspectos da Cena
         </h3>
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors"
-        >
-          {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+          >
+            {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
       {/* Add New Aspect Form */}
       <AnimatePresence>
-        {isAdding && (
+        {isAdding && canEdit && (
           <motion.form
             onSubmit={handleSubmit}
             className="mb-4"

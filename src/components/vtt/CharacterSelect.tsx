@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2, Users, ArrowLeft } from 'lucide-react';
+import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2, Users, ArrowLeft, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
@@ -9,10 +9,9 @@ import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
-  isGM?: boolean;
 }
 
-export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProps) {
+export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();
   const { 
     characters, 
@@ -22,13 +21,14 @@ export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProp
     deleteCharacter, 
     duplicateCharacter,
   } = useFirebaseCharacters();
-  const { joinAsPlayer, claimGmRole } = useSession();
+  const { joinAsPlayer, claimGmRole, isGM } = useSession();
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [wantsGmSeat, setWantsGmSeat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async (characterData: Omit<Character, 'id'>) => {
@@ -97,7 +97,7 @@ export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProp
       return;
     }
 
-    if (isGM) {
+    if (wantsGmSeat) {
       await claimGmRole();
     }
     
@@ -143,7 +143,7 @@ export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProp
           <div className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <Users className="w-4 h-4 text-primary" />
             <span className="text-sm text-primary">
-              {isGM ? 'Entrando como Mestre da sessão global' : 'Entrando na sessão principal'}
+              Sessão principal global
             </span>
           </div>
           
@@ -345,21 +345,42 @@ export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProp
             />
           </div>
 
-          <button
-            onClick={handlePlay}
-            disabled={!selectedId || isJoining}
-            className="flex items-center gap-2 px-6 py-3 rounded-lg 
-                     bg-primary text-primary-foreground font-ui
-                     hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
-                     transition-colors"
-          >
-            {isJoining ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Play className="w-5 h-5" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setWantsGmSeat(!wantsGmSeat)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors font-ui text-sm ${
+                wantsGmSeat
+                  ? 'border-accent/40 bg-accent/10 text-accent'
+                  : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Crown className="w-4 h-4" />
+              {wantsGmSeat ? 'Assumir como Mestre' : 'Entrar como jogador'}
+            </button>
+
+            {isGM && (
+              <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-muted text-xs text-secondary">
+                <Crown className="w-3 h-3" />
+                Você é o GM atual
+              </span>
             )}
-            Entrar na Sessão
-          </button>
+
+            <button
+              onClick={handlePlay}
+              disabled={!selectedId || isJoining}
+              className="flex items-center gap-2 px-6 py-3 rounded-lg 
+                       bg-primary text-primary-foreground font-ui
+                       hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
+                       transition-colors"
+            >
+              {isJoining ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Play className="w-5 h-5" />
+              )}
+              Entrar na Sessão
+            </button>
+          </div>
         </div>
       </motion.div>
 
