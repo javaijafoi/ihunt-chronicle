@@ -12,6 +12,7 @@ interface CharacterSheetProps {
   onGainFate: () => void;
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
   readOnly?: boolean;
+  onSkillClick?: (skill: string) => void;
 }
 
 export function CharacterSheet({ 
@@ -21,7 +22,8 @@ export function CharacterSheet({
   onSpendFate,
   onGainFate,
   onToggleStress,
-  readOnly = false
+  readOnly = false,
+  onSkillClick
 }: CharacterSheetProps) {
   return (
     <AnimatePresence>
@@ -185,10 +187,16 @@ export function CharacterSheet({
                     {Object.entries(character.skills)
                       .sort(([, a], [, b]) => b - a)
                       .map(([skill, value]) => (
-                        <div key={skill} className="flex items-center justify-between px-3 py-2 rounded-md bg-muted">
-                          <span className="font-ui">{skill}</span>
+                        <button
+                          key={skill}
+                          onClick={() => onSkillClick?.(skill)}
+                          className={`flex items-center justify-between w-full px-3 py-2 rounded-md bg-muted transition-colors ${
+                            onSkillClick ? 'hover:bg-muted/80 cursor-pointer' : ''
+                          }`}
+                        >
+                          <span className="font-ui text-left">{skill}</span>
                           <span className="font-display text-xl text-primary">+{value}</span>
-                        </div>
+                        </button>
                       ))}
                   </div>
                 </div>

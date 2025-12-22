@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { User, Heart, Brain, ChevronRight } from 'lucide-react';
+import { User, Heart, Brain, ChevronRight, Dices } from 'lucide-react';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
 
@@ -9,6 +9,7 @@ interface CharacterHUDProps {
   onGainFate: () => void;
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
   onOpenSheet: () => void;
+  onOpenDice?: () => void;
 }
 
 export function CharacterHUD({ 
@@ -16,7 +17,8 @@ export function CharacterHUD({
   onSpendFate, 
   onGainFate, 
   onToggleStress,
-  onOpenSheet 
+  onOpenSheet,
+  onOpenDice
 }: CharacterHUDProps) {
   return (
     <motion.div
@@ -39,13 +41,24 @@ export function CharacterHUD({
             {character.aspects.highConcept}
           </p>
         </div>
-        <button
-          onClick={onOpenSheet}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
-          title="Ver ficha completa"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {onOpenDice && (
+            <button
+              onClick={onOpenDice}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Rolar dados"
+            >
+              <Dices className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            onClick={onOpenSheet}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            title="Ver ficha completa"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Fate Points */}

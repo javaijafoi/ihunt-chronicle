@@ -28,6 +28,7 @@ export function VTTPage() {
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
+  const [presetSkill, setPresetSkill] = useState<string | null>(null);
   
   const {
     gameState,
@@ -59,6 +60,11 @@ export function VTTPage() {
       />
     );
   }
+
+  const openDiceRoller = (skill?: string | null) => {
+    setPresetSkill(skill ?? null);
+    setIsDiceOpen(true);
+  };
 
   const handleLeaveSession = async () => {
     await leaveSession();
@@ -193,6 +199,7 @@ export function VTTPage() {
               onGainFate={() => gainFatePoint(selectedCharacter.id)}
               onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
               onOpenSheet={() => setIsSheetOpen(true)}
+              onOpenDice={() => openDiceRoller()}
             />
           )}
         </div>
@@ -218,7 +225,7 @@ export function VTTPage() {
         {/* Bottom Dock */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
           <Dock
-            onRollDice={() => setIsDiceOpen(true)}
+            onRollDice={() => openDiceRoller()}
             onOpenSheet={() => setIsSheetOpen(true)}
             onOpenSafety={() => setIsSafetyOpen(true)}
           />
@@ -228,9 +235,13 @@ export function VTTPage() {
       {/* Layer 2: Overlays */}
       <DiceRoller
         isOpen={isDiceOpen}
-        onClose={() => setIsDiceOpen(false)}
+        onClose={() => {
+          setIsDiceOpen(false);
+          setPresetSkill(null);
+        }}
         onRoll={rollDice}
         skills={selectedCharacter?.skills}
+        presetSkill={presetSkill}
       />
 
       <SafetyCard
@@ -246,6 +257,7 @@ export function VTTPage() {
           onSpendFate={() => spendFatePoint(selectedCharacter.id)}
           onGainFate={() => gainFatePoint(selectedCharacter.id)}
           onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+          onSkillClick={(skill) => openDiceRoller(skill)}
         />
       )}
 
