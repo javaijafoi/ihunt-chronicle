@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Share2, Check } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
-import { useSession } from '@/hooks/useSession';
+import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { CharacterHUD } from '@/components/vtt/CharacterHUD';
@@ -19,7 +19,6 @@ import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Character } from '@/types/game';
 
 interface LocationState {
-  sessionId?: string;
   isGM?: boolean;
 }
 
@@ -29,15 +28,14 @@ export function VTTPage() {
   const locationState = location.state as LocationState | null;
   
   const { userProfile, loading: authLoading } = useAuth();
-  const { currentSession, sessionId: activeSessionId, leaveSession, isGM } = useSession();
+  const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<Character | null>(null);
   const [copiedSessionId, setCopiedSessionId] = useState(false);
   
-  // Get session ID from navigation state or active session
-  const pendingSessionId = locationState?.sessionId;
+  // Get session context from navigation state
   const pendingIsGM = locationState?.isGM;
   
   const {
@@ -58,7 +56,7 @@ export function VTTPage() {
 
   // Clear location state after reading to avoid re-joining on refresh
   useEffect(() => {
-    if (locationState?.sessionId && activeCharacter) {
+    if (locationState?.isGM !== undefined && activeCharacter) {
       // Clear the state from history
       window.history.replaceState({}, document.title);
     }
@@ -75,19 +73,15 @@ export function VTTPage() {
     return (
       <CharacterSelect 
         onSelectCharacter={setActiveCharacter} 
-        sessionId={pendingSessionId || activeSessionId}
         isGM={pendingIsGM}
       />
     );
   }
 
   const handleCopySessionId = () => {
-    const idToCopy = activeSessionId || pendingSessionId;
-    if (idToCopy) {
-      navigator.clipboard.writeText(idToCopy);
-      setCopiedSessionId(true);
-      setTimeout(() => setCopiedSessionId(false), 2000);
-    }
+    navigator.clipboard.writeText(GLOBAL_SESSION_ID);
+    setCopiedSessionId(true);
+    setTimeout(() => setCopiedSessionId(false), 2000);
   };
 
   const handleLeaveSession = async () => {
