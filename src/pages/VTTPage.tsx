@@ -37,6 +37,7 @@ export function VTTPage() {
     spendFatePoint,
     gainFatePoint,
     toggleStress,
+    setConsequence,
     addSceneAspect,
     invokeAspect,
     addLog,
@@ -76,12 +77,10 @@ export function VTTPage() {
   };
 
   const isSessionGM = user?.uid === currentSession?.gmId;
-  const viewingOwnerId = viewingCharacter
-    ? (viewingCharacter as PartyCharacter).oderId ?? (viewingCharacter as { ownerId?: string }).ownerId
-    : null;
-  const canEditViewingCharacter = viewingCharacter
-    ? isGM || (!!user?.uid && viewingOwnerId === user.uid)
-    : false;
+  const canManageCharacter = (character?: { id?: string } | null) =>
+    isGM || (!!character?.id && character.id === activeCharacter?.id);
+  const canManageViewingState = canManageCharacter(viewingCharacter);
+  const canManageActiveState = canManageCharacter(selectedCharacter);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
@@ -260,23 +259,50 @@ export function VTTPage() {
           character={selectedCharacter}
           isOpen={isSheetOpen}
           onClose={() => setIsSheetOpen(false)}
-          onSpendFate={() => spendFatePoint(selectedCharacter.id)}
-          onGainFate={() => gainFatePoint(selectedCharacter.id)}
-          onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+          onSpendFate={
+            canManageActiveState ? () => spendFatePoint(selectedCharacter.id) : undefined
+          }
+          onGainFate={
+            canManageActiveState ? () => gainFatePoint(selectedCharacter.id) : undefined
+          }
+          onToggleStress={
+            canManageActiveState
+              ? (track, index) => toggleStress(selectedCharacter.id, track, index)
+              : undefined
+          }
+          onSetConsequence={
+            canManageActiveState
+              ? (severity, value) => setConsequence(selectedCharacter.id, severity, value)
+              : undefined
+          }
+          readOnly={!canManageActiveState}
           onSkillClick={(skill) => openDiceRoller(skill)}
         />
       )}
 
       {/* Viewing another character's sheet */}
-      {viewingCharacter && viewingCharacter.id !== activeCharacter?.id && (
+      {viewingCharacter && (
         <CharacterSheet
           character={viewingCharacter}
           isOpen={true}
           onClose={() => setViewingCharacter(null)}
-          onSpendFate={() => {}}
-          onGainFate={() => {}}
-          onToggleStress={() => {}}
-          readOnly={!canEditViewingCharacter}
+          onSpendFate={
+            canManageViewingState ? () => spendFatePoint(viewingCharacter.id) : undefined
+          }
+          onGainFate={
+            canManageViewingState ? () => gainFatePoint(viewingCharacter.id) : undefined
+          }
+          onToggleStress={
+            canManageViewingState
+              ? (track, index) => toggleStress(viewingCharacter.id, track, index)
+              : undefined
+          }
+          onSetConsequence={
+            canManageViewingState
+              ? (severity, value) => setConsequence(viewingCharacter.id, severity, value)
+              : undefined
+          }
+          readOnly={!canManageViewingState}
         />
       )}
     </div>

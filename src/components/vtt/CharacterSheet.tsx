@@ -8,9 +8,13 @@ interface CharacterSheetProps {
   character: Character;
   isOpen: boolean;
   onClose: () => void;
-  onSpendFate: () => void;
-  onGainFate: () => void;
-  onToggleStress: (track: 'physical' | 'mental', index: number) => void;
+  onSpendFate?: () => void;
+  onGainFate?: () => void;
+  onToggleStress?: (track: 'physical' | 'mental', index: number) => void;
+  onSetConsequence?: (
+    severity: 'mild' | 'moderate' | 'severe',
+    value: string | null
+  ) => void;
   readOnly?: boolean;
   onSkillClick?: (skill: string) => void;
 }
@@ -22,9 +26,13 @@ export function CharacterSheet({
   onSpendFate,
   onGainFate,
   onToggleStress,
+  onSetConsequence,
   readOnly = false,
   onSkillClick
 }: CharacterSheetProps) {
+  const canToggleStress = !readOnly && !!onToggleStress;
+  const consequenceReadOnly = readOnly || !onSetConsequence;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -218,9 +226,11 @@ export function CharacterSheet({
                       {character.stress.physical.map((filled, index) => (
                         <button
                           key={index}
-                          onClick={() => !readOnly && onToggleStress('physical', index)}
-                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-                          disabled={readOnly}
+                          onClick={
+                            canToggleStress ? () => onToggleStress('physical', index) : undefined
+                          }
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${!canToggleStress ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={!canToggleStress}
                         >
                           <span className="font-display">{index + 1}</span>
                         </button>
@@ -238,9 +248,11 @@ export function CharacterSheet({
                       {character.stress.mental.map((filled, index) => (
                         <button
                           key={index}
-                          onClick={() => !readOnly && onToggleStress('mental', index)}
-                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-                          disabled={readOnly}
+                          onClick={
+                            canToggleStress ? () => onToggleStress('mental', index) : undefined
+                          }
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${!canToggleStress ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={!canToggleStress}
                           style={{ 
                             borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                             background: filled ? 'hsl(var(--secondary))' : undefined 
@@ -267,11 +279,12 @@ export function CharacterSheet({
                       <input
                         type="text"
                         placeholder="Vazio"
-                        defaultValue={character.consequences.mild || ''}
+                        value={character.consequences.mild || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
                                  focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                        readOnly={readOnly}
-                        disabled={readOnly}
+                        readOnly={consequenceReadOnly}
+                        disabled={consequenceReadOnly}
+                        onChange={(e) => onSetConsequence?.('mild', e.target.value || null)}
                       />
                     </div>
                     <div>
@@ -282,11 +295,12 @@ export function CharacterSheet({
                       <input
                         type="text"
                         placeholder="Vazio"
-                        defaultValue={character.consequences.moderate || ''}
+                        value={character.consequences.moderate || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
                                  focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                        readOnly={readOnly}
-                        disabled={readOnly}
+                        readOnly={consequenceReadOnly}
+                        disabled={consequenceReadOnly}
+                        onChange={(e) => onSetConsequence?.('moderate', e.target.value || null)}
                       />
                     </div>
                     <div>
@@ -297,11 +311,12 @@ export function CharacterSheet({
                       <input
                         type="text"
                         placeholder="Vazio"
-                        defaultValue={character.consequences.severe || ''}
+                        value={character.consequences.severe || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
                                  focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                        readOnly={readOnly}
-                        disabled={readOnly}
+                        readOnly={consequenceReadOnly}
+                        disabled={consequenceReadOnly}
+                        onChange={(e) => onSetConsequence?.('severe', e.target.value || null)}
                       />
                     </div>
                   </div>
