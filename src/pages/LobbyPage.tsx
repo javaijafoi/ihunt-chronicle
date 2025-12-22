@@ -17,11 +17,9 @@ import { useSession } from '@/hooks/useSession';
 export function LobbyPage() {
   const navigate = useNavigate();
   const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
-  const { createSession, loading: sessionLoading } = useSession();
+  const { claimGmRole, loading: sessionLoading } = useSession();
   
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
-  const [sessionName, setSessionName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [authError, setAuthError] = useState('');
 
@@ -121,30 +119,15 @@ export function LobbyPage() {
   }
 
   const handleCreateSession = async () => {
-    if (!sessionName.trim()) {
-      setError('Digite um nome para a sessão');
-      return;
-    }
-    
     setError('');
-    const id = await createSession(sessionName.trim());
-    if (id) {
-      // Navigate to VTT with the session ID, user will select character there
-      navigate('/vtt', { state: { sessionId: id, isGM: true } });
-    } else {
-      setError('Erro ao criar sessão');
-    }
+    await claimGmRole();
+    navigate('/vtt', { state: { isGM: true } });
   };
 
   const handleJoinSession = () => {
-    if (!joinCode.trim()) {
-      setError('Digite o código da sessão');
-      return;
-    }
-    
     setError('');
-    // Navigate to VTT with pending session, user will select character there
-    navigate('/vtt', { state: { sessionId: joinCode.trim(), isGM: false } });
+    // Navigate to VTT; joining happens when selecting character
+    navigate('/vtt', { state: { isGM: false } });
   };
 
   return (
@@ -285,20 +268,6 @@ export function LobbyPage() {
                 
                 <h2 className="font-display text-xl">Criar Nova Sessão</h2>
                 
-                <div>
-                  <label className="block text-sm text-muted-foreground mb-2">
-                    Nome da Sessão
-                  </label>
-                  <input
-                    type="text"
-                    value={sessionName}
-                    onChange={(e) => setSessionName(e.target.value)}
-                    placeholder="Ex: Caçada em São Paulo"
-                    className="w-full px-4 py-3 rounded-lg bg-background border border-border
-                             focus:border-primary focus:outline-none transition-colors"
-                  />
-                </div>
-
                 {error && (
                   <p className="text-sm text-destructive">{error}</p>
                 )}
@@ -339,23 +308,6 @@ export function LobbyPage() {
                 
                 <h2 className="font-display text-xl">Entrar em Sessão</h2>
                 
-                <div>
-                  <label className="block text-sm text-muted-foreground mb-2">
-                    Código da Sessão
-                  </label>
-                  <input
-                    type="text"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value)}
-                    placeholder="Cole o código aqui"
-                    className="w-full px-4 py-3 rounded-lg bg-background border border-border
-                             focus:border-primary focus:outline-none transition-colors font-mono"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Peça o código ao mestre da sessão
-                  </p>
-                </div>
-
                 {error && (
                   <p className="text-sm text-destructive">{error}</p>
                 )}

@@ -9,11 +9,10 @@ import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
-  sessionId?: string | null;
   isGM?: boolean;
 }
 
-export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: CharacterSelectProps) {
+export function CharacterSelect({ onSelectCharacter, isGM }: CharacterSelectProps) {
   const navigate = useNavigate();
   const { 
     characters, 
@@ -23,7 +22,7 @@ export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: Characte
     deleteCharacter, 
     duplicateCharacter,
   } = useFirebaseCharacters();
-  const { joinSession } = useSession();
+  const { joinAsPlayer, claimGmRole } = useSession();
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
@@ -89,16 +88,17 @@ export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: Characte
     const character = characters.find(c => c.id === selectedId);
     if (!character) return;
     
-    // If joining a session, add character to session first
-    if (sessionId) {
-      setIsJoining(true);
-      const success = await joinSession(sessionId, character.id);
-      setIsJoining(false);
-      
-      if (!success) {
-        alert('Erro ao entrar na sessão. Verifique o código.');
-        return;
-      }
+    setIsJoining(true);
+    const success = await joinAsPlayer(character.id);
+    setIsJoining(false);
+    
+    if (!success) {
+      alert('Erro ao entrar na sessão. Verifique sua conexão.');
+      return;
+    }
+
+    if (isGM) {
+      await claimGmRole();
     }
     
     onSelectCharacter(character);
@@ -140,17 +140,15 @@ export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: Characte
             <span className="text-muted-foreground text-2xl ml-3">VTT</span>
           </h1>
           
-          {sessionId && (
-            <div className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-sm text-primary">
-                {isGM ? 'Criando sessão como Mestre' : `Entrando na sessão: ${sessionId.slice(0, 8)}...`}
-              </span>
-            </div>
-          )}
+          <div className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-sm text-primary">
+              {isGM ? 'Entrando como Mestre da sessão global' : 'Entrando na sessão principal'}
+            </span>
+          </div>
           
           <p className="text-muted-foreground font-ui mt-3">
-            {sessionId ? 'Escolha um personagem para entrar na sessão' : 'Selecione um personagem para começar'}
+            Escolha um personagem para entrar na sessão
           </p>
           
           {/* Back button */}
@@ -360,7 +358,7 @@ export function CharacterSelect({ onSelectCharacter, sessionId, isGM }: Characte
             ) : (
               <Play className="w-5 h-5" />
             )}
-            {sessionId ? 'Entrar na Sessão' : 'Jogar'}
+            Entrar na Sessão
           </button>
         </div>
       </motion.div>

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  collection, 
   doc,
-  addDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
@@ -18,36 +16,44 @@ import { GameSession } from '@/types/session';
 import { SceneAspect } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
 
+export const GLOBAL_SESSION_ID = 'sessao-principal';
+
 export function useSession() {
   const { user, userProfile } = useAuth();
   const [currentSession, setCurrentSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    return localStorage.getItem('ihunt-current-session');
-  });
 
   // Listen to current session
   useEffect(() => {
-    if (!sessionId) {
-      setCurrentSession(null);
-      return;
-    }
-
+    const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
     const unsubscribe = onSnapshot(
-      doc(db, 'sessions', sessionId),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setCurrentSession({
-            id: snapshot.id,
-            ...snapshot.data(),
-            createdAt: (snapshot.data().createdAt as Timestamp)?.toDate() || new Date(),
-            updatedAt: (snapshot.data().updatedAt as Timestamp)?.toDate() || new Date(),
-          } as GameSession);
-        } else {
-          setCurrentSession(null);
-          localStorage.removeItem('ihunt-current-session');
-          setSessionId(null);
+      sessionRef,
+      async (snapshot) => {
+        if (!snapshot.exists()) {
+          try {
+            await setDoc(sessionRef, {
+              name: 'Sessão Principal',
+              gmId: null,
+              characterIds: [],
+              currentScene: null,
+              gmFatePool: 3,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          } catch (error) {
+            console.error('Erro ao criar sessão padrão:', error);
+          }
+          return;
         }
+
+        const data = snapshot.data();
+        setCurrentSession({
+          id: snapshot.id,
+          ...data,
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
+          updatedAt: (data.updatedAt as Timestamp)?.toDate() || new Date(),
+        } as GameSession);
+        setLoading(false);
       },
       (error: FirestoreError) => {
         if (error.code === 'permission-denied') {
@@ -56,8 +62,6 @@ export function useSession() {
             description: 'Perdemos o acesso à sessão. Entre novamente para continuar.',
             variant: 'destructive',
           });
-          localStorage.removeItem('ihunt-current-session');
-          setSessionId(null);
           setCurrentSession(null);
         } else {
           console.error('Erro ao escutar sessão:', error);
@@ -67,96 +71,77 @@ export function useSession() {
     );
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, []);
 
-  const createSession = useCallback(async (name: string): Promise<string | null> => {
-    if (!user) return null;
-    setLoading(true);
-
-    try {
-      const docRef = await addDoc(collection(db, 'sessions'), {
-        name,
-        gmId: user.uid,
-        characterIds: [],
-        currentScene: null,
-        gmFatePool: 3,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      localStorage.setItem('ihunt-current-session', docRef.id);
-      setSessionId(docRef.id);
-      setLoading(false);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating session:', error);
-      setLoading(false);
-      return null;
-    }
-  }, [user]);
-
-  const joinSession = useCallback(async (id: string, characterId: string): Promise<boolean> => {
+  const joinAsPlayer = useCallback(async (characterId: string): Promise<boolean> => {
     if (!user) return false;
     setLoading(true);
 
+    const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
+
     try {
-      // Set presence first so Firestore rules recognize the user as part of the session
-      const presenceRef = doc(db, 'sessions', id, 'presence', user.uid);
+      const presenceRef = doc(sessionRef, 'presence', user.uid);
       await setDoc(presenceRef, {
         oderId: user.uid,
         ownerName: userProfile?.displayName || 'Caçador',
-        characterId: characterId,
+        characterId,
         lastSeen: serverTimestamp(),
         online: true,
-      });
+      }, { merge: true });
 
-      const sessionRef = doc(db, 'sessions', id);
-      await updateDoc(sessionRef, {
+      await setDoc(sessionRef, {
         characterIds: arrayUnion(characterId),
         updatedAt: serverTimestamp(),
-      });
+      }, { merge: true });
 
-      localStorage.setItem('ihunt-current-session', id);
-      setSessionId(id);
       setLoading(false);
       return true;
     } catch (error) {
-      console.error('Error joining session:', error);
+      console.error('Error joining global session:', error);
       setLoading(false);
       return false;
     }
   }, [user, userProfile]);
 
+  const claimGmRole = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      await updateDoc(doc(db, 'sessions', GLOBAL_SESSION_ID), {
+        gmId: user.uid,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error claiming GM role:', error);
+    }
+  }, [user]);
+
   const leaveSession = useCallback(async () => {
-    if (!user || !sessionId) return;
+    if (!user) return;
 
     try {
       // Remove presence
-      await deleteDoc(doc(db, 'sessions', sessionId, 'presence', user.uid));
+      await deleteDoc(doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid));
 
       // If GM, don't remove from characterIds (keep session intact)
       // If player, optionally remove character (we'll keep it for now)
-      
-      localStorage.removeItem('ihunt-current-session');
-      setSessionId(null);
-      setCurrentSession(null);
     } catch (error) {
       console.error('Error leaving session:', error);
     }
-  }, [user, sessionId]);
+  }, [user]);
 
   const updateSession = useCallback(async (updates: Partial<GameSession>) => {
-    if (!sessionId) return;
+    if (!currentSession) return;
 
     try {
-      await updateDoc(doc(db, 'sessions', sessionId), {
+      await updateDoc(doc(db, 'sessions', GLOBAL_SESSION_ID), {
         ...updates,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
       console.error('Error updating session:', error);
     }
-  }, [sessionId]);
+  }, [currentSession]);
 
   const updateGmFatePool = useCallback(async (amount: number) => {
     if (!currentSession) return;
@@ -176,14 +161,13 @@ export function useSession() {
 
   return {
     currentSession,
-    sessionId,
     loading,
-    createSession,
-    joinSession,
+    joinAsPlayer,
     leaveSession,
     updateSession,
     updateGmFatePool,
     updateSceneAspects,
+    claimGmRole,
     isGM: currentSession?.gmId === user?.uid,
   };
 }

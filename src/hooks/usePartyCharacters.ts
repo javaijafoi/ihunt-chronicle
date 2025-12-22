@@ -9,27 +9,27 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
-import { useSession } from './useSession';
+import { GLOBAL_SESSION_ID, useSession } from './useSession';
 import { Character } from '@/types/game';
 import { PartyCharacter, SessionPresence } from '@/types/session';
 import { toast } from '@/hooks/use-toast';
 
 export function usePartyCharacters() {
   const { user } = useAuth();
-  const { currentSession, sessionId } = useSession();
+  const { currentSession } = useSession();
   const [partyCharacters, setPartyCharacters] = useState<PartyCharacter[]>([]);
   const [presenceMap, setPresenceMap] = useState<Record<string, SessionPresence>>({});
   const [loading, setLoading] = useState(true);
 
   // Listen to presence
   useEffect(() => {
-    if (!sessionId) {
+    if (!currentSession) {
       setPresenceMap({});
       return;
     }
 
     const unsubscribe = onSnapshot(
-      collection(db, 'sessions', sessionId, 'presence'),
+      collection(db, 'sessions', GLOBAL_SESSION_ID, 'presence'),
       (snapshot) => {
         const presence: Record<string, SessionPresence> = {};
         snapshot.docs.forEach(doc => {
@@ -44,7 +44,6 @@ export function usePartyCharacters() {
             description: 'Perdemos o acesso à sessão. Entre novamente para continuar acompanhando o grupo.',
             variant: 'destructive',
           });
-          localStorage.removeItem('ihunt-current-session');
           setPresenceMap({});
           setPartyCharacters([]);
         } else {
@@ -55,7 +54,7 @@ export function usePartyCharacters() {
     );
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [currentSession]);
 
   // Listen to party characters
   useEffect(() => {

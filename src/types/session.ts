@@ -3,7 +3,7 @@ import { Character, SceneAspect } from './game';
 export interface GameSession {
   id: string;
   name: string;
-  gmId: string;
+  gmId: string | null;
   characterIds: string[];
   currentScene: {
     name: string;
