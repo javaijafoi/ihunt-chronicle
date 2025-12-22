@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Crown } from 'lucide-react';
+import { LogOut, Crown, Shield } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from '@/hooks/useSession';
@@ -21,7 +21,7 @@ import { Character } from '@/types/game';
 export function VTTPage() {
   const navigate = useNavigate();
   
-  const { userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
   
@@ -68,6 +68,8 @@ export function VTTPage() {
     addLog(`${activeCharacter.name} invocou "${aspect}" de ${characterName}`, 'aspect');
   };
 
+  const isSessionGM = user?.uid === currentSession?.gmId;
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
       {/* Layer 0: Canvas */}
@@ -77,7 +79,7 @@ export function VTTPage() {
       <div className="absolute inset-0 pointer-events-none">
         {/* Top Bar - Logo & Session Info */}
         <motion.div 
-          className="absolute top-4 left-4 pointer-events-auto flex items-center gap-3"
+          className="absolute top-4 left-4 pointer-events-auto flex items-center gap-3 flex-wrap"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -113,6 +115,38 @@ export function VTTPage() {
               >
                 <LogOut className="w-3 h-3 text-muted-foreground" />
               </button>
+            </div>
+          )}
+
+          {userProfile && (
+            <div className="glass-panel px-3 py-2 flex items-center gap-3 shadow-lg/30 backdrop-blur-md">
+              <div className="relative w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted">
+                {userProfile.photoURL ? (
+                  <img
+                    src={userProfile.photoURL}
+                    alt={userProfile.displayName || 'Avatar'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                    {(userProfile.displayName || 'C').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-foreground leading-tight">
+                  {userProfile.displayName || 'Caçador'}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  {isSessionGM ? (
+                    <Crown className="w-3 h-3 text-secondary" />
+                  ) : (
+                    <Shield className="w-3 h-3 text-primary" />
+                  )}
+                  {isSessionGM ? 'Mestre da Mesa' : 'Caçador'}
+                </span>
+              </div>
             </div>
           )}
         </motion.div>
