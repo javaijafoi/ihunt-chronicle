@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Sparkles, Heart, Brain, Zap, Target } from 'lucide-react';
+import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye } from 'lucide-react';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
@@ -11,6 +11,7 @@ interface CharacterSheetProps {
   onSpendFate: () => void;
   onGainFate: () => void;
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
+  readOnly?: boolean;
 }
 
 export function CharacterSheet({ 
@@ -19,7 +20,8 @@ export function CharacterSheet({
   onClose, 
   onSpendFate,
   onGainFate,
-  onToggleStress 
+  onToggleStress,
+  readOnly = false
 }: CharacterSheetProps) {
   return (
     <AnimatePresence>
@@ -52,9 +54,17 @@ export function CharacterSheet({
                   )}
                 </div>
                 <div>
-                  <h2 className="font-display text-3xl text-glow-primary text-primary">
-                    {character.name}
-                  </h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-display text-3xl text-glow-primary text-primary">
+                      {character.name}
+                    </h2>
+                    {readOnly && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs font-ui text-muted-foreground border border-border">
+                        <Eye className="w-3 h-3" />
+                        Visualização
+                      </span>
+                    )}
+                  </div>
                   <p className="text-muted-foreground font-ui">
                     {character.aspects.highConcept}
                   </p>
@@ -82,9 +92,15 @@ export function CharacterSheet({
                   <FatePointDisplay
                     points={character.fatePoints}
                     maxPoints={character.refresh + 2}
-                    onSpend={onSpendFate}
-                    onGain={onGainFate}
+                    onSpend={readOnly ? undefined : onSpendFate}
+                    onGain={readOnly ? undefined : onGainFate}
+                    readOnly={readOnly}
                   />
+                  {readOnly && (
+                    <p className="mt-2 text-xs text-muted-foreground font-ui">
+                      Modo de visualização — alterações desativadas.
+                    </p>
+                  )}
                 </div>
 
                 {/* Aspects */}
@@ -194,8 +210,9 @@ export function CharacterSheet({
                       {character.stress.physical.map((filled, index) => (
                         <button
                           key={index}
-                          onClick={() => onToggleStress('physical', index)}
-                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''}`}
+                          onClick={() => !readOnly && onToggleStress('physical', index)}
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={readOnly}
                         >
                           <span className="font-display">{index + 1}</span>
                         </button>
@@ -213,8 +230,9 @@ export function CharacterSheet({
                       {character.stress.mental.map((filled, index) => (
                         <button
                           key={index}
-                          onClick={() => onToggleStress('mental', index)}
-                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''}`}
+                          onClick={() => !readOnly && onToggleStress('mental', index)}
+                          className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={readOnly}
                           style={{ 
                             borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                             background: filled ? 'hsl(var(--secondary))' : undefined 
@@ -243,7 +261,9 @@ export function CharacterSheet({
                         placeholder="Vazio"
                         defaultValue={character.consequences.mild || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
-                                 focus:border-primary focus:outline-none font-ui text-sm"
+                                 focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                        readOnly={readOnly}
+                        disabled={readOnly}
                       />
                     </div>
                     <div>
@@ -256,7 +276,9 @@ export function CharacterSheet({
                         placeholder="Vazio"
                         defaultValue={character.consequences.moderate || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
-                                 focus:border-primary focus:outline-none font-ui text-sm"
+                                 focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                        readOnly={readOnly}
+                        disabled={readOnly}
                       />
                     </div>
                     <div>
@@ -269,7 +291,9 @@ export function CharacterSheet({
                         placeholder="Vazio"
                         defaultValue={character.consequences.severe || ''}
                         className="w-full mt-1 px-3 py-2 rounded-md bg-input border border-border 
-                                 focus:border-primary focus:outline-none font-ui text-sm"
+                                 focus:border-primary focus:outline-none font-ui text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                        readOnly={readOnly}
+                        disabled={readOnly}
                       />
                     </div>
                   </div>
