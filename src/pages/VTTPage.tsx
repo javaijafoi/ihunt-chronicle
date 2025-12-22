@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, Share2, Copy, Check } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
+import { useAuth } from '@/hooks/useAuth';
+import { useSession } from '@/hooks/useSession';
+import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { CharacterHUD } from '@/components/vtt/CharacterHUD';
 import { SceneAspects } from '@/components/vtt/SceneAspects';
@@ -10,10 +15,18 @@ import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
+import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Character } from '@/types/game';
 
 export function VTTPage() {
+  const navigate = useNavigate();
+  const { userProfile, loading: authLoading } = useAuth();
+  const { currentSession, sessionId, leaveSession, isGM } = useSession();
+  const { partyCharacters } = usePartyCharacters();
+  
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+  const [viewingCharacter, setViewingCharacter] = useState<Character | null>(null);
+  const [copiedSessionId, setCopiedSessionId] = useState(false);
   
   const {
     gameState,
@@ -31,10 +44,33 @@ export function VTTPage() {
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
+  // Redirect to login if not authenticated
+  if (!authLoading && !userProfile) {
+    navigate('/');
+    return null;
+  }
+
   // Show character select if no active character
   if (!activeCharacter) {
     return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
   }
+
+  const handleCopySessionId = () => {
+    if (sessionId) {
+      navigator.clipboard.writeText(sessionId);
+      setCopiedSessionId(true);
+      setTimeout(() => setCopiedSessionId(false), 2000);
+    }
+  };
+
+  const handleLeaveSession = async () => {
+    await leaveSession();
+    setActiveCharacter(null);
+  };
+
+  const handleInvokeAspect = (characterName: string, aspect: string) => {
+    addLog(`${activeCharacter.name} invocou "${aspect}" de ${characterName}`, 'aspect');
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
@@ -43,9 +79,9 @@ export function VTTPage() {
 
       {/* Layer 1: UI */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Top Bar - Logo */}
+        {/* Top Bar - Logo & Session Info */}
         <motion.div 
-          className="absolute top-4 left-4 pointer-events-auto"
+          className="absolute top-4 left-4 pointer-events-auto flex items-center gap-3"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -56,6 +92,33 @@ export function VTTPage() {
               <span className="text-muted-foreground text-sm ml-2 font-ui">VTT</span>
             </h1>
           </div>
+
+          {/* Session Info */}
+          {currentSession && (
+            <div className="glass-panel px-3 py-2 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {currentSession.name}
+              </span>
+              <button
+                onClick={handleCopySessionId}
+                className="p-1 rounded hover:bg-muted transition-colors"
+                title="Copiar código da sessão"
+              >
+                {copiedSessionId ? (
+                  <Check className="w-3 h-3 text-green-500" />
+                ) : (
+                  <Share2 className="w-3 h-3 text-muted-foreground" />
+                )}
+              </button>
+              <button
+                onClick={handleLeaveSession}
+                className="p-1 rounded hover:bg-muted transition-colors"
+                title="Sair da sessão"
+              >
+                <LogOut className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </div>
+          )}
         </motion.div>
 
         {/* GM Fate Pool */}
@@ -68,14 +131,25 @@ export function VTTPage() {
           <div className="glass-panel px-4 py-2 flex items-center gap-3">
             <span className="text-xs text-muted-foreground font-ui uppercase tracking-wider">GM Pool</span>
             <span className="font-display text-2xl text-accent text-glow-accent">
-              {gameState.gmFatePool}
+              {currentSession?.gmFatePool ?? gameState.gmFatePool}
             </span>
           </div>
         </motion.div>
 
-        {/* Left Panel: Character HUD */}
-        {selectedCharacter && (
-          <div className="absolute left-4 top-20 pointer-events-auto">
+        {/* Left Panel: Party + Character HUD */}
+        <div className="absolute left-4 top-20 pointer-events-auto space-y-3">
+          {/* Party Panel */}
+          {partyCharacters.length > 0 && (
+            <PartyPanel
+              partyCharacters={partyCharacters}
+              myCharacterId={activeCharacter?.id}
+              onViewCharacter={(char) => setViewingCharacter(char)}
+              onInvokeAspect={handleInvokeAspect}
+            />
+          )}
+
+          {/* Character HUD */}
+          {selectedCharacter && (
             <CharacterHUD
               character={selectedCharacter}
               onSpendFate={() => spendFatePoint(selectedCharacter.id)}
@@ -83,13 +157,13 @@ export function VTTPage() {
               onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
               onOpenSheet={() => setIsSheetOpen(true)}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Right Panel: Scene Aspects */}
         <div className="absolute right-4 top-20 w-72 pointer-events-auto">
           <SceneAspects
-            aspects={gameState.currentScene?.aspects || []}
+            aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
             onAddAspect={addSceneAspect}
             onInvokeAspect={invokeAspect}
           />
@@ -134,6 +208,18 @@ export function VTTPage() {
           onSpendFate={() => spendFatePoint(selectedCharacter.id)}
           onGainFate={() => gainFatePoint(selectedCharacter.id)}
           onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+        />
+      )}
+
+      {/* Viewing another character's sheet */}
+      {viewingCharacter && viewingCharacter.id !== activeCharacter?.id && (
+        <CharacterSheet
+          character={viewingCharacter}
+          isOpen={true}
+          onClose={() => setViewingCharacter(null)}
+          onSpendFate={() => {}}
+          onGainFate={() => {}}
+          onToggleStress={() => {}}
         />
       )}
     </div>
