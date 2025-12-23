@@ -23,6 +23,13 @@ import { toast } from '@/hooks/use-toast';
 
 export const GLOBAL_SESSION_ID = 'sessao-principal';
 
+type JoinAsPlayerOptions = {
+  force?: boolean;
+  lastSeen?: number | null;
+  ownerId?: string | null;
+  timeoutMs?: number;
+};
+
 export function useSession() {
   const { user, userProfile } = useAuth();
   const [currentSession, setCurrentSession] = useState<GameSession | null>(null);
@@ -100,13 +107,14 @@ export function useSession() {
     return () => unsubscribe();
   }, [user]);
 
-  const joinAsPlayer = useCallback(async (characterId: string): Promise<boolean> => {
+  const joinAsPlayer = useCallback(async (characterId: string, options?: JoinAsPlayerOptions): Promise<boolean> => {
     if (!user) return false;
     setLoading(true);
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
     const presenceRef = doc(sessionRef, 'presence', user.uid);
     const presenceCollection = collection(sessionRef, 'presence');
+    const presenceTimeoutMs = options?.timeoutMs ?? 60_000;
 
     try {
       const characterPresenceQuery = query(
@@ -123,19 +131,25 @@ export function useSession() {
           throw new Error('Sessão não encontrada.');
         }
 
-        const sessionData = sessionSnap.data() as Partial<GameSession>;
-        const currentCharacterIds = Array.isArray(sessionData.characterIds)
-          ? sessionData.characterIds
-          : [];
-
         const characterPresenceSnap = existingPresenceDoc
           ? await transaction.get(existingPresenceDoc.ref)
           : null;
         const characterPresenceData = characterPresenceSnap?.data() as
-          | { ownerId?: string; characterId?: string }
+          | { ownerId?: string; characterId?: string; lastSeen?: Timestamp | number }
           | undefined;
 
-        if (characterPresenceData?.ownerId && characterPresenceData.ownerId !== user.uid) {
+        const presenceLastSeen =
+          characterPresenceData?.lastSeen instanceof Timestamp
+            ? characterPresenceData.lastSeen.toMillis()
+            : typeof characterPresenceData?.lastSeen === 'number'
+            ? characterPresenceData.lastSeen
+            : options?.lastSeen ?? null;
+
+        const ownerId = characterPresenceData?.ownerId ?? options?.ownerId ?? null;
+        const isPresenceStale =
+          presenceLastSeen === null ? true : Date.now() - presenceLastSeen > presenceTimeoutMs;
+
+        if (ownerId && ownerId !== user.uid && !options?.force && !isPresenceStale) {
           throw new Error('CharacterAlreadyInUse');
         }
 
@@ -152,10 +166,6 @@ export function useSession() {
             online: true,
           });
           return;
-        }
-
-        if (currentCharacterIds.includes(characterId)) {
-          throw new Error('CharacterAlreadyInUse');
         }
 
         transaction.set(
