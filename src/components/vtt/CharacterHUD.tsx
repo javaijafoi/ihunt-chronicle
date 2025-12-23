@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { User, Heart, Brain, ChevronRight, Dices } from 'lucide-react';
 import { Character } from '@/types/game';
+import { calculateStressTracks } from '@/utils/gameRules';
 import { FatePointDisplay } from './FatePointDisplay';
 
 interface CharacterHUDProps {
@@ -20,6 +21,14 @@ export function CharacterHUD({
   onOpenSheet,
   onOpenDice
 }: CharacterHUDProps) {
+  const calculatedTracks = calculateStressTracks(character);
+  const physicalStress = calculatedTracks.physical.map(
+    (_filled, index) => character.stress.physical?.[index] ?? false
+  );
+  const mentalStress = calculatedTracks.mental.map(
+    (_filled, index) => character.stress.mental?.[index] ?? false
+  );
+
   return (
     <motion.div
       className="glass-panel p-4 w-80"
@@ -80,11 +89,13 @@ export function CharacterHUD({
             <span className="font-ui uppercase">Físico</span>
           </div>
           <div className="flex gap-1">
-            {character.stress.physical.map((filled, index) => (
+            {physicalStress.map((filled, index) => (
               <button
                 key={index}
                 onClick={() => onToggleStress('physical', index)}
                 className={`stress-box ${filled ? 'filled' : ''}`}
+                aria-label={`Estresse Físico ${index + 1}`}
+                title={`Estresse Físico ${index + 1}`}
               >
                 {filled && <span className="text-xs font-display">{index + 1}</span>}
               </button>
@@ -99,11 +110,13 @@ export function CharacterHUD({
             <span className="font-ui uppercase">Mental</span>
           </div>
           <div className="flex gap-1">
-            {character.stress.mental.map((filled, index) => (
+            {mentalStress.map((filled, index) => (
               <button
                 key={index}
                 onClick={() => onToggleStress('mental', index)}
                 className={`stress-box ${filled ? 'filled' : ''}`}
+                aria-label={`Estresse Mental ${index + 1}`}
+                title={`Estresse Mental ${index + 1}`}
                 style={{ 
                   borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                   background: filled ? 'hsl(var(--secondary))' : undefined,
