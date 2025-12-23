@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2, Users, ArrowLeft, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, type FirestoreError } from 'firebase/firestore';
+import { collection, onSnapshot, Timestamp, type FirestoreError } from 'firebase/firestore';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
@@ -14,6 +14,13 @@ import { toast } from '@/hooks/use-toast';
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
 }
+
+type CharacterPresence = {
+  ownerId: string;
+  lastSeen: number;
+};
+
+const PRESENCE_STALE_MS = 60_000;
 
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();
@@ -34,19 +41,48 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [wantsGmSeat, setWantsGmSeat] = useState(false);
-  const [characterPresenceMap, setCharacterPresenceMap] = useState<Map<string, string>>(new Map());
+  const [characterPresenceMap, setCharacterPresenceMap] = useState<Map<string, CharacterPresence>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'sessions', GLOBAL_SESSION_ID, 'presence'),
       (snapshot) => {
-        const presence = new Map<string, string>();
+        const presence = new Map<string, CharacterPresence>();
         snapshot.docs.forEach((doc) => {
           const characterId = doc.data()?.characterId as string | undefined;
           const ownerId = (doc.data()?.ownerId as string | undefined) ?? doc.id;
+          const lastSeenValue = doc.data()?.lastSeen;
+          const lastSeen =
+            lastSeenValue instanceof Timestamp
+              ? lastSeenValue.toMillis()
+              : typeof lastSeenValue === 'number'
+              ? lastSeenValue
+              : 0;
           if (characterId) {
-            presence.set(characterId, ownerId);
+            const incomingPresence = { ownerId, lastSeen };
+            const existingPresence = presence.get(characterId);
+            const incomingIsCurrentUser = ownerId === user?.uid;
+
+            if (!existingPresence) {
+              presence.set(characterId, incomingPresence);
+              return;
+            }
+
+            const existingIsCurrentUser = existingPresence.ownerId === user?.uid;
+
+            if (existingIsCurrentUser && !incomingIsCurrentUser) {
+              return;
+            }
+
+            if (incomingIsCurrentUser && !existingIsCurrentUser) {
+              presence.set(characterId, incomingPresence);
+              return;
+            }
+
+            if (incomingPresence.lastSeen > existingPresence.lastSeen) {
+              presence.set(characterId, incomingPresence);
+            }
           }
         });
         setCharacterPresenceMap(presence);
@@ -65,13 +101,31 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [user?.uid]);
 
-  const charactersTaken = useMemo<Map<string, string | null>>(() => {
-    const merged = new Map<string, string | null>();
+  const charactersTaken = useMemo<Map<string, CharacterPresence | null>>(() => {
+    const merged = new Map<string, CharacterPresence | null>();
 
-    characterPresenceMap.forEach((ownerId, characterId) => {
-      merged.set(characterId, ownerId);
+    characterPresenceMap.forEach((presence, characterId) => {
+      const existingPresence = merged.get(characterId);
+
+      if (!existingPresence) {
+        merged.set(characterId, presence);
+        return;
+      }
+
+      if (existingPresence.ownerId === user?.uid && presence.ownerId !== user?.uid) {
+        return;
+      }
+
+      if (presence.ownerId === user?.uid && existingPresence.ownerId !== user?.uid) {
+        merged.set(characterId, presence);
+        return;
+      }
+
+      if (presence.lastSeen > existingPresence.lastSeen) {
+        merged.set(characterId, presence);
+      }
     });
 
     (currentSession?.characterIds ?? []).forEach((characterId) => {
@@ -81,10 +135,19 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     });
 
     return merged;
-  }, [characterPresenceMap, currentSession?.characterIds]);
+  }, [characterPresenceMap, currentSession?.characterIds, user?.uid]);
 
-  const isCharacterInUse = (characterId: string) => charactersTaken.has(characterId);
-  const characterOwnerId = (characterId: string) => charactersTaken.get(characterId);
+  const isPresenceActive = (presence?: CharacterPresence | null) => {
+    if (!presence) return false;
+    return Date.now() - presence.lastSeen <= PRESENCE_STALE_MS;
+  };
+
+  const isCharacterInUse = (characterId: string) => isPresenceActive(charactersTaken.get(characterId));
+  const characterOwnerId = (characterId: string) => {
+    const presence = charactersTaken.get(characterId);
+    if (!isPresenceActive(presence)) return null;
+    return presence?.ownerId ?? null;
+  };
   const isCharacterOwnedByCurrentUser = (characterId: string) => {
     if (!user?.uid) return false;
     return characterOwnerId(characterId) === user.uid;
@@ -167,7 +230,12 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     if (!character || selectedBlocked) return;
     
     setIsJoining(true);
-    const success = await joinAsPlayer(character.id);
+    const presence = charactersTaken.get(character.id);
+    const success = await joinAsPlayer(character.id, {
+      lastSeen: presence?.lastSeen,
+      ownerId: presence?.ownerId ?? null,
+      timeoutMs: PRESENCE_STALE_MS,
+    });
     setIsJoining(false);
     
     if (!success) return;
