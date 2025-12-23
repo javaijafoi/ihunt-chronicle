@@ -215,8 +215,26 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
           if (logEntry) {
             updatePayload.logs = arrayUnion(mapLogToFirestore(logEntry));
           }
-
           transaction.set(sessionRef, updatePayload, { merge: true });
+
+          const currentCharacterMap = new Map(currentCharacters.map((character) => [character.id, character]));
+
+          characters.forEach((character) => {
+            const previous = currentCharacterMap.get(character.id);
+            const hasChanged = !previous || JSON.stringify(previous) !== JSON.stringify(character);
+
+            if (!hasChanged) return;
+
+            const characterRef = doc(db, 'characters', character.id);
+            transaction.set(
+              characterRef,
+              {
+                ...character,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          });
 
           return {
             characters,
