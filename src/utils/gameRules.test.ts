@@ -86,4 +86,14 @@ describe('calculateStressTracks', () => {
     expect(tracks.mental).toEqual([true, true, false, false]);
     expect(tracks.physical).toEqual([true, true]);
   });
+
+  it('considers all physical aliases when determining track size', () => {
+    const character = buildCharacter({
+      skills: { Sobrevivente: 2, Atleta: 1, Atletismo: 0, Vigor: 3 },
+    });
+
+    const tracks = calculateStressTracks(character);
+
+    expect(tracks.physical).toEqual([false, false, false, false]);
+  });
 });

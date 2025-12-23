@@ -44,7 +44,9 @@ export const calculateStressTracks = (
 
   const physicalSkillValue = Math.max(
     character.skills?.['Sobrevivente'] ?? 0,
-    character.skills?.['Atleta'] ?? 0
+    character.skills?.['Atleta'] ?? 0,
+    character.skills?.['Atletismo'] ?? 0,
+    character.skills?.['Vigor'] ?? 0
   );
   const mentalSkillValue = getHighestSkillValue(character.skills ?? {}, mentalAliases);
 
