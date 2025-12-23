@@ -71,7 +71,7 @@ export interface DiceResult {
   character: string;
   skill?: string;
   action?: ActionType;
-  timestamp: Date;
+  timestamp: Date | import('firebase/firestore').Timestamp;
   type: 'normal' | 'advantage';
   invocations: number;
 }
@@ -99,7 +99,7 @@ export interface LogEntry {
   type: 'roll' | 'aspect' | 'fate' | 'system' | 'chat';
   message: string;
   character?: string;
-  timestamp: Date;
+  timestamp: Date | import('firebase/firestore').Timestamp;
   details?: RollLogDetails | Record<string, unknown>;
 }
 
