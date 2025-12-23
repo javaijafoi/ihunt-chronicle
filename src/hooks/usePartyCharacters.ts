@@ -155,6 +155,7 @@ export function usePartyCharacters() {
 
   return {
     partyCharacters,
+    presenceMap,
     myCharacter,
     otherCharacters,
     loading,
