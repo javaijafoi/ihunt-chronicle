@@ -28,6 +28,8 @@ export function CharacterHUD({
   const mentalStress = calculatedTracks.mental.map(
     (_filled, index) => character.stress.mental?.[index] ?? false
   );
+  const stressTooltip =
+    'No Fate, as caixas são valores de absorção. Você pode riscar a caixa 3 para absorver 3 de dano, deixando as menores livres.';
 
   return (
     <motion.div
@@ -95,7 +97,7 @@ export function CharacterHUD({
                 onClick={() => onToggleStress('physical', index)}
                 className={`stress-box ${filled ? 'filled' : ''}`}
                 aria-label={`Estresse Físico ${index + 1}`}
-                title={`Estresse Físico ${index + 1}`}
+                title={`Estresse Físico ${index + 1}. ${stressTooltip}`}
               >
                 {filled && <span className="text-xs font-display">{index + 1}</span>}
               </button>
@@ -116,7 +118,7 @@ export function CharacterHUD({
                 onClick={() => onToggleStress('mental', index)}
                 className={`stress-box ${filled ? 'filled' : ''}`}
                 aria-label={`Estresse Mental ${index + 1}`}
-                title={`Estresse Mental ${index + 1}`}
+                title={`Estresse Mental ${index + 1}. ${stressTooltip}`}
                 style={{ 
                   borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                   background: filled ? 'hsl(var(--secondary))' : undefined,
