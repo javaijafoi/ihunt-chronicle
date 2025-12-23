@@ -1,12 +1,15 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loader2, Users, ArrowLeft, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { collection, onSnapshot, type FirestoreError } from 'firebase/firestore';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
 import { useAuth } from '@/hooks/useAuth';
 import { CharacterCreator } from './CharacterCreator';
+import { db } from '@/lib/firebase';
+import { toast } from '@/hooks/use-toast';
 
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
@@ -31,7 +34,49 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [wantsGmSeat, setWantsGmSeat] = useState(false);
+  const [charactersInUse, setCharactersInUse] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'sessions', GLOBAL_SESSION_ID, 'presence'),
+      (snapshot) => {
+        const ids = new Set<string>();
+        snapshot.docs.forEach((doc) => {
+          const characterId = doc.data()?.characterId as string | undefined;
+          if (characterId) {
+            ids.add(characterId);
+          }
+        });
+        setCharactersInUse(ids);
+      },
+      (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          toast({
+            title: 'Acesso negado',
+            description: 'Não foi possível carregar o status dos personagens na sessão.',
+            variant: 'destructive',
+          });
+        } else {
+          console.error('Erro ao ler presença:', error);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const charactersTaken = useMemo(() => {
+    const sessionIds = new Set(currentSession?.characterIds ?? []);
+    return new Set([...charactersInUse, ...sessionIds]);
+  }, [charactersInUse, currentSession?.characterIds]);
+
+  const selectedCharacter = useMemo(
+    () => characters.find((c) => c.id === selectedId) || null,
+    [characters, selectedId]
+  );
+
+  const selectedInUse = selectedCharacter ? charactersTaken.has(selectedCharacter.id) : false;
 
   const handleCreate = async (characterData: Omit<Character, 'id'>) => {
     if (editingCharacter) {
@@ -87,17 +132,14 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   };
 
   const handlePlay = async () => {
-    const character = characters.find(c => c.id === selectedId);
-    if (!character) return;
+    const character = selectedCharacter;
+    if (!character || selectedInUse) return;
     
     setIsJoining(true);
     const success = await joinAsPlayer(character.id);
     setIsJoining(false);
     
-    if (!success) {
-      alert('Erro ao entrar na sessão. Verifique sua conexão.');
-      return;
-    }
+    if (!success) return;
 
     if (wantsGmSeat) {
       await claimGmRole();
@@ -209,6 +251,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
               <AnimatePresence>
                 {characters.map((character) => {
                   const canManage = !!user && (user.uid === character.createdBy || isGM);
+                  const isInUse = charactersTaken.has(character.id);
 
                   return (
                     <motion.div
@@ -247,6 +290,12 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                           </p>
                         </div>
                       </div>
+
+                      {isInUse && (
+                        <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-semibold">
+                          Em Uso
+                        </div>
+                      )}
 
                       {/* High Concept */}
                       <p className="text-sm text-foreground/80 line-clamp-2 flex-1">
@@ -377,7 +426,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
             <button
               onClick={handlePlay}
-              disabled={!selectedId || isJoining}
+              disabled={!selectedId || isJoining || selectedInUse}
               className="flex items-center gap-2 px-6 py-3 rounded-lg 
                        bg-primary text-primary-foreground font-ui
                        hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
