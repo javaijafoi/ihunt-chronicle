@@ -47,31 +47,75 @@ export function useGameState(initialCharacter?: Character) {
     }
   }, [selectedCharacter, setSavedCharacters]);
 
-  const rollDice = useCallback((modifier: number = 0, skill: string | undefined, action: ActionType, type: 'normal' | 'advantage' = 'normal'): DiceResult => {
+  const rollDice = useCallback((
+    modifier: number = 0,
+    skill: string | undefined,
+    action: ActionType | undefined,
+    type: 'normal' | 'advantage' = 'normal',
+    opposition?: number
+  ): DiceResult => {
     const faces: ('plus' | 'minus' | 'blank')[] = ['plus', 'minus', 'blank'];
     
     let fateDice: ('plus' | 'minus' | 'blank')[];
-    let diceSum: number;
+    let diceTotal: number;
     let d6: number | undefined;
     
     if (type === 'advantage') {
-      // 3dF + d6 for advantage
+      // 3dF + d6 for advantage (d6 value used directly, range 1-6)
       fateDice = Array.from({ length: 3 }, () => faces[Math.floor(Math.random() * 3)]);
       d6 = Math.floor(Math.random() * 6) + 1;
-      diceSum = fateDice.reduce((sum, die) => {
+      const fateSum = fateDice.reduce((sum, die) => {
         if (die === 'plus') return sum + 1;
         if (die === 'minus') return sum - 1;
         return sum;
-      }, 0) + Math.ceil(d6 / 2); // d6 converted to 1-3 range
+      }, 0);
+      diceTotal = fateSum + d6; // Range: -3 to +9
     } else {
       // Standard 4dF
       fateDice = Array.from({ length: 4 }, () => faces[Math.floor(Math.random() * 3)]);
-      diceSum = fateDice.reduce((sum, die) => {
+      diceTotal = fateDice.reduce((sum, die) => {
         if (die === 'plus') return sum + 1;
         if (die === 'minus') return sum - 1;
         return sum;
       }, 0);
     }
+
+    const total = diceTotal + modifier;
+    
+    // Calculate shifts and outcome if opposition is provided
+    let shifts: number | undefined;
+    let outcome: DiceResult['outcome'];
+    
+    if (opposition !== undefined) {
+      shifts = total - opposition;
+      if (shifts < 0) {
+        outcome = 'failure';
+      } else if (shifts === 0) {
+        outcome = 'tie';
+      } else if (shifts >= 3) {
+        outcome = 'style';
+      } else {
+        outcome = 'success';
+      }
+    }
+
+    const result: DiceResult = {
+      id: crypto.randomUUID(),
+      fateDice,
+      d6,
+      modifier,
+      diceTotal,
+      total,
+      opposition,
+      shifts,
+      outcome,
+      character: selectedCharacter?.name || 'Anônimo',
+      skill,
+      action,
+      timestamp: new Date(),
+      type,
+      invocations: 0,
+    };
 
     const actionLabels: Record<ActionType, string> = {
       superar: 'Superar',
@@ -80,40 +124,57 @@ export function useGameState(initialCharacter?: Character) {
       defender: 'Defender',
     };
 
-    const result: DiceResult = {
-      id: crypto.randomUUID(),
-      fateDice,
-      d6,
-      modifier,
-      total: diceSum + modifier,
-      character: selectedCharacter?.name || 'Anônimo',
-      skill,
-      action,
-      timestamp: new Date(),
-      type,
+    // Get outcome label
+    const getOutcomeLabel = () => {
+      if (outcome === 'style') return 'SUCESSO COM ESTILO';
+      if (outcome === 'success') return 'SUCESSO';
+      if (outcome === 'tie') return 'EMPATE';
+      if (outcome === 'failure') return 'FALHA';
+      // No opposition set - use simple logic
+      if (result.total >= 3) return 'Sucesso com Estilo!';
+      if (result.total >= 0) return 'Sucesso';
+      return 'Falha';
     };
 
-    const resultText = result.total >= 3 ? 'Sucesso com Estilo!' :
-                       result.total >= 0 ? 'Sucesso' : 'Falha';
+    // Get ladder label
+    const getLadderLabel = (value: number): string => {
+      if (value <= -2) return 'Terrível';
+      if (value === -1) return 'Ruim';
+      if (value === 0) return 'Medíocre';
+      if (value === 1) return 'Regular';
+      if (value === 2) return 'Razoável';
+      if (value === 3) return 'Bom';
+      if (value === 4) return 'Grande';
+      if (value === 5) return 'Soberbo';
+      if (value === 6) return 'Incrível';
+      if (value === 7) return 'Épico';
+      if (value >= 8) return 'Lendário';
+      return `${value >= 0 ? '+' : ''}${value}`;
+    };
 
     const details = {
       kind: 'roll' as const,
       action,
-      actionLabel: actionLabels[action],
+      actionLabel: action ? actionLabels[action] : undefined,
       skill,
       skillBonus: modifier,
       fateDice: result.fateDice,
+      diceTotal: result.diceTotal,
+      opposition: result.opposition,
+      shifts: result.shifts,
+      ladderLabel: getLadderLabel(result.total),
       d6: result.d6,
       modifier,
       total: result.total,
       type: result.type,
-      outcome: resultText,
+      outcome: getOutcomeLabel(),
     };
 
+    const actionText = action ? actionLabels[action] : 'Rolagem Livre';
     const logEntry: LogEntry = {
       id: crypto.randomUUID(),
       type: 'roll',
-      message: `${result.character} rolou ${actionLabels[action]}${skill ? ` com ${skill} (${modifier >= 0 ? '+' : ''}${modifier})` : ''}`,
+      message: `${result.character} rolou ${actionText}${skill ? ` com ${skill} (${modifier >= 0 ? '+' : ''}${modifier})` : ''}`,
       character: result.character,
       timestamp: new Date(),
       details,

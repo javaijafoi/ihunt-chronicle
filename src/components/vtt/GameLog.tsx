@@ -40,6 +40,16 @@ const formatFace = (face: 'plus' | 'minus' | 'blank') => {
   return '0';
 };
 
+const getOutcomeColor = (outcome?: string) => {
+  if (!outcome) return 'text-muted-foreground';
+  const lower = outcome.toLowerCase();
+  if (lower.includes('falha')) return 'text-destructive';
+  if (lower.includes('empate')) return 'text-warning';
+  if (lower.includes('estilo')) return 'text-secondary';
+  if (lower.includes('sucesso')) return 'text-fate-plus';
+  return 'text-foreground';
+};
+
 export function GameLog({ logs, onSendMessage }: GameLogProps) {
   const [message, setMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,8 +97,9 @@ export function GameLog({ logs, onSendMessage }: GameLogProps) {
         <AnimatePresence initial={false}>
           {logs.map((log) => {
             const rollDetails = isRollDetails(log.details) ? log.details : null;
+            const actionText = rollDetails?.actionLabel || 'Rolagem Livre';
             const message = rollDetails
-              ? `${log.character || 'Jogador'} rolou ${rollDetails.actionLabel}${rollDetails.skill ? ` com ${rollDetails.skill} (${formatModifier(rollDetails.skillBonus ?? 0)})` : ''}`
+              ? `${log.character || 'Jogador'} rolou ${actionText}${rollDetails.skill ? ` com ${rollDetails.skill} (${formatModifier(rollDetails.skillBonus ?? 0)})` : ''}`
               : log.message;
 
             return (
@@ -107,9 +118,24 @@ export function GameLog({ logs, onSendMessage }: GameLogProps) {
                     </p>
                     {rollDetails && (
                       <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground font-ui">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-foreground">Total {formatModifier(rollDetails.total)}</span>
-                          <span className="text-[11px] uppercase tracking-wide">{rollDetails.outcome}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-foreground">
+                            Total {formatModifier(rollDetails.total)}
+                          </span>
+                          <span className="text-muted-foreground/60">({rollDetails.ladderLabel})</span>
+                          {rollDetails.opposition !== undefined && (
+                            <span className="text-muted-foreground">
+                              vs {formatModifier(rollDetails.opposition)}
+                            </span>
+                          )}
+                          {rollDetails.shifts !== undefined && (
+                            <span className="text-foreground">
+                              ({Math.abs(rollDetails.shifts)} virada{Math.abs(rollDetails.shifts) !== 1 ? 's' : ''})
+                            </span>
+                          )}
+                        </div>
+                        <div className={`text-[11px] uppercase tracking-wide font-medium ${getOutcomeColor(rollDetails.outcome)}`}>
+                          {rollDetails.outcome}
                         </div>
                         <div className="flex items-center flex-wrap gap-1.5">
                           {rollDetails.fateDice.map((face, index) => (
@@ -125,14 +151,6 @@ export function GameLog({ logs, onSendMessage }: GameLogProps) {
                             <span
                               className="px-2 py-1 rounded border border-secondary text-secondary bg-secondary/10 font-mono text-[11px] leading-none"
                               title={`d6 (vantagem): ${rollDetails.d6}`}
-                            >
-                              d6: {rollDetails.d6}
-                            </span>
-                          )}
-                          {rollDetails.type !== 'advantage' && typeof rollDetails.d6 === 'number' && (
-                            <span
-                              className="px-2 py-1 rounded border border-border bg-muted text-foreground font-mono text-[11px] leading-none"
-                              title={`d6: ${rollDetails.d6}`}
                             >
                               d6: {rollDetails.d6}
                             </span>

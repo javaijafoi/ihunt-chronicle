@@ -1,10 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain } from 'lucide-react';
+import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap } from 'lucide-react';
 import { ActionType, DiceResult } from '@/types/game';
+import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
 
 interface DiceRollerProps {
-  onRoll: (modifier: number, skill: string | undefined, action: ActionType, type?: 'normal' | 'advantage') => DiceResult;
+  onRoll: (
+    modifier: number,
+    skill: string | undefined,
+    action: ActionType | undefined,
+    type?: 'normal' | 'advantage',
+    opposition?: number
+  ) => DiceResult;
   skills?: Record<string, number>;
   isOpen: boolean;
   onClose: () => void;
@@ -44,22 +51,12 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [isRolling, setIsRolling] = useState(false);
-  const [actionPrompt, setActionPrompt] = useState(false);
   const [hasAdvantage, setHasAdvantage] = useState(false);
-
-  const calculateDiceTotal = (diceResult: DiceResult) => {
-    const fateTotal = diceResult.fateDice.reduce((sum, die) => {
-      if (die === 'plus') return sum + 1;
-      if (die === 'minus') return sum - 1;
-      return sum;
-    }, 0);
-
-    const advantageValue = diceResult.type === 'advantage' && diceResult.d6
-      ? Math.ceil(diceResult.d6 / 2)
-      : 0;
-
-    return fateTotal + advantageValue;
-  };
+  const [isFreeRoll, setIsFreeRoll] = useState(false);
+  const [customModifier, setCustomModifier] = useState(0);
+  const [opposition, setOpposition] = useState<number | null>(null);
+  const [customOpposition, setCustomOpposition] = useState('');
+  const [hasUsedReroll, setHasUsedReroll] = useState(false);
 
   const formatNumber = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 
@@ -68,26 +65,40 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
       setSelectedSkill(presetSkill ?? null);
       setResult(null);
       setSelectedAction(null);
-      setActionPrompt(true);
       setHasAdvantage(false);
+      setIsFreeRoll(false);
+      setCustomModifier(0);
+      setOpposition(null);
+      setCustomOpposition('');
+      setHasUsedReroll(false);
     }
   }, [isOpen, presetSkill]);
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const handleRoll = async () => {
-    if (!selectedAction) {
-      setActionPrompt(true);
+    // Free roll doesn't require action selection
+    if (!isFreeRoll && !selectedAction) {
       return;
     }
 
     setIsRolling(true);
     setResult(null);
+    setHasUsedReroll(false);
     
     await sleep(100);
     
-    const modifier = selectedSkill ? skills[selectedSkill] || 0 : 0;
-    const diceResult = onRoll(modifier, selectedSkill || undefined, selectedAction, hasAdvantage ? 'advantage' : 'normal');
+    const modifier = isFreeRoll 
+      ? customModifier 
+      : (selectedSkill ? skills[selectedSkill] || 0 : 0);
+    
+    const diceResult = onRoll(
+      modifier, 
+      isFreeRoll ? undefined : selectedSkill || undefined, 
+      isFreeRoll ? undefined : selectedAction!, 
+      hasAdvantage ? 'advantage' : 'normal',
+      opposition ?? undefined
+    );
     
     await sleep(600);
     
@@ -99,34 +110,64 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
     if (!result || fatePoints <= 0 || !onSpendFate) return;
 
     onSpendFate();
-    setResult((prev) => prev ? { ...prev, total: prev.total + 2 } : prev);
+    
+    const newTotal = result.total + 2;
+    const newOutcome = calculateOutcome(newTotal, result.opposition ?? null);
+    
+    setResult(prev => prev ? { 
+      ...prev, 
+      total: newTotal,
+      shifts: newOutcome?.shifts,
+      outcome: newOutcome?.outcome,
+      invocations: prev.invocations + 1,
+    } : prev);
   };
 
   const handleReroll = async () => {
-    if (!result || fatePoints <= 0 || !onSpendFate) return;
+    if (!result || fatePoints <= 0 || !onSpendFate || hasUsedReroll) return;
 
     onSpendFate();
     setIsRolling(true);
-    setResult(null);
-    setSelectedAction(result.action);
-    setSelectedSkill(result.skill ?? null);
-    setHasAdvantage(result.type === 'advantage');
+    setHasUsedReroll(true);
 
     await sleep(100);
-    const rerollResult = onRoll(result.modifier, result.skill, result.action, result.type);
+    const rerollResult = onRoll(
+      result.modifier, 
+      result.skill, 
+      result.action, 
+      result.type,
+      result.opposition
+    );
     await sleep(600);
 
-    setResult(rerollResult);
+    // Keep invocation count from previous result
+    setResult({ ...rerollResult, invocations: result.invocations + 1 });
     setIsRolling(false);
   };
 
-  const getResultLabel = (total: number) => {
-    if (total >= 3) return { text: 'Sucesso com Estilo!', class: 'text-secondary text-glow-secondary' };
-    if (total >= 0) return { text: 'Sucesso', class: 'text-fate-plus' };
-    return { text: 'Falha', class: 'text-destructive' };
+  const getOutcomeDisplay = (outcomeResult: OutcomeResult | null, total: number) => {
+    if (outcomeResult) {
+      const colorClass = {
+        failure: 'text-destructive',
+        tie: 'text-warning',
+        success: 'text-fate-plus',
+        style: 'text-secondary text-glow-secondary',
+      }[outcomeResult.outcome];
+      
+      return { text: outcomeResult.label, class: colorClass };
+    }
+    
+    // No opposition - simple feedback
+    if (total >= 3) return { text: 'Resultado Alto!', class: 'text-secondary text-glow-secondary' };
+    if (total >= 0) return { text: 'Resultado Positivo', class: 'text-fate-plus' };
+    return { text: 'Resultado Negativo', class: 'text-destructive' };
   };
 
-  const diceTotal = result ? calculateDiceTotal(result) : 0;
+  const currentOutcome = result && result.opposition !== undefined 
+    ? calculateOutcome(result.total, result.opposition) 
+    : null;
+
+  const canRoll = isFreeRoll || selectedAction;
 
   return (
     <AnimatePresence>
@@ -139,14 +180,14 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
           onClick={(e) => e.target === e.currentTarget && onClose()}
         >
           <motion.div
-            className="glass-panel p-8 min-w-[400px] max-w-lg"
+            className="glass-panel p-6 min-w-[420px] max-w-lg max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.8, opacity: 0, y: 50 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 50 }}
             transition={{ type: 'spring', damping: 20 }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-2xl text-glow-primary text-primary">
                 Rolar Dados
               </h2>
@@ -158,9 +199,65 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
               </button>
             </div>
 
-            {/* Skill Selection */}
-            {Object.keys(skills).length > 0 && (
-              <div className="mb-6">
+            {/* Free Roll Toggle */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-muted/50 border border-border">
+              <div>
+                <span className="text-sm font-ui">Rolagem Livre</span>
+                <p className="text-xs text-muted-foreground">Sem habilidade ou ação específica</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFreeRoll(prev => !prev);
+                  if (!isFreeRoll) {
+                    setSelectedSkill(null);
+                    setSelectedAction(null);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${
+                  isFreeRoll ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/60'
+                }`}
+                aria-pressed={isFreeRoll}
+              >
+                <span className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+                  isFreeRoll ? 'bg-primary' : 'bg-muted'
+                }`}>
+                  <span className={`absolute left-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform ${
+                    isFreeRoll ? 'translate-x-5' : ''
+                  }`} />
+                </span>
+              </button>
+            </div>
+
+            {/* Free Roll Custom Modifier */}
+            {isFreeRoll && (
+              <div className="mb-4">
+                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider mb-2 block">
+                  Modificador Customizado
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCustomModifier(prev => prev - 1)}
+                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="font-display text-2xl w-16 text-center">
+                    {formatNumber(customModifier)}
+                  </span>
+                  <button
+                    onClick={() => setCustomModifier(prev => prev + 1)}
+                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Skill Selection (when not free roll) */}
+            {!isFreeRoll && Object.keys(skills).length > 0 && (
+              <div className="mb-4">
                 <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider mb-2 block">
                   Habilidade
                 </label>
@@ -182,43 +279,112 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
               </div>
             )}
 
-            {/* Action Selection */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">
-                  Ação
-                </label>
-                {actionPrompt && !selectedAction && (
-                  <span className="text-xs text-destructive font-ui">Qual ação?</span>
-                )}
+            {/* Action Selection (when not free roll) */}
+            {!isFreeRoll && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">
+                    Ação
+                  </label>
+                  {!selectedAction && (
+                    <span className="text-xs text-destructive font-ui">Selecione uma ação</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACTIONS.map((action) => (
+                    <button
+                      key={action.value}
+                      onClick={() => setSelectedAction(action.value)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                        selectedAction === action.value
+                          ? 'border-primary bg-primary/10 text-primary glow-primary'
+                          : 'border-border hover:border-primary/60'
+                      }`}
+                      title={action.tooltip}
+                    >
+                      <span className="shrink-0">{action.icon}</span>
+                      <div>
+                        <div className="font-display text-sm leading-tight">{action.label}</div>
+                        <div className="text-[10px] text-muted-foreground leading-tight">{action.tooltip}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {ACTIONS.map((action) => (
+            )}
+
+            {/* Opposition Selection */}
+            <div className="mb-4">
+              <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider mb-2 block">
+                Oposição (Dificuldade) <span className="text-muted-foreground/60">— opcional</span>
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {OPPOSITION_PRESETS.map((preset) => (
                   <button
-                    key={action.value}
+                    key={preset.value}
                     onClick={() => {
-                      setSelectedAction(action.value);
-                      setActionPrompt(false);
+                      setOpposition(opposition === preset.value ? null : preset.value);
+                      setCustomOpposition('');
                     }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                      selectedAction === action.value
-                        ? 'border-primary bg-primary/10 text-primary glow-primary'
-                        : 'border-border hover:border-primary/60'
+                    className={`px-2 py-1 rounded-md text-xs font-ui transition-all ${
+                      opposition === preset.value
+                        ? 'bg-secondary text-secondary-foreground'
+                        : 'bg-muted hover:bg-muted/80'
                     }`}
-                    title={action.tooltip}
                   >
-                    <span className="shrink-0">{action.icon}</span>
-                    <div>
-                      <div className="font-display text-sm leading-tight">{action.label}</div>
-                      <div className="text-[11px] text-muted-foreground leading-tight">{action.tooltip}</div>
-                    </div>
+                    {preset.label}
                   </button>
                 ))}
               </div>
+              <input
+                type="number"
+                value={customOpposition}
+                onChange={(e) => {
+                  setCustomOpposition(e.target.value);
+                  const val = parseInt(e.target.value);
+                  setOpposition(isNaN(val) ? null : val);
+                }}
+                placeholder="Valor customizado..."
+                className="w-full px-3 py-2 rounded-md bg-input border border-border 
+                         focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary
+                         font-ui text-sm placeholder:text-muted-foreground"
+              />
+              {opposition !== null && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Oposição definida: <span className="text-foreground font-medium">{formatNumber(opposition)}</span> ({getLadderLabel(opposition)})
+                </p>
+              )}
+            </div>
+
+            {/* Advantage Toggle */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-secondary/5 border border-secondary/20">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-secondary" />
+                <div>
+                  <span className="text-sm font-ui">Tenho a Vantagem</span>
+                  <p className="text-xs text-muted-foreground">Substitui 1 dado Fate por um d6</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHasAdvantage(prev => !prev)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${
+                  hasAdvantage ? 'border-secondary bg-secondary/10 text-secondary glow-secondary' : 'border-border hover:border-secondary/60'
+                }`}
+                aria-pressed={hasAdvantage}
+              >
+                <span className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+                  hasAdvantage ? 'bg-secondary' : 'bg-muted'
+                }`}>
+                  <span className={`absolute left-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform ${
+                    hasAdvantage ? 'translate-x-5' : ''
+                  }`} />
+                </span>
+              </button>
             </div>
 
             {/* Dice Display */}
-            <div className="flex justify-center gap-3 min-h-[80px] items-center mb-6">
+            <div className="flex justify-center gap-3 min-h-[80px] items-center mb-4">
               {isRolling ? (
                 <motion.div
                   animate={{ rotate: 360 }}
@@ -255,42 +421,78 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
             <AnimatePresence>
               {result && (
                 <motion.div
-                  className="text-center mb-6"
+                  className="text-center mb-4 p-4 rounded-lg bg-muted/30 border border-border"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                 >
-                  <div className="font-display text-5xl mb-2">
-                    <span className={getResultLabel(result.total).class}>
-                      {result.total >= 0 ? '+' : ''}{result.total}
+                  {/* Main Result */}
+                  <div className="font-display text-5xl mb-1">
+                    <span className={getOutcomeDisplay(currentOutcome, result.total).class}>
+                      {formatNumber(result.total)}
                     </span>
                   </div>
-                  <p className={`font-display text-xl ${getResultLabel(result.total).class}`}>
-                    {getResultLabel(result.total).text}
+                  
+                  {/* Ladder Label */}
+                  <p className="text-sm text-muted-foreground font-ui mb-2">
+                    {getLadderLabel(result.total)}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1 font-mono">
-                    Dados: {formatNumber(diceTotal)} | Perícia: {formatNumber(result.modifier)}{result.skill ? ` (${result.skill})` : ''} = Total: {formatNumber(result.total)}
+                  
+                  {/* Outcome Classification */}
+                  <p className={`font-display text-xl ${getOutcomeDisplay(currentOutcome, result.total).class}`}>
+                    {getOutcomeDisplay(currentOutcome, result.total).text}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 font-ui uppercase tracking-wide">
-                    Ação: {ACTIONS.find(a => a.value === result.action)?.label}
+                  
+                  {/* Shifts Display */}
+                  {currentOutcome && (
+                    <p className="text-sm text-muted-foreground mt-1 font-ui">
+                      <span className="font-medium text-foreground">{Math.abs(currentOutcome.shifts)}</span> virada{Math.abs(currentOutcome.shifts) !== 1 ? 's' : ''}
+                      {currentOutcome.shifts < 0 ? ' abaixo' : currentOutcome.shifts > 0 ? ' acima' : ''}
+                    </p>
+                  )}
+                  
+                  {/* Breakdown */}
+                  <p className="text-xs text-muted-foreground mt-2 font-mono">
+                    Dados: {formatNumber(result.diceTotal)} | Mod: {formatNumber(result.modifier)}
+                    {result.skill ? ` (${result.skill})` : ''} = Total: {formatNumber(result.total)}
+                    {result.opposition !== undefined && ` vs ${formatNumber(result.opposition)}`}
                   </p>
+                  
+                  {/* Action Label */}
+                  {result.action && (
+                    <p className="text-xs text-muted-foreground mt-1 font-ui uppercase tracking-wide">
+                      Ação: {ACTIONS.find(a => a.value === result.action)?.label}
+                    </p>
+                  )}
+                  
+                  {/* Invocations */}
+                  {result.invocations > 0 && (
+                    <p className="text-xs text-secondary mt-1 font-ui">
+                      {result.invocations} invocação(ões) de aspecto
+                    </p>
+                  )}
+                  
+                  {/* Post-Roll Actions */}
                   {fatePoints > 0 && onSpendFate && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
                       <button
                         type="button"
                         onClick={handleInvokeAspect}
                         disabled={isRolling}
-                        className="px-4 py-2 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-ui disabled:opacity-50"
+                        className="px-4 py-2 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-ui text-sm disabled:opacity-50 flex items-center gap-2"
                       >
+                        <Plus className="w-4 h-4" />
                         Invocar Aspecto (+2)
                       </button>
                       <button
                         type="button"
                         onClick={handleReroll}
-                        disabled={isRolling}
-                        className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 transition-colors font-ui disabled:opacity-50"
+                        disabled={isRolling || hasUsedReroll}
+                        className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 transition-colors font-ui text-sm disabled:opacity-50 flex items-center gap-2"
+                        title={hasUsedReroll ? 'Você deve aceitar o resultado do reroll' : 'Rolar novamente (gasta 1 ponto de destino)'}
                       >
-                        Rolar Novamente
+                        <RotateCcw className="w-4 h-4" />
+                        Rolar Novamente {hasUsedReroll && '(usado)'}
                       </button>
                     </div>
                   )}
@@ -298,33 +500,17 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
               )}
             </AnimatePresence>
 
-            {/* Advantage Toggle */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-muted-foreground font-ui">Tenho a Vantagem</span>
-              <button
-                type="button"
-                onClick={() => setHasAdvantage((prev) => !prev)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${hasAdvantage ? 'border-secondary bg-secondary/10 text-secondary glow-secondary' : 'border-border hover:border-primary/60'}`}
-                aria-pressed={hasAdvantage}
-              >
-                <span className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${hasAdvantage ? 'bg-secondary' : 'bg-muted'}`}>
-                  <span className={`absolute left-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform ${hasAdvantage ? 'translate-x-5' : ''}`} />
-                </span>
-                <span className="font-ui text-sm">{hasAdvantage ? 'Ativa' : 'Desativada'}</span>
-              </button>
-            </div>
-
             {/* Roll Button */}
             <motion.button
               onClick={handleRoll}
-              disabled={isRolling || !selectedAction}
+              disabled={isRolling || !canRoll}
               className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground font-display text-lg
                        hover:bg-primary/90 disabled:opacity-50 transition-all glow-primary flex items-center justify-center gap-2"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <Dices className="w-5 h-5" />
-              {hasAdvantage ? 'Rolar com Vantagem' : 'Rolar Dados'}
+              {hasAdvantage ? 'Rolar com Vantagem (3dF + d6)' : 'Rolar Dados (4dF)'}
             </motion.button>
           </motion.div>
         </motion.div>

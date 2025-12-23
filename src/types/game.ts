@@ -61,21 +61,30 @@ export interface DiceResult {
   fateDice: ('plus' | 'minus' | 'blank')[];
   d6?: number;
   modifier: number;
+  diceTotal: number;
   total: number;
+  opposition?: number;
+  shifts?: number;
+  outcome?: 'failure' | 'tie' | 'success' | 'style';
   character: string;
   skill?: string;
-  action: ActionType;
+  action?: ActionType;
   timestamp: Date;
   type: 'normal' | 'advantage';
+  invocations: number;
 }
 
 export interface RollLogDetails {
   kind: 'roll';
-  action: ActionType;
-  actionLabel: string;
+  action?: ActionType;
+  actionLabel?: string;
   skill?: string;
   skillBonus?: number;
   fateDice: ('plus' | 'minus' | 'blank')[];
+  diceTotal: number;
+  opposition?: number;
+  shifts?: number;
+  ladderLabel: string;
   d6?: number;
   modifier: number;
   total: number;
