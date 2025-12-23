@@ -3,6 +3,7 @@ import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye } from 'lucide-react'
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
+import { calculateStressTracks } from '@/utils/gameRules';
 
 interface CharacterSheetProps {
   character: Character;
@@ -32,6 +33,13 @@ export function CharacterSheet({
 }: CharacterSheetProps) {
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
+  const calculatedTracks = calculateStressTracks(character);
+  const physicalStress = calculatedTracks.physical.map(
+    (_filled, index) => character.stress.physical?.[index] ?? false
+  );
+  const mentalStress = calculatedTracks.mental.map(
+    (_filled, index) => character.stress.mental?.[index] ?? false
+  );
 
   return (
     <AnimatePresence>
@@ -223,7 +231,7 @@ export function CharacterSheet({
                       <span className="text-sm font-ui uppercase tracking-wider">Físico</span>
                     </div>
                     <div className="flex gap-2">
-                      {character.stress.physical.map((filled, index) => (
+                      {physicalStress.map((filled, index) => (
                         <button
                           key={index}
                           onClick={
@@ -245,7 +253,7 @@ export function CharacterSheet({
                       <span className="text-sm font-ui uppercase tracking-wider">Mental</span>
                     </div>
                     <div className="flex gap-2">
-                      {character.stress.mental.map((filled, index) => (
+                      {mentalStress.map((filled, index) => (
                         <button
                           key={index}
                           onClick={

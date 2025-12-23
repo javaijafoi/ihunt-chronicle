@@ -438,10 +438,19 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       await updateCharactersTransaction((characters, gmFatePool) => {
         const updated = characters.map((character) => {
           if (character.id !== characterId) return character;
-          const newStress = { ...character.stress };
-          newStress[track] = [...newStress[track]];
-          newStress[track][index] = !newStress[track][index];
-          return { ...character, stress: newStress };
+          const newStressTrack = [...(character.stress?.[track] ?? [])];
+          while (newStressTrack.length <= index) {
+            newStressTrack.push(false);
+          }
+          newStressTrack[index] = !newStressTrack[index];
+
+          return {
+            ...character,
+            stress: {
+              ...character.stress,
+              [track]: newStressTrack,
+            },
+          };
         });
 
         return { characters: updated, gmFatePool };
