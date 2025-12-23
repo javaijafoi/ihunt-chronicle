@@ -1,9 +1,19 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  arrayUnion,
+  doc,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
 import sceneBackground from '@/assets/scene-default.jpg';
-import { useLocalStorage } from './useLocalStorage';
-
-const GAME_STATE_KEY = 'ihunt-vtt-game-state';
+import { GLOBAL_SESSION_ID } from './useSession';
+import { useAuth } from './useAuth';
 
 const createInitialState = (character?: Character): GameState => ({
   currentScene: {
@@ -29,23 +39,207 @@ const createInitialState = (character?: Character): GameState => ({
   gmFatePool: 3,
 });
 
-export function useGameState(initialCharacter?: Character) {
-  const [gameState, setGameState] = useState<GameState>(() => createInitialState(initialCharacter));
+type FirestoreLogEntry = Omit<LogEntry, 'timestamp'> & { timestamp: Date | Timestamp };
+type FirestoreSessionData = Partial<GameState> & {
+  logs?: FirestoreLogEntry[];
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+const mapLogFromFirestore = (entry: FirestoreLogEntry): LogEntry => ({
+  ...entry,
+  timestamp: entry.timestamp instanceof Timestamp
+    ? entry.timestamp.toDate()
+    : new Date(entry.timestamp),
+});
+
+const mapLogToFirestore = (entry: LogEntry): FirestoreLogEntry => ({
+  ...entry,
+  timestamp: entry.timestamp instanceof Date
+    ? Timestamp.fromDate(entry.timestamp)
+    : entry.timestamp,
+});
+
+const normalizeScene = (scene: GameState['currentScene']): GameState['currentScene'] => {
+  if (!scene) return null;
+  return {
+    id: scene.id || 'scene-1',
+    name: scene.name,
+    background: scene.background,
+    aspects: scene.aspects || [],
+    isActive: scene.isActive ?? true,
+  };
+};
+
+export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialCharacter?: Character) {
+  const { user } = useAuth();
+  const initialState = useMemo(() => createInitialState(initialCharacter), [initialCharacter]);
+  const sessionRef = useMemo(() => doc(db, 'sessions', sessionId), [sessionId]);
+
+  const [gameState, setGameState] = useState<GameState>(initialState);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(
     initialCharacter || null
   );
-  
-  // Persist character changes to localStorage
-  const [, setSavedCharacters] = useLocalStorage<Character[]>('ihunt-vtt-characters', []);
-  
-  // Sync character state changes back to localStorage
+
+  // Keep selected character in sync with the session state
   useEffect(() => {
-    if (selectedCharacter) {
-      setSavedCharacters(prev => 
-        prev.map(c => c.id === selectedCharacter.id ? selectedCharacter : c)
-      );
+    if (!initialCharacter) {
+      setSelectedCharacter(null);
+      return;
     }
-  }, [selectedCharacter, setSavedCharacters]);
+
+    const sessionCharacter = gameState.characters.find((c) => c.id === initialCharacter.id);
+    const ownedCharacter = gameState.characters.find((c) => c.createdBy === user?.uid);
+    setSelectedCharacter(sessionCharacter || ownedCharacter || initialCharacter);
+  }, [gameState.characters, initialCharacter, user?.uid]);
+
+  // Ensure the session exists and hydrate game state from Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(sessionRef, async (snapshot) => {
+      if (!snapshot.exists()) {
+        await setDoc(
+          sessionRef,
+          {
+            ...initialState,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return;
+      }
+
+      const data = snapshot.data() as FirestoreSessionData;
+      const logs = (data.logs && data.logs.length > 0
+        ? data.logs
+        : initialState.logs
+      ).map(mapLogFromFirestore);
+
+      setGameState({
+        currentScene: normalizeScene(data.currentScene ?? initialState.currentScene),
+        characters: data.characters?.length ? data.characters : initialState.characters,
+        tokens: data.tokens ?? initialState.tokens,
+        logs,
+        gmFatePool: typeof data.gmFatePool === 'number' ? data.gmFatePool : initialState.gmFatePool,
+      });
+    });
+
+    return () => unsubscribe();
+  }, [initialState, sessionRef]);
+
+  // Make sure the chosen character is available inside the session document
+  useEffect(() => {
+    if (!initialCharacter) return;
+
+    const ensureCharacterInSession = async () => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(sessionRef);
+          const data = snapshot.data() as FirestoreSessionData | undefined;
+          const characters = data?.characters || [];
+          const hasCharacter = characters.some((c) => c.id === initialCharacter.id);
+
+          if (!hasCharacter) {
+            const updatedCharacters = [...characters, initialCharacter];
+
+            if (snapshot.exists()) {
+              transaction.update(sessionRef, {
+                characters: updatedCharacters,
+                updatedAt: serverTimestamp(),
+              });
+            } else {
+              transaction.set(
+                sessionRef,
+                {
+                  ...initialState,
+                  characters: updatedCharacters,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Erro ao sincronizar personagem na sessão:', error);
+      }
+    };
+
+    ensureCharacterInSession();
+  }, [initialCharacter, initialState, sessionRef]);
+
+  const appendLog = useCallback(async (logEntry: LogEntry) => {
+    try {
+      await updateDoc(sessionRef, {
+        logs: arrayUnion(mapLogToFirestore(logEntry)),
+        updatedAt: serverTimestamp(),
+      });
+
+      setGameState((prev) =>
+        prev.logs.some((log) => log.id === logEntry.id)
+          ? prev
+          : { ...prev, logs: [...prev.logs, logEntry] }
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log da sessão:', error);
+    }
+  }, [sessionRef]);
+
+  const updateCharactersTransaction = useCallback(
+    async (
+      updater: (characters: Character[], gmFatePool: number) => {
+        characters: Character[];
+        gmFatePool?: number;
+        logEntry?: LogEntry;
+      }
+    ) => {
+      try {
+        const result = await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(sessionRef);
+          const data = snapshot.data() as FirestoreSessionData | undefined;
+
+          const currentCharacters = data?.characters?.length
+            ? data.characters
+            : initialState.characters;
+          const currentFatePool = typeof data?.gmFatePool === 'number'
+            ? data.gmFatePool
+            : initialState.gmFatePool;
+
+          const { characters, gmFatePool, logEntry } = updater(currentCharacters, currentFatePool);
+
+          const updatePayload: Partial<FirestoreSessionData> = {
+            characters,
+            gmFatePool: gmFatePool ?? currentFatePool,
+            updatedAt: serverTimestamp(),
+          };
+
+          if (logEntry) {
+            updatePayload.logs = arrayUnion(mapLogToFirestore(logEntry));
+          }
+
+          transaction.set(sessionRef, updatePayload, { merge: true });
+
+          return {
+            characters,
+            gmFatePool: gmFatePool ?? currentFatePool,
+            logEntry,
+          };
+        });
+
+        setGameState((prev) => ({
+          ...prev,
+          characters: result.characters,
+          gmFatePool: result.gmFatePool,
+          logs:
+            result.logEntry && !prev.logs.some((log) => log.id === result.logEntry?.id)
+              ? [...prev.logs, result.logEntry]
+              : prev.logs,
+        }));
+      } catch (error) {
+        console.error('Erro ao atualizar personagens da sessão:', error);
+      }
+    },
+    [initialState.characters, initialState.gmFatePool, sessionRef]
+  );
 
   const rollDice = useCallback((
     modifier: number = 0,
@@ -55,11 +249,11 @@ export function useGameState(initialCharacter?: Character) {
     opposition?: number
   ): DiceResult => {
     const faces: ('plus' | 'minus' | 'blank')[] = ['plus', 'minus', 'blank'];
-    
+
     let fateDice: ('plus' | 'minus' | 'blank')[];
     let diceTotal: number;
     let d6: number | undefined;
-    
+
     if (type === 'advantage') {
       // 3dF + d6 for advantage (d6 value used directly, range 1-6)
       fateDice = Array.from({ length: 3 }, () => faces[Math.floor(Math.random() * 3)]);
@@ -81,11 +275,11 @@ export function useGameState(initialCharacter?: Character) {
     }
 
     const total = diceTotal + modifier;
-    
+
     // Calculate shifts and outcome if opposition is provided
     let shifts: number | undefined;
     let outcome: DiceResult['outcome'];
-    
+
     if (opposition !== undefined) {
       shifts = total - opposition;
       if (shifts < 0) {
@@ -180,187 +374,251 @@ export function useGameState(initialCharacter?: Character) {
       details,
     };
 
-    setGameState(prev => ({
-      ...prev,
-      logs: [...prev.logs, logEntry],
-    }));
+    appendLog(logEntry);
 
     return result;
-  }, [selectedCharacter]);
+  }, [appendLog, selectedCharacter]);
 
-  const spendFatePoint = useCallback((characterId: string) => {
-    setGameState(prev => ({
-      ...prev,
-      characters: prev.characters.map(c =>
-        c.id === characterId && c.fatePoints > 0
-          ? { ...c, fatePoints: c.fatePoints - 1 }
-          : c
-      ),
-      gmFatePool: prev.gmFatePool + 1,
-      logs: [...prev.logs, {
+  const spendFatePoint = useCallback(
+    async (characterId: string) => {
+      const logEntry: LogEntry = {
         id: crypto.randomUUID(),
         type: 'fate',
-        message: `${prev.characters.find(c => c.id === characterId)?.name} gastou 1 ponto de destino`,
+        message: `${gameState.characters.find((c) => c.id === characterId)?.name || 'Personagem'} gastou 1 ponto de destino`,
         timestamp: new Date(),
-      }],
-    }));
+      };
 
-    if (selectedCharacter?.id === characterId) {
-      setSelectedCharacter(prev => prev ? { ...prev, fatePoints: prev.fatePoints - 1 } : null);
-    }
-  }, [selectedCharacter]);
+      await updateCharactersTransaction((characters, gmFatePool) => {
+        let delta = 0;
+        const updated = characters.map((character) => {
+          if (character.id !== characterId || character.fatePoints <= 0) return character;
+          delta = 1;
+          return { ...character, fatePoints: character.fatePoints - 1 };
+        });
 
-  const gainFatePoint = useCallback((characterId: string) => {
-    setGameState(prev => ({
-      ...prev,
-      characters: prev.characters.map(c =>
-        c.id === characterId
-          ? { ...c, fatePoints: c.fatePoints + 1 }
-          : c
-      ),
-      gmFatePool: Math.max(0, prev.gmFatePool - 1),
-      logs: [...prev.logs, {
-        id: crypto.randomUUID(),
-        type: 'fate',
-        message: `${prev.characters.find(c => c.id === characterId)?.name} ganhou 1 ponto de destino`,
-        timestamp: new Date(),
-      }],
-    }));
-
-    if (selectedCharacter?.id === characterId) {
-      setSelectedCharacter(prev => prev ? { ...prev, fatePoints: prev.fatePoints + 1 } : null);
-    }
-  }, [selectedCharacter]);
-
-  const toggleStress = useCallback((characterId: string, track: 'physical' | 'mental', index: number) => {
-    setGameState(prev => ({
-      ...prev,
-      characters: prev.characters.map(c => {
-        if (c.id !== characterId) return c;
-        const newStress = { ...c.stress };
-        newStress[track] = [...newStress[track]];
-        newStress[track][index] = !newStress[track][index];
-        return { ...c, stress: newStress };
-      }),
-    }));
-
-    if (selectedCharacter?.id === characterId) {
-      setSelectedCharacter(prev => {
-        if (!prev) return null;
-        const newStress = { ...prev.stress };
-        newStress[track] = [...newStress[track]];
-        newStress[track][index] = !newStress[track][index];
-        return { ...prev, stress: newStress };
+        return {
+          characters: updated,
+          gmFatePool: gmFatePool + delta,
+          logEntry: delta > 0 ? logEntry : undefined,
+        };
       });
-    }
-  }, [selectedCharacter]);
+    },
+    [gameState.characters, updateCharactersTransaction]
+  );
+
+  const gainFatePoint = useCallback(
+    async (characterId: string) => {
+      const logEntry: LogEntry = {
+        id: crypto.randomUUID(),
+        type: 'fate',
+        message: `${gameState.characters.find((c) => c.id === characterId)?.name || 'Personagem'} ganhou 1 ponto de destino`,
+        timestamp: new Date(),
+      };
+
+      await updateCharactersTransaction((characters, gmFatePool) => {
+        let delta = 0;
+        const updated = characters.map((character) => {
+          if (character.id !== characterId) return character;
+          delta = -1;
+          return { ...character, fatePoints: character.fatePoints + 1 };
+        });
+
+        return {
+          characters: updated,
+          gmFatePool: Math.max(0, gmFatePool + delta),
+          logEntry,
+        };
+      });
+    },
+    [gameState.characters, updateCharactersTransaction]
+  );
+
+  const toggleStress = useCallback(
+    async (characterId: string, track: 'physical' | 'mental', index: number) => {
+      await updateCharactersTransaction((characters, gmFatePool) => {
+        const updated = characters.map((character) => {
+          if (character.id !== characterId) return character;
+          const newStress = { ...character.stress };
+          newStress[track] = [...newStress[track]];
+          newStress[track][index] = !newStress[track][index];
+          return { ...character, stress: newStress };
+        });
+
+        return { characters: updated, gmFatePool };
+      });
+    },
+    [updateCharactersTransaction]
+  );
 
   const setConsequence = useCallback(
-    (
+    async (
       characterId: string,
       severity: 'mild' | 'moderate' | 'severe',
       value: string | null
     ) => {
-      setGameState(prev => ({
-        ...prev,
-        characters: prev.characters.map(c =>
-          c.id === characterId
+      await updateCharactersTransaction((characters, gmFatePool) => {
+        const updated = characters.map((character) =>
+          character.id === characterId
             ? {
-                ...c,
+                ...character,
                 consequences: {
-                  ...c.consequences,
+                  ...character.consequences,
                   [severity]: value,
                 },
               }
-            : c
-        ),
-      }));
+            : character
+        );
 
-      if (selectedCharacter?.id === characterId) {
-        setSelectedCharacter(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            consequences: {
-              ...prev.consequences,
-              [severity]: value,
-            },
-          };
-        });
-      }
+        return { characters: updated, gmFatePool };
+      });
     },
-    [selectedCharacter]
+    [updateCharactersTransaction]
   );
 
-  const addSceneAspect = useCallback((name: string, freeInvokes: number = 1) => {
-    const aspect: SceneAspect = {
-      id: crypto.randomUUID(),
-      name,
-      freeInvokes,
-      createdBy: selectedCharacter?.name || 'GM',
-      isTemporary: true,
-    };
+  const addSceneAspect = useCallback(
+    async (name: string, freeInvokes: number = 1) => {
+      const aspect: SceneAspect = {
+        id: crypto.randomUUID(),
+        name,
+        freeInvokes,
+        createdBy: selectedCharacter?.name || 'GM',
+        isTemporary: true,
+      };
 
-    setGameState(prev => ({
-      ...prev,
-      currentScene: prev.currentScene ? {
-        ...prev.currentScene,
-        aspects: [...prev.currentScene.aspects, aspect],
-      } : null,
-      logs: [...prev.logs, {
+      const logEntry: LogEntry = {
         id: crypto.randomUUID(),
         type: 'aspect',
         message: `Aspecto de cena criado: "${name}"`,
         timestamp: new Date(),
-      }],
-    }));
-  }, [selectedCharacter]);
+      };
 
-  const invokeAspect = useCallback((aspectName: string, useFreeInvoke: boolean = false) => {
-    if (useFreeInvoke) {
-      setGameState(prev => ({
-        ...prev,
-        currentScene: prev.currentScene ? {
-          ...prev.currentScene,
-          aspects: prev.currentScene.aspects.map(a =>
-            a.name === aspectName && a.freeInvokes > 0
-              ? { ...a, freeInvokes: a.freeInvokes - 1 }
-              : a
-          ),
-        } : null,
-        logs: [...prev.logs, {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(sessionRef);
+          const data = snapshot.data() as FirestoreSessionData | undefined;
+          const scene = normalizeScene(data?.currentScene ?? initialState.currentScene);
+
+          if (!scene) return;
+
+          const updatedScene = {
+            ...scene,
+            aspects: [...scene.aspects, aspect],
+          };
+
+          transaction.set(
+            sessionRef,
+            {
+              currentScene: updatedScene,
+              logs: arrayUnion(mapLogToFirestore(logEntry)),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+
+        setGameState((prev) => ({
+          ...prev,
+          currentScene: prev.currentScene
+            ? { ...prev.currentScene, aspects: [...prev.currentScene.aspects, aspect] }
+            : prev.currentScene,
+          logs: prev.logs.some((log) => log.id === logEntry.id)
+            ? prev.logs
+            : [...prev.logs, logEntry],
+        }));
+      } catch (error) {
+        console.error('Erro ao adicionar aspecto de cena:', error);
+      }
+    },
+    [initialState.currentScene, selectedCharacter?.name, sessionRef]
+  );
+
+  const invokeAspect = useCallback(
+    async (aspectName: string, useFreeInvoke: boolean = false) => {
+      if (useFreeInvoke) {
+        const logEntry: LogEntry = {
           id: crypto.randomUUID(),
           type: 'aspect',
           message: `${selectedCharacter?.name || 'Jogador'} invocou "${aspectName}" (invocação gratuita)`,
           timestamp: new Date(),
-        }],
-      }));
-    } else if (selectedCharacter) {
-      spendFatePoint(selectedCharacter.id);
-      setGameState(prev => ({
-        ...prev,
-        logs: [...prev.logs, {
+        };
+
+        try {
+          await runTransaction(db, async (transaction) => {
+            const snapshot = await transaction.get(sessionRef);
+            const data = snapshot.data() as FirestoreSessionData | undefined;
+            const scene = normalizeScene(data?.currentScene ?? initialState.currentScene);
+
+            if (!scene) return;
+
+            const updatedScene = {
+              ...scene,
+              aspects: scene.aspects.map((aspect) =>
+                aspect.name === aspectName && aspect.freeInvokes > 0
+                  ? { ...aspect, freeInvokes: aspect.freeInvokes - 1 }
+                  : aspect
+              ),
+            };
+
+            transaction.set(
+              sessionRef,
+              {
+                currentScene: updatedScene,
+                logs: arrayUnion(mapLogToFirestore(logEntry)),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          });
+
+          setGameState((prev) => ({
+            ...prev,
+            currentScene: prev.currentScene
+              ? {
+                  ...prev.currentScene,
+                  aspects: prev.currentScene.aspects.map((aspect) =>
+                    aspect.name === aspectName && aspect.freeInvokes > 0
+                      ? { ...aspect, freeInvokes: aspect.freeInvokes - 1 }
+                      : aspect
+                  ),
+                }
+              : prev.currentScene,
+            logs: prev.logs.some((log) => log.id === logEntry.id)
+              ? prev.logs
+              : [...prev.logs, logEntry],
+          }));
+        } catch (error) {
+          console.error('Erro ao invocar aspecto com uso gratuito:', error);
+        }
+      } else if (selectedCharacter) {
+        await spendFatePoint(selectedCharacter.id);
+
+        const logEntry: LogEntry = {
           id: crypto.randomUUID(),
           type: 'aspect',
           message: `${selectedCharacter.name} invocou "${aspectName}" (+2 ou reroll)`,
           timestamp: new Date(),
-        }],
-      }));
-    }
-  }, [selectedCharacter, spendFatePoint]);
+        };
 
-  const addLog = useCallback((message: string, type: LogEntry['type'] = 'chat') => {
-    setGameState(prev => ({
-      ...prev,
-      logs: [...prev.logs, {
+        await appendLog(logEntry);
+      }
+    },
+    [appendLog, initialState.currentScene, selectedCharacter, sessionRef, spendFatePoint]
+  );
+
+  const addLog = useCallback(
+    async (message: string, type: LogEntry['type'] = 'chat') => {
+      const logEntry: LogEntry = {
         id: crypto.randomUUID(),
         type,
         message,
         character: selectedCharacter?.name,
         timestamp: new Date(),
-      }],
-    }));
-  }, [selectedCharacter]);
+      };
+
+      await appendLog(logEntry);
+    },
+    [appendLog, selectedCharacter?.name]
+  );
 
   return {
     gameState,

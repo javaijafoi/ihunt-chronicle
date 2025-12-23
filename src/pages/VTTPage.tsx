@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Crown, Shield } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
-import { useSession } from '@/hooks/useSession';
+import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { CharacterHUD } from '@/components/vtt/CharacterHUD';
@@ -41,7 +41,7 @@ export function VTTPage() {
     addSceneAspect,
     invokeAspect,
     addLog,
-  } = useGameState(activeCharacter || undefined);
+  } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
 
   const [isDiceOpen, setIsDiceOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
