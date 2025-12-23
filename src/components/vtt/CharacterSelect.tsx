@@ -4,7 +4,7 @@ import { Plus, User, Trash2, Copy, Download, Upload, Play, Edit, Sparkles, Loade
 import { useNavigate } from 'react-router-dom';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
-import { useSession } from '@/hooks/useSession';
+import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
 import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
@@ -20,7 +20,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     updateCharacter,
     deleteCharacter, 
     duplicateCharacter,
-  } = useFirebaseCharacters();
+  } = useFirebaseCharacters(GLOBAL_SESSION_ID);
   const { joinAsPlayer, claimGmRole, isGM } = useSession();
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
