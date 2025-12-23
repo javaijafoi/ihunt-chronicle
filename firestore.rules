@@ -27,8 +27,18 @@ service cloud.firestore {
     }
 
     match /characters/{characterId} {
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow read, update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow read: if isSignedIn()
+        && resource.data.sessionId != null
+        && canAccessSession(resource.data.sessionId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.sessionId != null
+        && canAccessSession(request.resource.data.sessionId);
+
+      allow update, delete: if isSignedIn()
+        && resource.data.sessionId != null
+        && canAccessSession(resource.data.sessionId)
+        && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId));
     }
 
     match /sessions/{sessionId} {
