@@ -33,7 +33,7 @@ export function useSession() {
           try {
             await setDoc(sessionRef, {
               name: 'Sessão Principal',
-              gmId: null,
+              gmId: user?.uid ?? null,
               characterIds: [],
               currentScene: null,
               gmFatePool: 3,
@@ -71,7 +71,7 @@ export function useSession() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const joinAsPlayer = useCallback(async (characterId: string): Promise<boolean> => {
     if (!user) return false;

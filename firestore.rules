@@ -42,16 +42,27 @@ service cloud.firestore {
     }
 
     match /sessions/{sessionId} {
-      allow create: if isSignedIn() && request.resource.data.gmId == request.auth.uid;
-      allow read, update, delete: if canAccessSession(sessionId);
+      allow create: if isSignedIn()
+        && (request.resource.data.gmId == null
+          || request.resource.data.gmId == ''
+          || request.resource.data.gmId == request.auth.uid);
+
+      allow read: if canAccessSession(sessionId)
+        || (isSignedIn()
+          && (sessionId == 'sessao-principal'
+            || sessionSnapshot(sessionId).data == null
+            || !sessionSnapshot(sessionId).data.keys().hasAny(['gmId'])
+            || sessionSnapshot(sessionId).data.gmId == null));
+
+      allow update, delete: if canAccessSession(sessionId);
 
       match /presence/{userId} {
         allow read: if canAccessSession(sessionId);
 
         allow create: if isSignedIn()
           && sessionExists(sessionId)
-          && (request.auth.uid == userId || isSessionGm(sessionId))
-          && request.resource.data.oderId == userId;
+          && request.resource.data.oderId == userId
+          && (request.auth.uid == userId || isSessionGm(sessionId));
 
         allow update, delete: if isSignedIn()
           && (request.auth.uid == userId || isSessionGm(sessionId))
