@@ -19,7 +19,25 @@ export function PartyPanel({
 }: PartyPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (partyCharacters.length === 0) {
+  const freshCharacters = partyCharacters.filter((character) => {
+    const rawLastSeen = character.lastSeen;
+    if (!rawLastSeen) return false;
+
+    const lastSeenDate = rawLastSeen instanceof Date 
+      ? rawLastSeen 
+      : typeof rawLastSeen === 'string'
+        ? new Date(rawLastSeen)
+        : typeof rawLastSeen === 'object' && 'toDate' in rawLastSeen && typeof rawLastSeen.toDate === 'function'
+          ? rawLastSeen.toDate()
+          : null;
+
+    if (!lastSeenDate || isNaN(lastSeenDate.getTime())) return false;
+
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    return lastSeenDate.getTime() >= twoMinutesAgo;
+  });
+
+  if (freshCharacters.length === 0) {
     return (
       <div className="glass-panel p-4 w-64">
         <div className="flex items-center gap-2 mb-3">
@@ -39,13 +57,13 @@ export function PartyPanel({
         <Users className="w-4 h-4 text-primary" />
         <span className="font-display text-sm">Grupo</span>
         <span className="text-xs text-muted-foreground ml-auto">
-          {partyCharacters.length} caçador{partyCharacters.length !== 1 ? 'es' : ''}
+          {freshCharacters.length} caçador{freshCharacters.length !== 1 ? 'es' : ''}
         </span>
       </div>
 
       <div className="space-y-2">
         <AnimatePresence>
-          {partyCharacters.map((character) => {
+          {freshCharacters.map((character) => {
             const isMe = character.id === myCharacterId;
             const isExpanded = expandedId === character.id;
             

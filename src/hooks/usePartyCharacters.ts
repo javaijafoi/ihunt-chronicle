@@ -14,6 +14,23 @@ import { Character } from '@/types/game';
 import { PartyCharacter, SessionPresence } from '@/types/session';
 import { toast } from '@/hooks/use-toast';
 
+type PossibleTimestamp = { toDate: () => Date };
+
+function normalizeToDate(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === 'object' && 'toDate' in value && typeof (value as PossibleTimestamp).toDate === 'function') {
+    return (value as PossibleTimestamp).toDate();
+  }
+
+  return null;
+}
+
 export function usePartyCharacters() {
   const { user } = useAuth();
   const { currentSession } = useSession();
@@ -33,7 +50,12 @@ export function usePartyCharacters() {
       (snapshot) => {
         const presence: Record<string, SessionPresence> = {};
         snapshot.docs.forEach(doc => {
-          presence[doc.id] = doc.data() as SessionPresence;
+          const data = doc.data();
+          presence[doc.id] = {
+            ...(data as SessionPresence),
+            lastSeen: normalizeToDate((data as SessionPresence).lastSeen),
+            online: !!(data as SessionPresence).online,
+          };
         });
         setPresenceMap(presence);
       },
@@ -95,6 +117,7 @@ export function usePartyCharacters() {
               ownerId: data.ownerId,
               ownerName: ownerPresence?.ownerName || 'Desconhecido',
               isOnline: !!ownerPresence?.online,
+              lastSeen: ownerPresence?.lastSeen || null,
             };
           });
 
