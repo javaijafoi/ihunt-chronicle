@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   arrayUnion,
   Timestamp,
+  runTransaction,
   type FirestoreError
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -78,28 +79,60 @@ export function useSession() {
     setLoading(true);
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
+    const presenceRef = doc(sessionRef, 'presence', user.uid);
 
     try {
-      const presenceRef = doc(sessionRef, 'presence', user.uid);
-      await setDoc(presenceRef, {
-        oderId: user.uid,
-        ownerName: userProfile?.displayName || 'Caçador',
-        characterId,
-        lastSeen: serverTimestamp(),
-        online: true,
-      }, { merge: true });
+      await runTransaction(db, async (transaction) => {
+        const sessionSnap = await transaction.get(sessionRef);
 
-      await setDoc(sessionRef, {
-        characterIds: arrayUnion(characterId),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+        if (!sessionSnap.exists()) {
+          throw new Error('Sessão não encontrada.');
+        }
 
-      setLoading(false);
+        const sessionData = sessionSnap.data() as Partial<GameSession>;
+        const currentCharacterIds = Array.isArray(sessionData.characterIds)
+          ? sessionData.characterIds
+          : [];
+
+        if (currentCharacterIds.includes(characterId)) {
+          throw new Error('CharacterAlreadyInUse');
+        }
+
+        transaction.set(presenceRef, {
+          oderId: user.uid,
+          ownerName: userProfile?.displayName || 'Caçador',
+          characterId,
+          lastSeen: serverTimestamp(),
+          online: true,
+        }, { merge: true });
+
+        transaction.update(sessionRef, {
+          characterIds: arrayUnion(characterId),
+          updatedAt: serverTimestamp(),
+        });
+      });
+
       return true;
     } catch (error) {
       console.error('Error joining global session:', error);
-      setLoading(false);
+
+      if (error instanceof Error && error.message === 'CharacterAlreadyInUse') {
+        toast({
+          title: 'Personagem em uso',
+          description: 'Esse personagem já está conectado à sessão.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro ao entrar na sessão',
+          description: 'Não foi possível entrar na sessão. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
+
       return false;
+    } finally {
+      setLoading(false);
     }
   }, [user, userProfile]);
 
