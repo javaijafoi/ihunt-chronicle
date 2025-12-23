@@ -230,12 +230,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     if (!character || selectedBlocked) return;
     
     setIsJoining(true);
-    const presence = charactersTaken.get(character.id);
-    const success = await joinAsPlayer(character.id, {
-      lastSeen: presence?.lastSeen,
-      ownerId: presence?.ownerId ?? null,
-      timeoutMs: PRESENCE_STALE_MS,
-    });
+    const success = await joinAsPlayer(character.id, false);
     setIsJoining(false);
     
     if (!success) return;

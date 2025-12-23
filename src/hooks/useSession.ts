@@ -23,13 +23,6 @@ import { toast } from '@/hooks/use-toast';
 
 export const GLOBAL_SESSION_ID = 'sessao-principal';
 
-type JoinAsPlayerOptions = {
-  force?: boolean;
-  lastSeen?: number | null;
-  ownerId?: string | null;
-  timeoutMs?: number;
-};
-
 export function useSession() {
   const { user, userProfile } = useAuth();
   const [currentSession, setCurrentSession] = useState<GameSession | null>(null);
@@ -107,14 +100,13 @@ export function useSession() {
     return () => unsubscribe();
   }, [user]);
 
-  const joinAsPlayer = useCallback(async (characterId: string, options?: JoinAsPlayerOptions): Promise<boolean> => {
+  const joinAsPlayer = useCallback(async (characterId: string, force: boolean): Promise<boolean> => {
     if (!user) return false;
     setLoading(true);
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
     const presenceRef = doc(sessionRef, 'presence', user.uid);
     const presenceCollection = collection(sessionRef, 'presence');
-    const presenceTimeoutMs = options?.timeoutMs ?? 60_000;
 
     try {
       const characterPresenceQuery = query(
@@ -143,13 +135,13 @@ export function useSession() {
             ? characterPresenceData.lastSeen.toMillis()
             : typeof characterPresenceData?.lastSeen === 'number'
             ? characterPresenceData.lastSeen
-            : options?.lastSeen ?? null;
+            : null;
 
-        const ownerId = characterPresenceData?.ownerId ?? options?.ownerId ?? null;
+        const ownerId = characterPresenceData?.ownerId ?? null;
         const isPresenceStale =
-          presenceLastSeen === null ? true : Date.now() - presenceLastSeen > presenceTimeoutMs;
+          presenceLastSeen === null ? true : Date.now() - presenceLastSeen > 60_000;
 
-        if (ownerId && ownerId !== user.uid && !options?.force && !isPresenceStale) {
+        if (ownerId && ownerId !== user.uid && !force && !isPresenceStale) {
           throw new Error('CharacterAlreadyInUse');
         }
 
@@ -159,13 +151,8 @@ export function useSession() {
           characterId,
         };
 
-        if (characterPresenceData?.ownerId === user.uid && existingPresenceDoc) {
-          transaction.update(existingPresenceDoc.ref, {
-            ...presencePayload,
-            lastSeen: serverTimestamp(),
-            online: true,
-          });
-          return;
+        if (existingPresenceDoc && existingPresenceDoc.id !== user.uid) {
+          transaction.delete(existingPresenceDoc.ref);
         }
 
         transaction.set(
