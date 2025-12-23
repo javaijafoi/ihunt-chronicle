@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Crown, Shield } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
+import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { CharacterHUD } from '@/components/vtt/CharacterHUD';
 import { SceneAspects } from '@/components/vtt/SceneAspects';
@@ -24,7 +25,7 @@ export function VTTPage() {
   
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
-  const { partyCharacters } = usePartyCharacters();
+  const { partyCharacters, presenceMap } = usePartyCharacters();
   
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
@@ -46,6 +47,23 @@ export function VTTPage() {
   const [isDiceOpen, setIsDiceOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!activeCharacter || !user) return;
+
+    const activePresence = Object.values(presenceMap).find(
+      (presence) => presence.characterId === activeCharacter.id
+    );
+
+    if (activePresence && activePresence.ownerId !== user.uid) {
+      setActiveCharacter(null);
+      toast({
+        title: 'Personagem desconectado',
+        description: 'Outro jogador assumiu o controle deste personagem.',
+        variant: 'destructive',
+      });
+    }
+  }, [activeCharacter, presenceMap, user]);
 
   // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
