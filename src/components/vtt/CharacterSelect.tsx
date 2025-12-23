@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
+import { useAuth } from '@/hooks/useAuth';
 import { CharacterCreator } from './CharacterCreator';
 
 interface CharacterSelectProps {
@@ -13,6 +14,8 @@ interface CharacterSelectProps {
 
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { joinAsPlayer, claimGmRole, isGM, currentSession } = useSession();
   const { 
     characters, 
     loading,
@@ -20,8 +23,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     updateCharacter,
     deleteCharacter, 
     duplicateCharacter,
-  } = useFirebaseCharacters(GLOBAL_SESSION_ID);
-  const { joinAsPlayer, claimGmRole, isGM } = useSession();
+  } = useFirebaseCharacters(currentSession?.id || GLOBAL_SESSION_ID);
   
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
@@ -205,107 +207,115 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
               {/* Character Cards */}
               <AnimatePresence>
-                {characters.map((character) => (
-                  <motion.div
-                    key={character.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => setSelectedId(character.id === selectedId ? null : character.id)}
-                    className={`relative flex flex-col p-4 rounded-lg cursor-pointer
-                             transition-all min-h-[200px] ${
-                               character.id === selectedId
-                                 ? 'glass-panel border-2 border-primary shadow-lg shadow-primary/20'
-                                 : 'bg-muted/50 border border-border hover:border-primary/50'
-                             }`}
-                  >
-                    {/* Avatar & Name */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center border border-border">
-                        {character.avatar ? (
-                          <img 
-                            src={character.avatar} 
-                            alt={character.name} 
-                            className="w-full h-full rounded-full object-cover" 
-                          />
-                        ) : (
-                          <User className="w-6 h-6 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-display text-lg text-primary truncate">
-                          {character.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {character.aspects.job || 'Sem emprego'}
-                        </p>
-                      </div>
-                    </div>
+                {characters.map((character) => {
+                  const canManage = !!user && (user.uid === character.createdBy || isGM);
 
-                    {/* High Concept */}
-                    <p className="text-sm text-foreground/80 line-clamp-2 flex-1">
-                      {character.aspects.highConcept || 'Sem alto conceito'}
-                    </p>
+                  return (
+                    <motion.div
+                      key={character.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => setSelectedId(character.id === selectedId ? null : character.id)}
+                      className={`relative flex flex-col p-4 rounded-lg cursor-pointer
+                               transition-all min-h-[200px] ${
+                                 character.id === selectedId
+                                   ? 'glass-panel border-2 border-primary shadow-lg shadow-primary/20'
+                                   : 'bg-muted/50 border border-border hover:border-primary/50'
+                               }`}
+                    >
+                      {/* Avatar & Name */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center border border-border">
+                          {character.avatar ? (
+                            <img 
+                              src={character.avatar} 
+                              alt={character.name} 
+                              className="w-full h-full rounded-full object-cover" 
+                            />
+                          ) : (
+                            <User className="w-6 h-6 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-display text-lg text-primary truncate">
+                            {character.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {character.aspects.job || 'Sem emprego'}
+                          </p>
+                        </div>
+                      </div>
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border">
-                      <div className="flex items-center gap-1">
-                        <Sparkles className="w-4 h-4 text-accent" />
-                        <span className="font-display text-accent">{character.fatePoints}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {Object.keys(character.skills).length} habilidades
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {character.maneuvers.length} manobras
-                      </div>
-                    </div>
+                      {/* High Concept */}
+                      <p className="text-sm text-foreground/80 line-clamp-2 flex-1">
+                        {character.aspects.highConcept || 'Sem alto conceito'}
+                      </p>
 
-                    {/* Actions (visible when selected) */}
-                    {character.id === selectedId && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute -bottom-12 left-0 right-0 flex items-center justify-center gap-2"
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(character);
-                          }}
-                          className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                          title="Editar"
+                      {/* Stats */}
+                      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border">
+                        <div className="flex items-center gap-1">
+                          <Sparkles className="w-4 h-4 text-accent" />
+                          <span className="font-display text-accent">{character.fatePoints}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {Object.keys(character.skills).length} habilidades
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {character.maneuvers.length} manobras
+                        </div>
+                      </div>
+
+                      {/* Actions (visible when selected) */}
+                      {character.id === selectedId && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="absolute -bottom-12 left-0 right-0 flex items-center justify-center gap-2"
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            duplicateCharacter(character.id);
-                          }}
-                          className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                          title="Duplicar"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Deletar personagem?')) {
-                              deleteCharacter(character.id);
-                              setSelectedId(null);
-                            }
-                          }}
-                          className="p-2 rounded-lg bg-destructive/20 hover:bg-destructive/30 transition-colors"
-                          title="Deletar"
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </button>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                ))}
+                          {canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(character);
+                              }}
+                              className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              duplicateCharacter(character.id);
+                            }}
+                            className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                            title="Duplicar"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          {canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Deletar personagem?')) {
+                                  deleteCharacter(character.id);
+                                  setSelectedId(null);
+                                }
+                              }}
+                              className="p-2 rounded-lg bg-destructive/20 hover:bg-destructive/30 transition-colors"
+                              title="Deletar"
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </button>
+                          )}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           )}
