@@ -34,6 +34,8 @@ export function CharacterSheet({
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
   const calculatedTracks = calculateStressTracks(character);
+  const stressTooltip =
+    'No Fate, as caixas são valores de absorção. Você pode riscar a caixa 3 para absorver 3 de dano, deixando as menores livres.';
   const physicalStress = calculatedTracks.physical.map(
     (_filled, index) => character.stress.physical?.[index] ?? false
   );
@@ -239,6 +241,7 @@ export function CharacterSheet({
                           }
                           className={`stress-box w-10 h-10 ${filled ? 'filled' : ''} ${!canToggleStress ? 'opacity-70 cursor-not-allowed' : ''}`}
                           disabled={!canToggleStress}
+                          title={stressTooltip}
                         >
                           <span className="font-display">{index + 1}</span>
                         </button>
@@ -265,6 +268,7 @@ export function CharacterSheet({
                             borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                             background: filled ? 'hsl(var(--secondary))' : undefined 
                           }}
+                          title={stressTooltip}
                         >
                           <span className="font-display">{index + 1}</span>
                         </button>
