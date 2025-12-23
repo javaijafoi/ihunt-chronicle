@@ -137,15 +137,50 @@ export function useSession() {
   }, [user, userProfile]);
 
   const claimGmRole = useCallback(async () => {
-    if (!user) return;
+    if (!user) return false;
+
+    const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
 
     try {
-      await updateDoc(doc(db, 'sessions', GLOBAL_SESSION_ID), {
-        gmId: user.uid,
-        updatedAt: serverTimestamp(),
+      const wasClaimed = await runTransaction(db, async (transaction) => {
+        const sessionSnap = await transaction.get(sessionRef);
+
+        if (!sessionSnap.exists()) {
+          throw new Error('Sessão não encontrada.');
+        }
+
+        const sessionData = sessionSnap.data() as Partial<GameSession>;
+
+        if (sessionData.gmId) {
+          throw new Error('GMAlreadyAssigned');
+        }
+
+        transaction.update(sessionRef, {
+          gmId: user.uid,
+          updatedAt: serverTimestamp(),
+        });
+
+        return true;
       });
+
+      return wasClaimed;
     } catch (error) {
-      console.error('Error claiming GM role:', error);
+      if (error instanceof Error && error.message === 'GMAlreadyAssigned') {
+        toast({
+          title: 'Mestre já definido',
+          description: 'Já existe um Mestre de Jogo controlando a sessão.',
+          variant: 'destructive',
+        });
+      } else {
+        console.error('Error claiming GM role:', error);
+        toast({
+          title: 'Erro ao assumir como Mestre',
+          description: 'Não foi possível assumir a função de Mestre. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
+
+      return false;
     }
   }, [user]);
 
