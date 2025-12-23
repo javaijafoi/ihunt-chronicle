@@ -98,13 +98,17 @@ export function useSession() {
           throw new Error('CharacterAlreadyInUse');
         }
 
-        transaction.set(presenceRef, {
-          oderId: user.uid,
-          ownerName: userProfile?.displayName || 'Caçador',
-          characterId,
-          lastSeen: serverTimestamp(),
-          online: true,
-        }, { merge: true });
+        transaction.set(
+          presenceRef,
+          {
+            ownerId: user.uid,
+            ownerName: userProfile?.displayName || 'Caçador',
+            characterId,
+            lastSeen: serverTimestamp(),
+            online: true,
+          },
+          { merge: true },
+        );
 
         transaction.update(sessionRef, {
           characterIds: arrayUnion(characterId),

@@ -92,7 +92,7 @@ export function usePartyCharacters() {
               id: docSnap.id,
               sessionId,
               createdBy,
-              oderId: data.ownerId,
+              ownerId: data.ownerId,
               ownerName: ownerPresence?.ownerName || 'Desconhecido',
               isOnline: !!ownerPresence?.online,
             };
@@ -127,8 +127,8 @@ export function usePartyCharacters() {
     };
   }, [currentSession, presenceMap]);
 
-  const myCharacter = partyCharacters.find(c => c.oderId === user?.uid) || null;
-  const otherCharacters = partyCharacters.filter(c => c.oderId !== user?.uid);
+  const myCharacter = partyCharacters.find(c => c.ownerId === user?.uid) || null;
+  const otherCharacters = partyCharacters.filter(c => c.ownerId !== user?.uid);
 
   return {
     partyCharacters,

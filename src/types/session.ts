@@ -16,7 +16,7 @@ export interface GameSession {
 }
 
 export interface SessionPresence {
-  oderId: string;
+  ownerId: string;
   ownerName: string;
   characterId: string;
   lastSeen: Date;
@@ -24,7 +24,7 @@ export interface SessionPresence {
 }
 
 export interface PartyCharacter extends Character {
-  oderId: string;
+  ownerId: string;
   ownerName: string;
   isOnline: boolean;
 }

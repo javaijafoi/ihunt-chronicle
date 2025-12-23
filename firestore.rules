@@ -9,6 +9,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/sessions/$(sessionId));
     }
 
+    function sessionData(sessionId) {
+      let session = sessionSnapshot(sessionId);
+      return session.data != null ? session.data : {};
+    }
+
     function sessionExists(sessionId) {
       return exists(/databases/$(database)/documents/sessions/$(sessionId));
     }
@@ -16,6 +21,15 @@ service cloud.firestore {
     function isSessionGm(sessionId) {
       let session = sessionSnapshot(sessionId);
       return isSignedIn() && session.data != null && session.data.gmId == request.auth.uid;
+    }
+
+    function isInvitedToSession(sessionId) {
+      let data = sessionData(sessionId);
+      return isSignedIn() && (
+        (data.allowedUserIds != null && data.allowedUserIds.hasAny([request.auth.uid])) ||
+        (data.invitedUserIds != null && data.invitedUserIds.hasAny([request.auth.uid])) ||
+        (data.playerIds != null && data.playerIds.hasAny([request.auth.uid]))
+      );
     }
 
     function hasSessionPresence(sessionId) {
@@ -47,12 +61,7 @@ service cloud.firestore {
           || request.resource.data.gmId == ''
           || request.resource.data.gmId == request.auth.uid);
 
-      allow read: if canAccessSession(sessionId)
-        || (isSignedIn()
-          && (sessionId == 'sessao-principal'
-            || sessionSnapshot(sessionId).data == null
-            || !sessionSnapshot(sessionId).data.keys().hasAny(['gmId'])
-            || sessionSnapshot(sessionId).data.gmId == null));
+      allow read: if canAccessSession(sessionId);
 
       allow update, delete: if canAccessSession(sessionId);
 
@@ -61,12 +70,17 @@ service cloud.firestore {
 
         allow create: if isSignedIn()
           && sessionExists(sessionId)
-          && request.resource.data.oderId == userId
-          && (request.auth.uid == userId || isSessionGm(sessionId));
+          && request.resource.data.keys().hasAll(['ownerId', 'characterId'])
+          && request.resource.data.ownerId == userId
+          && request.resource.data.characterId is string
+          && request.resource.data.characterId != ''
+          && (isSessionGm(sessionId)
+            || (request.auth.uid == userId && isInvitedToSession(sessionId)));
 
         allow update, delete: if isSignedIn()
-          && (request.auth.uid == userId || isSessionGm(sessionId))
-          && canAccessSession(sessionId);
+          && sessionExists(sessionId)
+          && ((request.auth.uid == userId && isInvitedToSession(sessionId) && hasSessionPresence(sessionId))
+            || isSessionGm(sessionId));
       }
     }
   }
