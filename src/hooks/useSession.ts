@@ -24,6 +24,28 @@ export function useSession() {
   const [currentSession, setCurrentSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!user || !currentSession) return;
+
+    let isMounted = true;
+
+    const presenceInterval = setInterval(() => {
+      if (!isMounted) return;
+
+      updateDoc(doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid), {
+        lastSeen: serverTimestamp(),
+        online: true,
+      }).catch((error) => {
+        console.error('Erro ao atualizar presença do usuário:', error);
+      });
+    }, 60_000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(presenceInterval);
+    };
+  }, [currentSession?.id, user?.uid]);
+
   // Listen to current session
   useEffect(() => {
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
