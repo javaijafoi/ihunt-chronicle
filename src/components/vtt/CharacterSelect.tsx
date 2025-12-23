@@ -34,21 +34,22 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [wantsGmSeat, setWantsGmSeat] = useState(false);
-  const [charactersInUse, setCharactersInUse] = useState<Set<string>>(new Set());
+  const [characterPresenceMap, setCharacterPresenceMap] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'sessions', GLOBAL_SESSION_ID, 'presence'),
       (snapshot) => {
-        const ids = new Set<string>();
+        const presence = new Map<string, string>();
         snapshot.docs.forEach((doc) => {
           const characterId = doc.data()?.characterId as string | undefined;
+          const ownerId = (doc.data()?.ownerId as string | undefined) ?? doc.id;
           if (characterId) {
-            ids.add(characterId);
+            presence.set(characterId, ownerId);
           }
         });
-        setCharactersInUse(ids);
+        setCharacterPresenceMap(presence);
       },
       (error: FirestoreError) => {
         if (error.code === 'permission-denied') {
@@ -66,17 +67,47 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     return () => unsubscribe();
   }, []);
 
-  const charactersTaken = useMemo(() => {
-    const sessionIds = new Set(currentSession?.characterIds ?? []);
-    return new Set([...charactersInUse, ...sessionIds]);
-  }, [charactersInUse, currentSession?.characterIds]);
+  const charactersTaken = useMemo<Map<string, string | null>>(() => {
+    const merged = new Map<string, string | null>();
+
+    characterPresenceMap.forEach((ownerId, characterId) => {
+      merged.set(characterId, ownerId);
+    });
+
+    (currentSession?.characterIds ?? []).forEach((characterId) => {
+      if (!merged.has(characterId)) {
+        merged.set(characterId, null);
+      }
+    });
+
+    return merged;
+  }, [characterPresenceMap, currentSession?.characterIds]);
+
+  const isCharacterInUse = (characterId: string) => charactersTaken.has(characterId);
+  const characterOwnerId = (characterId: string) => charactersTaken.get(characterId);
+  const isCharacterOwnedByCurrentUser = (characterId: string) => {
+    if (!user?.uid) return false;
+    return characterOwnerId(characterId) === user.uid;
+  };
+  const isCharacterBlockedForUser = (characterId: string) => {
+    if (!isCharacterInUse(characterId)) return false;
+    const ownerId = characterOwnerId(characterId);
+    if (!ownerId) return true;
+    return ownerId !== user?.uid;
+  };
 
   const selectedCharacter = useMemo(
     () => characters.find((c) => c.id === selectedId) || null,
     [characters, selectedId]
   );
 
-  const selectedInUse = selectedCharacter ? charactersTaken.has(selectedCharacter.id) : false;
+  const selectedBlocked = selectedCharacter ? isCharacterBlockedForUser(selectedCharacter.id) : false;
+  const selectedOwnerId = selectedCharacter ? characterOwnerId(selectedCharacter.id) : null;
+  const selectedInUse = selectedCharacter ? isCharacterInUse(selectedCharacter.id) : false;
+  const joinCtaLabel =
+    selectedCharacter && selectedInUse && selectedOwnerId === user?.uid
+      ? 'Retomar'
+      : 'Entrar na Sessão';
 
   const handleCreate = async (characterData: Omit<Character, 'id'>) => {
     if (editingCharacter) {
@@ -133,7 +164,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
   const handlePlay = async () => {
     const character = selectedCharacter;
-    if (!character || selectedInUse) return;
+    if (!character || selectedBlocked) return;
     
     setIsJoining(true);
     const success = await joinAsPlayer(character.id);
@@ -251,7 +282,8 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
               <AnimatePresence>
                 {characters.map((character) => {
                   const canManage = !!user && (user.uid === character.createdBy || isGM);
-                  const isInUse = charactersTaken.has(character.id);
+                  const isInUse = isCharacterInUse(character.id);
+                  const ownedByCurrentUser = isCharacterOwnedByCurrentUser(character.id);
 
                   return (
                     <motion.div
@@ -293,7 +325,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
                       {isInUse && (
                         <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-semibold">
-                          Em Uso
+                          {ownedByCurrentUser ? 'Em uso (você)' : 'Em Uso'}
                         </div>
                       )}
 
@@ -426,7 +458,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
             <button
               onClick={handlePlay}
-              disabled={!selectedId || isJoining || selectedInUse}
+              disabled={!selectedId || isJoining || selectedBlocked}
               className="flex items-center gap-2 px-6 py-3 rounded-lg 
                        bg-primary text-primary-foreground font-ui
                        hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
@@ -437,7 +469,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
               ) : (
                 <Play className="w-5 h-5" />
               )}
-              Entrar na Sessão
+              {joinCtaLabel}
             </button>
           </div>
         </div>
