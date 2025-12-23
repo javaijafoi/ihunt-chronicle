@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, User, Sparkles, Target, Zap, Check, Plus, Trash2, Heart } from 'lucide-react';
 import { Character, DriveName, Maneuver } from '@/types/game';
 import { SkillPyramid } from './SkillPyramid';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
+import { useAuth } from '@/hooks/useAuth';
+import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 
 interface CharacterCreatorProps {
   isOpen: boolean;
@@ -23,7 +25,7 @@ const STEPS = [
 
 const BASE_REFRESH = 5;
 
-const DEFAULT_CHARACTER: Omit<Character, 'id'> = {
+const BASE_CHARACTER: Omit<Character, 'id' | 'sessionId' | 'createdBy'> = {
   name: '',
   avatar: '',
   drive: undefined,
@@ -49,15 +51,42 @@ const DEFAULT_CHARACTER: Omit<Character, 'id'> = {
   refresh: 3,
 };
 
+const buildDefaultCharacter = (sessionId: string, createdBy: string): Omit<Character, 'id'> => ({
+  ...BASE_CHARACTER,
+  sessionId,
+  createdBy,
+});
+
 export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: CharacterCreatorProps) {
+  const { user } = useAuth();
+  const { currentSession } = useSession();
+
+  const defaultCharacter = useMemo(
+    () => buildDefaultCharacter(currentSession?.id || GLOBAL_SESSION_ID, user?.uid || 'anonymous'),
+    [currentSession?.id, user?.uid]
+  );
+
   const [currentStep, setCurrentStep] = useState(0);
   const [character, setCharacter] = useState<Omit<Character, 'id'>>(
-    editingCharacter ? { ...editingCharacter } : { ...DEFAULT_CHARACTER }
+    editingCharacter ? { ...editingCharacter } : { ...defaultCharacter }
   );
   const [selectedManeuverIds, setSelectedManeuverIds] = useState<string[]>(
-    editingCharacter?.maneuvers || []
+    editingCharacter?.maneuvers || [...defaultCharacter.maneuvers]
   );
   const [newFreeAspect, setNewFreeAspect] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (editingCharacter) {
+      setCharacter({ ...editingCharacter });
+      setSelectedManeuverIds(editingCharacter.maneuvers);
+      return;
+    }
+
+    setCharacter({ ...defaultCharacter });
+    setSelectedManeuverIds([...defaultCharacter.maneuvers]);
+  }, [editingCharacter, defaultCharacter, isOpen]);
 
   // Get current drive info
   const currentDrive = useMemo(() => {
@@ -148,15 +177,15 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
       fatePoints: availableRefresh,
     };
     onSave(finalCharacter);
-    setCharacter({ ...DEFAULT_CHARACTER });
-    setSelectedManeuverIds([]);
+    setCharacter({ ...defaultCharacter });
+    setSelectedManeuverIds([...defaultCharacter.maneuvers]);
     setCurrentStep(0);
     onClose();
   };
 
   const handleClose = () => {
-    setCharacter(editingCharacter ? { ...editingCharacter } : { ...DEFAULT_CHARACTER });
-    setSelectedManeuverIds(editingCharacter?.maneuvers || []);
+    setCharacter(editingCharacter ? { ...editingCharacter } : { ...defaultCharacter });
+    setSelectedManeuverIds(editingCharacter?.maneuvers || [...defaultCharacter.maneuvers]);
     setCurrentStep(0);
     onClose();
   };

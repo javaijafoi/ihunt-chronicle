@@ -10,6 +10,8 @@ export function useCharacters() {
   const createCharacter = useCallback((character: Omit<Character, 'id'>): Character => {
     const newCharacter: Character = {
       ...character,
+      sessionId: character.sessionId || 'local-session',
+      createdBy: character.createdBy || 'local-user',
       id: crypto.randomUUID(),
     };
     setCharacters(prev => [...prev, newCharacter]);
@@ -55,6 +57,8 @@ export function useCharacters() {
       // Assign new IDs to avoid conflicts
       const withNewIds = imported.map(c => ({
         ...c,
+        sessionId: c.sessionId || 'local-session',
+        createdBy: c.createdBy || 'import',
         id: crypto.randomUUID(),
       }));
       
