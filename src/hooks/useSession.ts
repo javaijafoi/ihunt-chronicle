@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
+  collection,
   doc,
   updateDoc,
   deleteDoc,
@@ -7,8 +8,11 @@ import {
   setDoc,
   serverTimestamp,
   arrayUnion,
+  getDocs,
+  query,
   Timestamp,
   runTransaction,
+  where,
   type FirestoreError
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -102,8 +106,16 @@ export function useSession() {
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
     const presenceRef = doc(sessionRef, 'presence', user.uid);
+    const presenceCollection = collection(sessionRef, 'presence');
 
     try {
+      const characterPresenceQuery = query(
+        presenceCollection,
+        where('characterId', '==', characterId),
+      );
+      const existingPresenceSnapshot = await getDocs(characterPresenceQuery);
+      const existingPresenceDoc = existingPresenceSnapshot.docs[0];
+
       await runTransaction(db, async (transaction) => {
         const sessionSnap = await transaction.get(sessionRef);
 
@@ -116,6 +128,32 @@ export function useSession() {
           ? sessionData.characterIds
           : [];
 
+        const characterPresenceSnap = existingPresenceDoc
+          ? await transaction.get(existingPresenceDoc.ref)
+          : null;
+        const characterPresenceData = characterPresenceSnap?.data() as
+          | { ownerId?: string; characterId?: string }
+          | undefined;
+
+        if (characterPresenceData?.ownerId && characterPresenceData.ownerId !== user.uid) {
+          throw new Error('CharacterAlreadyInUse');
+        }
+
+        const presencePayload = {
+          ownerId: user.uid,
+          ownerName: userProfile?.displayName || 'Caçador',
+          characterId,
+        };
+
+        if (characterPresenceData?.ownerId === user.uid && existingPresenceDoc) {
+          transaction.update(existingPresenceDoc.ref, {
+            ...presencePayload,
+            lastSeen: serverTimestamp(),
+            online: true,
+          });
+          return;
+        }
+
         if (currentCharacterIds.includes(characterId)) {
           throw new Error('CharacterAlreadyInUse');
         }
@@ -123,9 +161,7 @@ export function useSession() {
         transaction.set(
           presenceRef,
           {
-            ownerId: user.uid,
-            ownerName: userProfile?.displayName || 'Caçador',
-            characterId,
+            ...presencePayload,
             lastSeen: serverTimestamp(),
             online: true,
           },
