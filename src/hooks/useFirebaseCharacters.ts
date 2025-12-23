@@ -16,6 +16,7 @@ import { db } from '@/lib/firebase';
 import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { GLOBAL_SESSION_ID } from './useSession';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
   ownerId: string;
@@ -44,10 +45,15 @@ export function useFirebaseCharacters() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const chars: Character[] = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Character));
+        const chars: Character[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            sessionId: data.sessionId || GLOBAL_SESSION_ID,
+            createdBy: data.createdBy || (data as { ownerId?: string }).ownerId || 'desconhecido',
+          } as Character;
+        });
         setCharacters(chars);
         setLoading(false);
       },
@@ -73,8 +79,13 @@ export function useFirebaseCharacters() {
     if (!user) return null;
 
     try {
+      const sessionId = characterData.sessionId || GLOBAL_SESSION_ID;
+      const createdBy = characterData.createdBy || user.uid;
+
       const docRef = await addDoc(collection(db, 'characters'), {
         ...characterData,
+        sessionId,
+        createdBy,
         ownerId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -83,6 +94,8 @@ export function useFirebaseCharacters() {
       return {
         id: docRef.id,
         ...characterData,
+        sessionId,
+        createdBy,
       };
     } catch (error) {
       console.error('Error creating character:', error);

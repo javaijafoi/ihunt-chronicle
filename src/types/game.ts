@@ -21,6 +21,8 @@ export interface Drive {
 
 export interface Character {
   id: string;
+  sessionId: string;
+  createdBy: string;
   name: string;
   avatar?: string;
   drive?: DriveName;

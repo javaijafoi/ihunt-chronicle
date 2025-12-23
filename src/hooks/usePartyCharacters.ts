@@ -84,10 +84,14 @@ export function usePartyCharacters() {
           snapshot.docs.forEach(docSnap => {
             const data = docSnap.data() as Character & { ownerId: string };
             const ownerPresence = Object.values(presenceMap).find(p => p.characterId === docSnap.id);
+            const sessionId = data.sessionId || currentSession?.id || GLOBAL_SESSION_ID;
+            const createdBy = data.createdBy || data.ownerId || 'desconhecido';
 
             batchCharacters[docSnap.id] = {
               ...data,
               id: docSnap.id,
+              sessionId,
+              createdBy,
               oderId: data.ownerId,
               ownerName: ownerPresence?.ownerName || 'Desconhecido',
               isOnline: !!ownerPresence?.online,
