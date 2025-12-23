@@ -247,6 +247,19 @@ export function VTTPage() {
             spendFatePoint(selectedCharacter.id);
           }
         }}
+        sceneAspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
+        myCharacter={selectedCharacter}
+        partyCharacters={partyCharacters.map(pc => ({
+          name: pc.name,
+          aspects: pc.aspects,
+        }))}
+        onInvokeAspect={(aspectName, source, useFreeInvoke) => {
+          if (useFreeInvoke) {
+            invokeAspect(aspectName, true);
+          } else {
+            addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
+          }
+        }}
       />
 
       <SafetyCard

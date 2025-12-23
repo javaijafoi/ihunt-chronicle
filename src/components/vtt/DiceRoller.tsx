@@ -1,8 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap } from 'lucide-react';
-import { ActionType, DiceResult } from '@/types/game';
+import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap, Bookmark, User, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { ActionType, DiceResult, SceneAspect, Character } from '@/types/game';
 import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
+
+interface InvokableAspect {
+  name: string;
+  source: string;
+  sourceType: 'scene' | 'self' | 'other';
+  freeInvokes?: number;
+}
 
 interface DiceRollerProps {
   onRoll: (
@@ -18,6 +25,11 @@ interface DiceRollerProps {
   presetSkill?: string | null;
   fatePoints?: number;
   onSpendFate?: () => void;
+  // New props for aspects
+  sceneAspects?: SceneAspect[];
+  myCharacter?: Character | null;
+  partyCharacters?: Array<{ name: string; aspects: Character['aspects'] }>;
+  onInvokeAspect?: (aspectName: string, source: string, useFreeInvoke: boolean) => void;
 }
 
 const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: number }) => {
@@ -46,7 +58,19 @@ const ACTIONS: { value: ActionType; label: string; icon: ReactNode; tooltip: str
   { value: 'defender', label: 'Defender', icon: <Shield className="w-5 h-5" />, tooltip: 'Evitar ataques ou perigos' },
 ];
 
-export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, fatePoints = 0, onSpendFate }: DiceRollerProps) {
+export function DiceRoller({ 
+  onRoll, 
+  skills = {}, 
+  isOpen, 
+  onClose, 
+  presetSkill, 
+  fatePoints = 0, 
+  onSpendFate,
+  sceneAspects = [],
+  myCharacter,
+  partyCharacters = [],
+  onInvokeAspect,
+}: DiceRollerProps) {
   const [result, setResult] = useState<DiceResult | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
@@ -57,8 +81,92 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
   const [opposition, setOpposition] = useState<number | null>(null);
   const [customOpposition, setCustomOpposition] = useState('');
   const [hasUsedReroll, setHasUsedReroll] = useState(false);
+  const [showAspectPanel, setShowAspectPanel] = useState(false);
+  const [invokedAspects, setInvokedAspects] = useState<string[]>([]);
 
   const formatNumber = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
+
+  // Build list of all invokable aspects
+  const buildInvokableAspects = (): InvokableAspect[] => {
+    const aspects: InvokableAspect[] = [];
+
+    // Scene aspects
+    sceneAspects.forEach(aspect => {
+      aspects.push({
+        name: aspect.name,
+        source: 'Cena',
+        sourceType: 'scene',
+        freeInvokes: aspect.freeInvokes,
+      });
+    });
+
+    // My character aspects
+    if (myCharacter) {
+      const charAspects = [
+        myCharacter.aspects.highConcept,
+        myCharacter.aspects.drama,
+        myCharacter.aspects.job,
+        myCharacter.aspects.dreamBoard,
+        ...myCharacter.aspects.free,
+      ].filter(Boolean);
+
+      charAspects.forEach(aspect => {
+        aspects.push({
+          name: aspect,
+          source: myCharacter.name,
+          sourceType: 'self',
+        });
+      });
+
+      // Add consequences as invokable aspects (for compels or self-invokes)
+      if (myCharacter.consequences.mild) {
+        aspects.push({
+          name: myCharacter.consequences.mild,
+          source: `${myCharacter.name} (Consequência)`,
+          sourceType: 'self',
+        });
+      }
+      if (myCharacter.consequences.moderate) {
+        aspects.push({
+          name: myCharacter.consequences.moderate,
+          source: `${myCharacter.name} (Consequência)`,
+          sourceType: 'self',
+        });
+      }
+      if (myCharacter.consequences.severe) {
+        aspects.push({
+          name: myCharacter.consequences.severe,
+          source: `${myCharacter.name} (Consequência)`,
+          sourceType: 'self',
+        });
+      }
+    }
+
+    // Party characters aspects
+    partyCharacters.forEach(char => {
+      if (char.name === myCharacter?.name) return; // Skip self
+
+      const charAspects = [
+        char.aspects.highConcept,
+        char.aspects.drama,
+        char.aspects.job,
+        char.aspects.dreamBoard,
+        ...char.aspects.free,
+      ].filter(Boolean);
+
+      charAspects.forEach(aspect => {
+        aspects.push({
+          name: aspect,
+          source: char.name,
+          sourceType: 'other',
+        });
+      });
+    });
+
+    return aspects;
+  };
+
+  const invokableAspects = buildInvokableAspects();
 
   useEffect(() => {
     if (isOpen) {
@@ -71,6 +179,8 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
       setOpposition(null);
       setCustomOpposition('');
       setHasUsedReroll(false);
+      setShowAspectPanel(false);
+      setInvokedAspects([]);
     }
   }, [isOpen, presetSkill]);
 
@@ -85,6 +195,7 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
     setIsRolling(true);
     setResult(null);
     setHasUsedReroll(false);
+    setInvokedAspects([]);
     
     await sleep(100);
     
@@ -106,10 +217,20 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
     setIsRolling(false);
   };
 
-  const handleInvokeAspect = () => {
-    if (!result || fatePoints <= 0 || !onSpendFate) return;
+  const handleInvokeAspectBonus = (aspect: InvokableAspect, useFreeInvoke: boolean) => {
+    if (!result) return;
+    
+    // Check if already invoked this aspect
+    if (invokedAspects.includes(aspect.name)) return;
+    
+    // If not using free invoke, need to spend fate point
+    if (!useFreeInvoke) {
+      if (fatePoints <= 0 || !onSpendFate) return;
+      onSpendFate();
+    }
 
-    onSpendFate();
+    // Notify parent about the invocation
+    onInvokeAspect?.(aspect.name, aspect.source, useFreeInvoke);
     
     const newTotal = result.total + 2;
     const newOutcome = calculateOutcome(newTotal, result.opposition ?? null);
@@ -121,14 +242,25 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
       outcome: newOutcome?.outcome,
       invocations: prev.invocations + 1,
     } : prev);
+    
+    setInvokedAspects(prev => [...prev, aspect.name]);
   };
 
-  const handleReroll = async () => {
-    if (!result || fatePoints <= 0 || !onSpendFate || hasUsedReroll) return;
+  const handleReroll = async (aspect: InvokableAspect, useFreeInvoke: boolean) => {
+    if (!result || hasUsedReroll) return;
 
-    onSpendFate();
+    // If not using free invoke, need to spend fate point
+    if (!useFreeInvoke) {
+      if (fatePoints <= 0 || !onSpendFate) return;
+      onSpendFate();
+    }
+
+    // Notify parent about the invocation
+    onInvokeAspect?.(aspect.name, aspect.source, useFreeInvoke);
+
     setIsRolling(true);
     setHasUsedReroll(true);
+    setInvokedAspects(prev => [...prev, aspect.name]);
 
     await sleep(100);
     const rerollResult = onRoll(
@@ -168,6 +300,14 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
     : null;
 
   const canRoll = isFreeRoll || selectedAction;
+
+  const getSourceIcon = (sourceType: 'scene' | 'self' | 'other') => {
+    switch (sourceType) {
+      case 'scene': return <Bookmark className="w-3 h-3" />;
+      case 'self': return <User className="w-3 h-3" />;
+      case 'other': return <Users className="w-3 h-3" />;
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -467,33 +607,115 @@ export function DiceRoller({ onRoll, skills = {}, isOpen, onClose, presetSkill, 
                   
                   {/* Invocations */}
                   {result.invocations > 0 && (
-                    <p className="text-xs text-secondary mt-1 font-ui">
-                      {result.invocations} invocação(ões) de aspecto
-                    </p>
+                    <div className="text-xs text-secondary mt-2 font-ui">
+                      <p>{result.invocations} invocação(ões) de aspecto</p>
+                      {invokedAspects.length > 0 && (
+                        <p className="text-muted-foreground mt-1">
+                          {invokedAspects.map((a, i) => (
+                            <span key={i}>"{a}"{i < invokedAspects.length - 1 ? ', ' : ''}</span>
+                          ))}
+                        </p>
+                      )}
+                    </div>
                   )}
                   
-                  {/* Post-Roll Actions */}
-                  {fatePoints > 0 && onSpendFate && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {/* Aspect Invocation Panel */}
+                  {invokableAspects.length > 0 && (
+                    <div className="mt-4">
                       <button
                         type="button"
-                        onClick={handleInvokeAspect}
-                        disabled={isRolling}
-                        className="px-4 py-2 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-ui text-sm disabled:opacity-50 flex items-center gap-2"
+                        onClick={() => setShowAspectPanel(prev => !prev)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-secondary/50 text-secondary hover:bg-secondary/10 transition-colors font-ui text-sm"
                       >
-                        <Plus className="w-4 h-4" />
-                        Invocar Aspecto (+2)
+                        <Bookmark className="w-4 h-4" />
+                        Invocar Aspecto (+2 ou Reroll)
+                        {showAspectPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleReroll}
-                        disabled={isRolling || hasUsedReroll}
-                        className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 transition-colors font-ui text-sm disabled:opacity-50 flex items-center gap-2"
-                        title={hasUsedReroll ? 'Você deve aceitar o resultado do reroll' : 'Rolar novamente (gasta 1 ponto de destino)'}
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Rolar Novamente {hasUsedReroll && '(usado)'}
-                      </button>
+                      
+                      <AnimatePresence>
+                        {showAspectPanel && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                              {/* Fate Points indicator */}
+                              <div className="flex items-center justify-between text-xs text-muted-foreground px-2 py-1 bg-muted/50 rounded">
+                                <span>Pontos de Destino disponíveis:</span>
+                                <span className="font-display text-lg text-accent">{fatePoints}</span>
+                              </div>
+                              
+                              {invokableAspects.map((aspect, idx) => {
+                                const isInvoked = invokedAspects.includes(aspect.name);
+                                const hasFreeInvoke = (aspect.freeInvokes ?? 0) > 0;
+                                const canInvoke = !isInvoked && (hasFreeInvoke || fatePoints > 0);
+                                
+                                return (
+                                  <div
+                                    key={`${aspect.name}-${idx}`}
+                                    className={`p-2 rounded-lg border text-left ${
+                                      isInvoked 
+                                        ? 'border-secondary/30 bg-secondary/10 opacity-60' 
+                                        : 'border-border hover:border-secondary/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <span className={`mt-0.5 ${
+                                        aspect.sourceType === 'scene' ? 'text-secondary' :
+                                        aspect.sourceType === 'self' ? 'text-primary' : 'text-accent'
+                                      }`}>
+                                        {getSourceIcon(aspect.sourceType)}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-ui truncate" title={aspect.name}>
+                                          "{aspect.name}"
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                          {aspect.source}
+                                          {hasFreeInvoke && (
+                                            <span className="px-1 py-0.5 rounded bg-secondary/20 text-secondary">
+                                              {aspect.freeInvokes} grátis
+                                            </span>
+                                          )}
+                                        </p>
+                                      </div>
+                                      {!isInvoked && (
+                                        <div className="flex gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleInvokeAspectBonus(aspect, hasFreeInvoke)}
+                                            disabled={!canInvoke}
+                                            className="px-2 py-1 rounded text-[10px] font-ui bg-secondary/20 text-secondary hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            title={hasFreeInvoke ? 'Usar invocação gratuita (+2)' : 'Gastar 1 ponto de destino (+2)'}
+                                          >
+                                            +2
+                                          </button>
+                                          {!hasUsedReroll && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleReroll(aspect, hasFreeInvoke)}
+                                              disabled={!canInvoke}
+                                              className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                              title={hasFreeInvoke ? 'Usar invocação gratuita (reroll)' : 'Gastar 1 ponto de destino (reroll)'}
+                                            >
+                                              <RotateCcw className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                      {isInvoked && (
+                                        <span className="text-[10px] text-secondary font-ui">Invocado</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </motion.div>
