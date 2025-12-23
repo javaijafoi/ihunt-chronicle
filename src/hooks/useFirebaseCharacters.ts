@@ -19,27 +19,28 @@ import { toast } from '@/hooks/use-toast';
 import { GLOBAL_SESSION_ID } from './useSession';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
-  ownerId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-export function useFirebaseCharacters() {
+export function useFirebaseCharacters(sessionId: string) {
   const { user } = useAuth();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Listen to user's characters
   useEffect(() => {
-    if (!user) {
+    if (!user || !sessionId) {
       setCharacters([]);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     const q = query(
       collection(db, 'characters'),
-      where('ownerId', '==', user.uid)
+      where('sessionId', '==', sessionId)
     );
 
     const unsubscribe = onSnapshot(
@@ -73,20 +74,19 @@ export function useFirebaseCharacters() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, sessionId]);
 
   const createCharacter = useCallback(async (characterData: Omit<Character, 'id'>): Promise<Character | null> => {
-    if (!user) return null;
+    if (!user || !sessionId) return null;
 
     try {
-      const sessionId = characterData.sessionId || GLOBAL_SESSION_ID;
-      const createdBy = characterData.createdBy || user.uid;
+      const characterSessionId = characterData.sessionId || sessionId || GLOBAL_SESSION_ID;
+      const createdBy = user.uid;
 
       const docRef = await addDoc(collection(db, 'characters'), {
         ...characterData,
-        sessionId,
+        sessionId: characterSessionId,
         createdBy,
-        ownerId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       } as FirebaseCharacter);
@@ -94,14 +94,14 @@ export function useFirebaseCharacters() {
       return {
         id: docRef.id,
         ...characterData,
-        sessionId,
+        sessionId: characterSessionId,
         createdBy,
       };
     } catch (error) {
       console.error('Error creating character:', error);
       return null;
     }
-  }, [user]);
+  }, [user, sessionId]);
 
   const updateCharacter = useCallback(async (id: string, updates: Partial<Character>) => {
     try {
@@ -125,14 +125,16 @@ export function useFirebaseCharacters() {
 
   const duplicateCharacter = useCallback(async (id: string): Promise<Character | null> => {
     const original = characters.find(c => c.id === id);
-    if (!original || !user) return null;
+    if (!original || !user || !sessionId) return null;
 
-    const { id: _, ...characterData } = original;
+    const { id: _, createdBy: _createdBy, ...characterData } = original;
     return createCharacter({
       ...characterData,
+      sessionId: original.sessionId,
+      createdBy: user.uid,
       name: `${characterData.name} (cópia)`,
     });
-  }, [characters, user, createCharacter]);
+  }, [characters, user, sessionId, createCharacter]);
 
   return {
     characters,
