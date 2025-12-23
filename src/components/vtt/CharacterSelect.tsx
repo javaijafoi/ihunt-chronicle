@@ -20,6 +20,8 @@ type CharacterPresence = {
   lastSeen: number;
 };
 
+type CharacterOccupancyStatus = 'free' | 'mine' | 'occupied' | 'stale';
+
 const PRESENCE_STALE_MS = 60_000;
 
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
@@ -152,11 +154,14 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     if (!user?.uid) return false;
     return characterOwnerId(characterId) === user.uid;
   };
-  const isCharacterBlockedForUser = (characterId: string) => {
-    if (!isCharacterInUse(characterId)) return false;
-    const ownerId = characterOwnerId(characterId);
-    if (!ownerId) return true;
-    return ownerId !== user?.uid;
+
+  const getCharacterOccupancyStatus = (characterId: string): CharacterOccupancyStatus => {
+    const presence = charactersTaken.get(characterId);
+
+    if (!presence) return 'free';
+    if (!isPresenceActive(presence)) return 'stale';
+    if (presence.ownerId === user?.uid) return 'mine';
+    return 'occupied';
   };
 
   const selectedCharacter = useMemo(
@@ -164,13 +169,22 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     [characters, selectedId]
   );
 
-  const selectedBlocked = selectedCharacter ? isCharacterBlockedForUser(selectedCharacter.id) : false;
-  const selectedOwnerId = selectedCharacter ? characterOwnerId(selectedCharacter.id) : null;
-  const selectedInUse = selectedCharacter ? isCharacterInUse(selectedCharacter.id) : false;
+  const selectedStatus = selectedCharacter ? getCharacterOccupancyStatus(selectedCharacter.id) : null;
   const joinCtaLabel =
-    selectedCharacter && selectedInUse && selectedOwnerId === user?.uid
+    selectedStatus === 'mine'
       ? 'Retomar'
-      : 'Entrar na Sessão';
+      : selectedStatus === 'occupied'
+      ? 'Forçar Entrada'
+      : 'Entrar';
+
+  const joinCtaClasses: Record<CharacterOccupancyStatus, string> = {
+    mine: 'bg-blue-600 hover:bg-blue-500 text-white',
+    occupied: 'bg-red-600 hover:bg-red-500 text-white',
+    free: 'bg-green-600 hover:bg-green-500 text-white',
+    stale: 'bg-green-600 hover:bg-green-500 text-white',
+  };
+  const joinButtonTone = selectedStatus ? joinCtaClasses[selectedStatus] : 'bg-primary hover:bg-primary/90 text-primary-foreground';
+  const isJoinDisabled = !selectedCharacter || isJoining;
 
   const handleCreate = async (characterData: Omit<Character, 'id'>) => {
     if (editingCharacter) {
@@ -227,10 +241,11 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
   const handlePlay = async () => {
     const character = selectedCharacter;
-    if (!character || selectedBlocked) return;
+    if (!character || !selectedStatus) return;
+    const shouldForceJoin = selectedStatus === 'occupied';
     
     setIsJoining(true);
-    const success = await joinAsPlayer(character.id, false);
+    const success = await joinAsPlayer(character.id, shouldForceJoin);
     setIsJoining(false);
     
     if (!success) return;
@@ -521,11 +536,10 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
             <button
               onClick={handlePlay}
-              disabled={!selectedId || isJoining || selectedBlocked}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg 
-                       bg-primary text-primary-foreground font-ui
-                       hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
-                       transition-colors"
+              disabled={isJoinDisabled}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg 
+                       font-ui disabled:opacity-50 disabled:cursor-not-allowed 
+                       transition-colors ${joinButtonTone}`}
             >
               {isJoining ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
