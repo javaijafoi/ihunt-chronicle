@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from '@/hooks/useSession';
+import { CharacterSeeder } from '@/components/vtt/CharacterSeeder';
 
 export function LobbyPage() {
   const navigate = useNavigate();
@@ -261,6 +262,9 @@ export function LobbyPage() {
           </button>
         </div>
       </motion.div>
+      <div className="fixed bottom-4 right-4 z-50">
+        <CharacterSeeder />
+      </div>
     </div>
   );
 }
