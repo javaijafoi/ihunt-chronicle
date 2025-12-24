@@ -45,6 +45,7 @@ export function VTTPage() {
     addSceneAspect,
     invokeAspect,
     addLog,
+    createRollLog,
   } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
   const {
     incomingRoll,
@@ -112,7 +113,7 @@ export function VTTPage() {
     addLog(`${activeCharacter.name} invocou "${aspect}" de ${characterName}`, 'aspect');
   };
 
-  const handleRollDice = (
+  const handleRollDice = async (
     modifier: number = 0,
     skill: string | undefined,
     action: ActionType | undefined,
@@ -121,8 +122,13 @@ export function VTTPage() {
   ) => {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
 
-    rollerRef.current?.roll(diceResult);
+    const animation = rollerRef.current?.roll(diceResult);
     void emitRollEvent(diceResult);
+
+    void (async () => {
+      await (animation ?? Promise.resolve());
+      await createRollLog(diceResult);
+    })();
 
     return diceResult;
   };

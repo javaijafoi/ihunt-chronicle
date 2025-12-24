@@ -15,6 +15,13 @@ import sceneBackground from '@/assets/scene-default.jpg';
 import { GLOBAL_SESSION_ID } from './useSession';
 import { useAuth } from './useAuth';
 
+const ACTION_LABELS: Record<ActionType, string> = {
+  superar: 'Superar',
+  criarVantagem: 'Criar Vantagem',
+  atacar: 'Atacar',
+  defender: 'Defender',
+};
+
 const createInitialState = (character?: Character): GameState => ({
   currentScene: {
     id: '1',
@@ -329,26 +336,21 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       invocations: 0,
     };
 
-    const actionLabels: Record<ActionType, string> = {
-      superar: 'Superar',
-      criarVantagem: 'Criar Vantagem',
-      atacar: 'Atacar',
-      defender: 'Defender',
-    };
+    return result;
+  }, [selectedCharacter]);
 
-    // Get outcome label
+  const createRollLog = useCallback(async (result: DiceResult) => {
     const getOutcomeLabel = () => {
-      if (outcome === 'style') return 'SUCESSO COM ESTILO';
-      if (outcome === 'success') return 'SUCESSO';
-      if (outcome === 'tie') return 'EMPATE';
-      if (outcome === 'failure') return 'FALHA';
+      if (result.outcome === 'style') return 'SUCESSO COM ESTILO';
+      if (result.outcome === 'success') return 'SUCESSO';
+      if (result.outcome === 'tie') return 'EMPATE';
+      if (result.outcome === 'failure') return 'FALHA';
       // No opposition set - use simple logic
       if (result.total >= 3) return 'Sucesso com Estilo!';
       if (result.total >= 0) return 'Sucesso';
       return 'Falha';
     };
 
-    // Get ladder label
     const getLadderLabel = (value: number): string => {
       if (value <= -2) return 'Terrível';
       if (value === -1) return 'Ruim';
@@ -366,36 +368,34 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
 
     const details = {
       kind: 'roll' as const,
-      action,
-      actionLabel: action ? actionLabels[action] : undefined,
-      skill,
-      skillBonus: modifier,
+      action: result.action,
+      actionLabel: result.action ? ACTION_LABELS[result.action] : undefined,
+      skill: result.skill,
+      skillBonus: result.modifier,
       fateDice: result.fateDice,
       diceTotal: result.diceTotal,
       opposition: result.opposition,
       shifts: result.shifts,
       ladderLabel: getLadderLabel(result.total),
       d6: result.d6,
-      modifier,
+      modifier: result.modifier,
       total: result.total,
       type: result.type,
       outcome: getOutcomeLabel(),
     };
 
-    const actionText = action ? actionLabels[action] : 'Rolagem Livre';
+    const actionText = result.action ? ACTION_LABELS[result.action] : 'Rolagem Livre';
     const logEntry: LogEntry = {
       id: crypto.randomUUID(),
       type: 'roll',
-      message: `${result.character} rolou ${actionText}${skill ? ` com ${skill} (${modifier >= 0 ? '+' : ''}${modifier})` : ''}`,
+      message: `${result.character} rolou ${actionText}${result.skill ? ` com ${result.skill} (${result.modifier >= 0 ? '+' : ''}${result.modifier})` : ''}`,
       character: result.character,
       timestamp: new Date(),
       details,
     };
 
-    appendLog(logEntry);
-
-    return result;
-  }, [appendLog, selectedCharacter]);
+    await appendLog(logEntry);
+  }, [appendLog]);
 
   const spendFatePoint = useCallback(
     async (characterId: string) => {
@@ -659,5 +659,6 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     addSceneAspect,
     invokeAspect,
     addLog,
+    createRollLog,
   };
 }
