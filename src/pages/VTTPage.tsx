@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Crown, Shield } from 'lucide-react';
@@ -17,7 +17,8 @@ import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
-import { Character } from '@/types/game';
+import { Roller3D, type Roller3DHandle } from '@/components/vtt/Roller3D';
+import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 
 export function VTTPage() {
@@ -30,6 +31,7 @@ export function VTTPage() {
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
+  const rollerRef = useRef<Roller3DHandle | null>(null);
   
   const {
     gameState,
@@ -92,6 +94,20 @@ export function VTTPage() {
 
   const handleInvokeAspect = (characterName: string, aspect: string) => {
     addLog(`${activeCharacter.name} invocou "${aspect}" de ${characterName}`, 'aspect');
+  };
+
+  const handleRollDice = (
+    modifier: number = 0,
+    skill: string | undefined,
+    action: ActionType | undefined,
+    type: 'normal' | 'advantage' = 'normal',
+    opposition?: number
+  ) => {
+    const diceResult = rollDice(modifier, skill, action, type, opposition);
+
+    rollerRef.current?.roll(diceResult);
+
+    return diceResult;
   };
 
   const isSessionGM = user?.uid === currentSession?.gmId;
@@ -249,6 +265,8 @@ export function VTTPage() {
         </div>
       </div>
 
+      <Roller3D ref={rollerRef} />
+
       {/* Layer 2: Overlays */}
       <DiceRoller
         isOpen={isDiceOpen}
@@ -256,7 +274,7 @@ export function VTTPage() {
           setIsDiceOpen(false);
           setPresetSkill(null);
         }}
-        onRoll={rollDice}
+        onRoll={handleRollDice}
         skills={selectedCharacter?.skills}
         presetSkill={presetSkill}
         fatePoints={selectedCharacter?.fatePoints}
