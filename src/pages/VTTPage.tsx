@@ -18,6 +18,7 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
 import { Roller3D, type Roller3DHandle } from '@/components/vtt/Roller3D';
+import { useGameEvents } from '@/hooks/useGameEvents';
 import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 
@@ -45,6 +46,14 @@ export function VTTPage() {
     invokeAspect,
     addLog,
   } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
+  const {
+    incomingRoll,
+    emitRollEvent,
+    acknowledgeRollEvent,
+  } = useGameEvents(
+    currentSession?.id || GLOBAL_SESSION_ID,
+    user?.uid || currentSession?.id || GLOBAL_SESSION_ID,
+  );
 
   const [isDiceOpen, setIsDiceOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
@@ -66,6 +75,13 @@ export function VTTPage() {
       });
     }
   }, [activeCharacter, presenceMap, user]);
+
+  useEffect(() => {
+    if (!incomingRoll) return;
+
+    rollerRef.current?.roll(incomingRoll.result);
+    acknowledgeRollEvent(incomingRoll.id);
+  }, [acknowledgeRollEvent, incomingRoll]);
 
   // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
@@ -106,6 +122,7 @@ export function VTTPage() {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
 
     rollerRef.current?.roll(diceResult);
+    void emitRollEvent(diceResult);
 
     return diceResult;
   };
