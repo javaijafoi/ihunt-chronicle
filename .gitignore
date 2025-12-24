@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+public/assets/**
+!public/assets/.gitkeep
 
 # Editor directories and files
 .vscode/*
