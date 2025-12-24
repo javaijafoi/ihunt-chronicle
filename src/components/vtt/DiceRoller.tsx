@@ -18,7 +18,7 @@ interface DiceRollerProps {
     action: ActionType | undefined,
     type?: 'normal' | 'advantage',
     opposition?: number
-  ) => DiceResult;
+  ) => Promise<DiceResult> | DiceResult;
   skills?: Record<string, number>;
   isOpen: boolean;
   onClose: () => void;
@@ -203,7 +203,7 @@ export function DiceRoller({
       ? customModifier 
       : (selectedSkill ? skills[selectedSkill] || 0 : 0);
     
-    const diceResult = onRoll(
+    const diceResult = await onRoll(
       modifier, 
       isFreeRoll ? undefined : selectedSkill || undefined, 
       isFreeRoll ? undefined : selectedAction!, 
