@@ -76,6 +76,14 @@ export interface DiceResult {
   invocations: number;
 }
 
+export interface RollEvent {
+  id: string;
+  type: 'roll';
+  result: DiceResult;
+  authorId: string;
+  createdAt?: Date | import('firebase/firestore').Timestamp;
+}
+
 export interface RollLogDetails {
   kind: 'roll';
   action?: ActionType;
