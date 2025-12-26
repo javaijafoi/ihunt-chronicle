@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Crown, Shield, Users, Bookmark, User, Dices } from 'lucide-react';
+import { LogOut, Crown, Shield } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -24,6 +24,15 @@ import { DraggableWindow } from '@/components/vtt/DraggableWindow';
 export function VTTPage() {
   const navigate = useNavigate();
   const PRESENCE_RECENCY_TOLERANCE_MS = 10_000;
+
+  const defaultWindowPositions = {
+    chat: { x: 32, y: 104 },
+    hud: { x: 32, y: 360 },
+    sheet: { x: 480, y: 80 },
+    party: { x: 820, y: 120 },
+    dice: { x: 280, y: 160 },
+    aspects: { x: 1060, y: 160 },
+  } as const;
   
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
@@ -49,18 +58,33 @@ export function VTTPage() {
 
   const sessionStorageKey = currentSession?.id || GLOBAL_SESSION_ID;
   const [windows, setWindows] = useState({
-    party: true,
-    aspects: true,
+    chat: true,
+    hud: true,
     sheet: false,
+    party: true,
     dice: false,
+    aspects: true,
   });
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
 
   const toggleWindow = (name: keyof typeof windows, value?: boolean) => {
-    setWindows((prev) => ({
-      ...prev,
-      [name]: typeof value === 'boolean' ? value : !prev[name],
-    }));
+    setWindows((prev) => {
+      const nextValue = typeof value === 'boolean' ? value : !prev[name];
+      const nextState = {
+        ...prev,
+        [name]: nextValue,
+      };
+
+      if (name === 'sheet') {
+        nextState.hud = nextValue ? false : true;
+      }
+
+      if (name === 'hud' && nextValue && prev.sheet) {
+        nextState.sheet = false;
+      }
+
+      return nextState;
+    });
   };
 
   useEffect(() => {
@@ -138,7 +162,7 @@ export function VTTPage() {
       {/* Layer 0: Canvas */}
       <SceneCanvas scene={gameState.currentScene} />
 
-      {/* Layer 1: UI - New Layout with sidebars */}
+      {/* Layer 1: UI */}
       <div className="absolute inset-0 pointer-events-none flex flex-col">
         {/* Top Bar */}
         <motion.div 
@@ -224,78 +248,30 @@ export function VTTPage() {
           </div>
         </motion.div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex min-h-0 px-4 gap-4">
-          <div className="flex-1 relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
-              {([
-                { key: 'party', label: 'Grupo', icon: <Users className="w-5 h-5" /> },
-                { key: 'aspects', label: 'Aspectos', icon: <Bookmark className="w-5 h-5" /> },
-                { key: 'sheet', label: 'Ficha', icon: <User className="w-5 h-5" /> },
-                { key: 'dice', label: 'Rolador', icon: <Dices className="w-5 h-5" /> },
-              ] as const).map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => toggleWindow(item.key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors shadow-sm ${
-                    windows[item.key]
-                      ? 'border-primary bg-primary/10 text-primary glow-primary'
-                      : 'border-border bg-background/70 hover:border-primary/40 text-foreground'
-                  }`}
-                  aria-pressed={windows[item.key]}
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="absolute left-24 bottom-8 pointer-events-auto max-w-md">
-              {selectedCharacter ? (
-                <CharacterHUD
-                  character={selectedCharacter}
-                  onSpendFate={() => spendFatePoint(selectedCharacter.id)}
-                  onGainFate={() => gainFatePoint(selectedCharacter.id)}
-                  onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
-                  onOpenFullSheet={() => toggleWindow('sheet', true)}
-                  onOpenDice={() => openDiceRoller()}
-                />
-              ) : (
-                <div className="glass-panel px-3 py-2 text-sm text-muted-foreground">
-                  Nenhum personagem selecionado.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Sidebar: Chat */}
-          <motion.div 
-            className="pointer-events-auto w-80 h-[calc(100%-4rem)]"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <GameLog
-              logs={gameState.logs}
-              onSendMessage={(msg) => addLog(msg, 'chat')}
-            />
-          </motion.div>
-        </div>
+        <div className="flex-1" />
 
         {/* Bottom Dock */}
         <div className="h-16 flex items-center justify-center pointer-events-auto shrink-0">
           <Dock
-            onRollDice={() => openDiceRoller()}
-            onOpenSheet={() => toggleWindow('sheet', true)}
+            windows={windows}
+            onToggleWindow={(windowName) => {
+              if (windowName === 'dice') {
+                setPresetSkill(null);
+              }
+              toggleWindow(windowName);
+            }}
             onOpenSafety={() => setIsSafetyOpen(true)}
+            onHoldDice={() => openDiceRoller()}
           />
         </div>
       </div>
 
       <DraggableWindow
+        id="party"
         title="Grupo"
         isOpen={windows.party}
         onClose={() => toggleWindow('party', false)}
+
         initialPosition={{ x: 32, y: 140 }}
         storageKey={`${sessionStorageKey}:party-window`}
       >
@@ -312,10 +288,11 @@ export function VTTPage() {
       </DraggableWindow>
 
       <DraggableWindow
+        id="aspects"
         title="Aspectos da Cena"
         isOpen={windows.aspects}
         onClose={() => toggleWindow('aspects', false)}
-        initialPosition={{ x: 420, y: 160 }}
+        initialPosition={defaultWindowPositions.aspects}
         className="w-[420px]"
         storageKey={`${sessionStorageKey}:scene-aspects-window`}
       >
@@ -328,13 +305,14 @@ export function VTTPage() {
       </DraggableWindow>
 
       <DraggableWindow
+        id="dice"
         title="Rolador de Dados"
         isOpen={windows.dice}
         onClose={() => {
           toggleWindow('dice', false);
           setPresetSkill(null);
         }}
-        initialPosition={{ x: 220, y: 120 }}
+        initialPosition={defaultWindowPositions.dice}
         className="w-[520px]"
         storageKey={`${sessionStorageKey}:dice-roller-window`}
       >
@@ -370,12 +348,33 @@ export function VTTPage() {
         />
       </DraggableWindow>
 
-      {selectedCharacter && (
+      {selectedCharacter && windows.hud && !windows.sheet && (
         <DraggableWindow
+          id="hud"
+          title="HUD do Personagem"
+          isOpen={windows.hud}
+          onClose={() => toggleWindow('hud', false)}
+          initialPosition={defaultWindowPositions.hud}
+          className="w-[380px]"
+        >
+          <CharacterHUD
+            character={selectedCharacter}
+            onSpendFate={() => spendFatePoint(selectedCharacter.id)}
+            onGainFate={() => gainFatePoint(selectedCharacter.id)}
+            onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+            onOpenFullSheet={() => toggleWindow('sheet', true)}
+            onOpenDice={() => openDiceRoller()}
+          />
+        </DraggableWindow>
+      )}
+
+      {selectedCharacter && windows.sheet && (
+        <DraggableWindow
+          id="sheet"
           title="Ficha do Personagem"
           isOpen={windows.sheet}
           onClose={() => toggleWindow('sheet', false)}
-          initialPosition={{ x: 640, y: 80 }}
+          initialPosition={defaultWindowPositions.sheet}
           className="w-[900px] max-w-[90vw]"
           storageKey={`${sessionStorageKey}:character-sheet:${selectedCharacter.id}`}
         >
@@ -405,6 +404,21 @@ export function VTTPage() {
           />
         </DraggableWindow>
       )}
+
+      <DraggableWindow
+        id="chat"
+        title="Chat da Sessão"
+        isOpen={windows.chat}
+        onClose={() => toggleWindow('chat', false)}
+        initialPosition={defaultWindowPositions.chat}
+        className="w-[420px]"
+        contentClassName="p-0 max-h-[72vh]"
+      >
+        <GameLog
+          logs={gameState.logs}
+          onSendMessage={(msg) => addLog(msg, 'chat')}
+        />
+      </DraggableWindow>
 
       {/* Viewing another character's sheet */}
       {viewingCharacter && (

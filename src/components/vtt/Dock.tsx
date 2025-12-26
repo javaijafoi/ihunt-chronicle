@@ -1,25 +1,34 @@
 import { motion } from 'framer-motion';
 import { useCallback, useRef } from 'react';
-import { Dices, BookOpen, Shield, Settings, Coffee } from 'lucide-react';
+import { Bookmark, Dices, BookOpen, Shield, Users, MessageSquare, LayoutDashboard } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+type DockWindow = 'chat' | 'hud' | 'sheet' | 'party' | 'dice' | 'aspects';
+
 interface DockProps {
-  onRollDice: () => void;
-  onOpenSheet: () => void;
+  windows: Record<DockWindow, boolean>;
+  onToggleWindow: (window: DockWindow) => void;
   onOpenSafety: () => void;
   onHoldDice?: () => void;
-  activeTool?: string;
 }
 
-const dockItems = [
-  { id: 'dice', icon: Dices, label: 'Dados', action: 'onRollDice' },
-  { id: 'sheet', icon: BookOpen, label: 'Ficha', action: 'onOpenSheet' },
-  { id: 'safety', icon: Shield, label: 'Segurança', action: 'onOpenSafety' },
-  { id: 'break', icon: Coffee, label: 'Intervalo', action: null },
-  { id: 'settings', icon: Settings, label: 'Config', action: null },
+type DockItem = {
+  id: DockWindow | 'safety';
+  icon: typeof Dices;
+  label: string;
+};
+
+const dockItems: DockItem[] = [
+  { id: 'chat', icon: MessageSquare, label: 'Chat' },
+  { id: 'hud', icon: LayoutDashboard, label: 'HUD' },
+  { id: 'sheet', icon: BookOpen, label: 'Ficha' },
+  { id: 'party', icon: Users, label: 'Grupo' },
+  { id: 'aspects', icon: Bookmark, label: 'Aspectos' },
+  { id: 'dice', icon: Dices, label: 'Dados' },
+  { id: 'safety', icon: Shield, label: 'Segurança' },
 ];
 
-export function Dock({ onRollDice, onOpenSheet, onOpenSafety, onHoldDice, activeTool }: DockProps) {
+export function Dock({ windows, onToggleWindow, onOpenSafety, onHoldDice }: DockProps) {
   const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdTriggered = useRef(false);
 
@@ -43,14 +52,6 @@ export function Dock({ onRollDice, onOpenSheet, onOpenSafety, onHoldDice, active
     }
   }, []);
 
-  const handleAction = (actionName: string | null) => {
-    switch (actionName) {
-      case 'onRollDice': onRollDice(); break;
-      case 'onOpenSheet': onOpenSheet(); break;
-      case 'onOpenSafety': onOpenSafety(); break;
-    }
-  };
-
   return (
     <motion.div
       className="glass-panel px-4 py-2 flex items-center gap-1"
@@ -59,7 +60,8 @@ export function Dock({ onRollDice, onOpenSheet, onOpenSafety, onHoldDice, active
     >
       {dockItems.map((item, index) => {
         const Icon = item.icon;
-        const isActive = activeTool === item.id;
+        const isWindow = item.id !== 'safety';
+        const isActive = isWindow ? windows[item.id] : false;
         
         return (
           <Tooltip key={item.id}>
@@ -71,7 +73,13 @@ export function Dock({ onRollDice, onOpenSheet, onOpenSafety, onHoldDice, active
                     holdTriggered.current = false;
                     return;
                   }
-                  handleAction(item.action);
+                  if (item.id === 'safety') {
+                    onOpenSafety();
+                    return;
+                  }
+                  if (isWindow) {
+                    onToggleWindow(item.id);
+                  }
                 }}
                 onPointerDown={item.id === 'dice' ? startHold : undefined}
                 onPointerUp={item.id === 'dice' ? () => cancelHold() : undefined}
