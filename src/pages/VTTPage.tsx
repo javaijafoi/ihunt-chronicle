@@ -17,6 +17,7 @@ import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
+import { WidgetsSidebar } from '@/components/vtt/WidgetsSidebar';
 import { Roller3D, type Roller3DHandle } from '@/components/vtt/Roller3D';
 import { useGameEvents } from '@/hooks/useGameEvents';
 import { ActionType, Character } from '@/types/game';
@@ -144,89 +145,84 @@ export function VTTPage() {
       {/* Layer 0: Canvas */}
       <SceneCanvas scene={gameState.currentScene} />
 
-      {/* Layer 1: UI */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Top Bar - Logo & Session Info */}
+      {/* Layer 1: UI - New Layout with sidebars */}
+      <div className="absolute inset-0 pointer-events-none flex flex-col">
+        {/* Top Bar */}
         <motion.div 
-          className="absolute top-4 left-4 pointer-events-auto flex items-center gap-3 flex-wrap"
+          className="h-16 px-4 pointer-events-auto flex items-center justify-between shrink-0"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="glass-panel px-4 py-2">
-            <h1 className="font-display text-2xl">
-              <span className="text-primary text-glow-primary">#i</span>
-              <span className="text-foreground">HUNT</span>
-              <span className="text-muted-foreground text-sm ml-2 font-ui">VTT</span>
-            </h1>
+          {/* Left: Logo & Session Info */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="glass-panel px-4 py-2">
+              <h1 className="font-display text-2xl">
+                <span className="text-primary text-glow-primary">#i</span>
+                <span className="text-foreground">HUNT</span>
+                <span className="text-muted-foreground text-sm ml-2 font-ui">VTT</span>
+              </h1>
+            </div>
+
+            {currentSession && (
+              <div className="glass-panel px-3 py-2 flex items-center gap-3">
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">
+                    {currentSession.name}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                    Sessão Global
+                  </span>
+                </div>
+                {isGM && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted text-xs text-secondary">
+                    <Crown className="w-3 h-3" />
+                    GM
+                  </span>
+                )}
+                <button
+                  onClick={handleLeaveSession}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                  title="Trocar de personagem"
+                >
+                  <LogOut className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </div>
+            )}
+
+            {userProfile && (
+              <div className="glass-panel px-3 py-2 flex items-center gap-3 shadow-lg/30 backdrop-blur-md">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted">
+                  {userProfile.photoURL ? (
+                    <img
+                      src={userProfile.photoURL}
+                      alt={userProfile.displayName || 'Avatar'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                      {(userProfile.displayName || 'C').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-foreground leading-tight">
+                    {userProfile.displayName || 'Caçador'}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    {isSessionGM ? (
+                      <Crown className="w-3 h-3 text-secondary" />
+                    ) : (
+                      <Shield className="w-3 h-3 text-primary" />
+                    )}
+                    {isSessionGM ? 'Mestre da Mesa' : 'Caçador'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Session Info */}
-          {currentSession && (
-            <div className="glass-panel px-3 py-2 flex items-center gap-3">
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground">
-                  {currentSession.name}
-                </span>
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                  Sessão Global
-                </span>
-              </div>
-              {isGM && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted text-xs text-secondary">
-                  <Crown className="w-3 h-3" />
-                  GM
-                </span>
-              )}
-              <button
-                onClick={handleLeaveSession}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                title="Trocar de personagem"
-              >
-                <LogOut className="w-3 h-3 text-muted-foreground" />
-              </button>
-            </div>
-          )}
-
-          {userProfile && (
-            <div className="glass-panel px-3 py-2 flex items-center gap-3 shadow-lg/30 backdrop-blur-md">
-              <div className="relative w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted">
-                {userProfile.photoURL ? (
-                  <img
-                    src={userProfile.photoURL}
-                    alt={userProfile.displayName || 'Avatar'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
-                    {(userProfile.displayName || 'C').charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-foreground leading-tight">
-                  {userProfile.displayName || 'Caçador'}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  {isSessionGM ? (
-                    <Crown className="w-3 h-3 text-secondary" />
-                  ) : (
-                    <Shield className="w-3 h-3 text-primary" />
-                  )}
-                  {isSessionGM ? 'Mestre da Mesa' : 'Caçador'}
-                </span>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* GM Fate Pool */}
-        <motion.div 
-          className="absolute top-4 right-4 pointer-events-auto"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
+          {/* Right: GM Fate Pool */}
           <div className="glass-panel px-4 py-2 flex items-center gap-3">
             <span className="text-xs text-muted-foreground font-ui uppercase tracking-wider">GM Pool</span>
             <span className="font-display text-2xl text-accent text-glow-accent">
@@ -235,51 +231,66 @@ export function VTTPage() {
           </div>
         </motion.div>
 
-        {/* Left Panel: Party + Character HUD */}
-        <div className="absolute left-4 top-20 pointer-events-auto space-y-3">
-          {/* Party Panel */}
-          {partyCharacters.length > 0 && (
-            <PartyPanel
-              partyCharacters={partyCharacters}
-              myCharacterId={activeCharacter?.id}
-              onViewCharacter={(char) => setViewingCharacter(char)}
-              onInvokeAspect={handleInvokeAspect}
+        {/* Main Content Area */}
+        <div className="flex-1 flex min-h-0 px-4 gap-4">
+          {/* Left Sidebar: Widgets */}
+          <div className="pointer-events-auto h-[calc(100%-4rem)]">
+            <WidgetsSidebar
+              partyContent={
+                partyCharacters.length > 0 ? (
+                  <PartyPanel
+                    partyCharacters={partyCharacters}
+                    myCharacterId={activeCharacter?.id}
+                    onViewCharacter={(char) => setViewingCharacter(char)}
+                    onInvokeAspect={handleInvokeAspect}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum jogador online.</p>
+                )
+              }
+              characterContent={
+                selectedCharacter ? (
+                  <CharacterHUD
+                    character={selectedCharacter}
+                    onSpendFate={() => spendFatePoint(selectedCharacter.id)}
+                    onGainFate={() => gainFatePoint(selectedCharacter.id)}
+                    onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+                    onOpenSheet={() => setIsSheetOpen(true)}
+                    onOpenDice={() => openDiceRoller()}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum personagem selecionado.</p>
+                )
+              }
+              aspectsContent={
+                <SceneAspects
+                  aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
+                  onAddAspect={addSceneAspect}
+                  onInvokeAspect={invokeAspect}
+                  canEdit={isGM}
+                />
+              }
             />
-          )}
+          </div>
 
-          {/* Character HUD */}
-          {selectedCharacter && (
-            <CharacterHUD
-              character={selectedCharacter}
-              onSpendFate={() => spendFatePoint(selectedCharacter.id)}
-              onGainFate={() => gainFatePoint(selectedCharacter.id)}
-              onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
-              onOpenSheet={() => setIsSheetOpen(true)}
-              onOpenDice={() => openDiceRoller()}
+          {/* Center: Scene (empty space for canvas) */}
+          <div className="flex-1" />
+
+          {/* Right Sidebar: Chat */}
+          <motion.div 
+            className="pointer-events-auto w-80 h-[calc(100%-4rem)]"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <GameLog
+              logs={gameState.logs}
+              onSendMessage={(msg) => addLog(msg, 'chat')}
             />
-          )}
-        </div>
-
-        {/* Right Panel: Scene Aspects */}
-        <div className="absolute right-4 top-20 w-72 pointer-events-auto">
-          <SceneAspects
-            aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
-            onAddAspect={addSceneAspect}
-            onInvokeAspect={invokeAspect}
-            canEdit={isGM}
-          />
-        </div>
-
-        {/* Right Panel: Game Log */}
-        <div className="absolute right-4 bottom-24 w-72 h-64 pointer-events-auto">
-          <GameLog
-            logs={gameState.logs}
-            onSendMessage={(msg) => addLog(msg, 'chat')}
-          />
+          </motion.div>
         </div>
 
         {/* Bottom Dock */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+        <div className="h-16 flex items-center justify-center pointer-events-auto shrink-0">
           <Dock
             onRollDice={() => openDiceRoller()}
             onOpenSheet={() => setIsSheetOpen(true)}
