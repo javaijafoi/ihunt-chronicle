@@ -313,7 +313,7 @@ export function DiceRoller({
 
   const rollerPanel = (
     <motion.div
-      className="glass-panel p-6 min-w-[420px] max-w-lg max-h-[90vh] overflow-y-auto"
+      className="glass-panel p-6 min-w-[420px] max-w-lg"
       initial={{ scale: 0.8, opacity: 0, y: 50 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.8, opacity: 0, y: 50 }}
@@ -737,6 +737,7 @@ export function DiceRoller({
             initial={{ opacity: 0, scale: 0.98, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 20 }}
+            className="w-full"
           >
             {rollerPanel}
           </motion.div>
@@ -749,11 +750,9 @@ export function DiceRoller({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="spotlight-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={(e) => e.target === e.currentTarget && onClose()}
         >
           {rollerPanel}
         </motion.div>
