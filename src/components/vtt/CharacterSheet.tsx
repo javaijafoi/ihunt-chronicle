@@ -46,7 +46,7 @@ export function CharacterSheet({
   );
 
   const sheetBody = (
-    <div className="relative glass-panel w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="relative glass-panel w-full max-w-4xl">
       {/* Header */}
       <div className="sticky top-0 z-10 glass-panel rounded-t-lg border-b border-border p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -335,7 +335,7 @@ export function CharacterSheet({
             initial={{ opacity: 0, scale: 0.98, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 20 }}
-            className="relative z-50 w-[min(90vw,1100px)]"
+            className="w-full"
           >
             {sheetBody}
           </motion.div>
@@ -348,18 +348,11 @@ export function CharacterSheet({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-          
-          {/* Sheet */}
           <motion.div
-            className="relative glass-panel w-full max-w-4xl max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
