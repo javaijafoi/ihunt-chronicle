@@ -313,6 +313,7 @@ export function VTTPage() {
             onRollDice={() => openDiceRoller()}
             onOpenSheet={() => toggleWindow('sheet', true)}
             onOpenSafety={() => setIsSafetyOpen(true)}
+            onHoldDice={() => rollerRef.current?.roll()}
           />
         </div>
       </div>

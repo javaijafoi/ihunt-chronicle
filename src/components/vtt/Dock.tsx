@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useCallback, useRef } from 'react';
 import { Dices, BookOpen, Shield, Settings, Coffee } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -6,6 +7,7 @@ interface DockProps {
   onRollDice: () => void;
   onOpenSheet: () => void;
   onOpenSafety: () => void;
+  onHoldDice?: () => void;
   activeTool?: string;
 }
 
@@ -17,7 +19,30 @@ const dockItems = [
   { id: 'settings', icon: Settings, label: 'Config', action: null },
 ];
 
-export function Dock({ onRollDice, onOpenSheet, onOpenSafety, activeTool }: DockProps) {
+export function Dock({ onRollDice, onOpenSheet, onOpenSafety, onHoldDice, activeTool }: DockProps) {
+  const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTriggered = useRef(false);
+
+  const startHold = useCallback(() => {
+    if (!onHoldDice) return;
+
+    holdTimeout.current = setTimeout(() => {
+      holdTriggered.current = true;
+      onHoldDice();
+      holdTimeout.current = null;
+    }, 400);
+  }, [onHoldDice]);
+
+  const cancelHold = useCallback((reset?: boolean) => {
+    if (holdTimeout.current) {
+      clearTimeout(holdTimeout.current);
+      holdTimeout.current = null;
+    }
+    if (reset || !holdTriggered.current) {
+      holdTriggered.current = false;
+    }
+  }, []);
+
   const handleAction = (actionName: string | null) => {
     switch (actionName) {
       case 'onRollDice': onRollDice(); break;
@@ -41,7 +66,16 @@ export function Dock({ onRollDice, onOpenSheet, onOpenSafety, activeTool }: Dock
             <TooltipTrigger asChild>
               <motion.button
                 className={`dock-button ${isActive ? 'active' : ''}`}
-                onClick={() => handleAction(item.action)}
+                onClick={() => {
+                  if (item.id === 'dice' && holdTriggered.current) {
+                    holdTriggered.current = false;
+                    return;
+                  }
+                  handleAction(item.action);
+                }}
+                onPointerDown={item.id === 'dice' ? startHold : undefined}
+                onPointerUp={item.id === 'dice' ? () => cancelHold() : undefined}
+                onPointerLeave={item.id === 'dice' ? () => cancelHold(true) : undefined}
                 whileHover={{ y: -4 }}
                 whileTap={{ scale: 0.95 }}
                 initial={{ opacity: 0, y: 20 }}
