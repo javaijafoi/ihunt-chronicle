@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import '@3d-dice/dice-box/dist/style.css';
 import type { DiceResult } from '@/types/game';
 
@@ -17,95 +17,153 @@ export const Roller3D = forwardRef<Roller3DHandle, Roller3DProps>(function Rolle
   const [containerId] = useState(() => `roller-3d-${Math.random().toString(36).slice(2, 10)}`);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const diceBoxRef = useRef<any>(null);
-  const initializationRef = useRef<Promise<void> | null>(null);
+  const initPromiseRef = useRef<Promise<void> | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
-  const notationFromResult = useMemo(
-    () =>
-      function notation(result?: DiceResult) {
-        if (!result) {
-          return '4d6';
-        }
+  const notationFromResult = useCallback((result?: DiceResult) => {
+    if (!result) {
+      return '4dF';
+    }
 
-        // Standard Fate roll uses 4 dice. Advantage adds a d6 alongside 3 Fate dice,
-        // so we keep four dice on the table for visual parity.
-        const standardDice = { sides: 6, qty: 4 };
+    // Standard Fate roll uses 4 dice
+    // Advantage: 3dF + 1d6
+    if (result.type === 'advantage') {
+      return '3dF+1d6';
+    }
 
-        return result.type === 'advantage'
-          ? [
-              { sides: 6, qty: 3 },
-              { sides: 6, qty: 1 },
-            ]
-          : standardDice;
-      },
-    []
-  );
+    return '4dF';
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
+    let box: any = null;
 
     const initialize = async () => {
-      if (!containerRef.current) return;
+      const container = containerRef.current;
+      if (!container) {
+        console.warn('[Roller3D] Container not found');
+        return;
+      }
+
+      // Wait for container to have dimensions
+      const rect = container.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn('[Roller3D] Container has no dimensions, waiting...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       try {
         const { default: DiceBox } = await import('@3d-dice/dice-box');
 
-        const primaryColor = getComputedStyle(document.documentElement)
-          .getPropertyValue('--primary')
-          .trim();
+        // Get theme color from CSS
+        const computedStyle = getComputedStyle(document.documentElement);
+        const primaryHsl = computedStyle.getPropertyValue('--primary').trim();
+        let themeColor = '#8b5cf6'; // fallback purple
 
-        const box = new DiceBox({
+        if (primaryHsl) {
+          // Convert HSL to hex if needed
+          const hslMatch = primaryHsl.match(/(\d+)\s+(\d+)%\s+(\d+)%/);
+          if (hslMatch) {
+            const [, h, s, l] = hslMatch.map(Number);
+            themeColor = hslToHex(h, s, l);
+          }
+        }
+
+        box = new DiceBox({
           container: `#${containerId}`,
           assetPath: '/assets/',
           theme: 'default',
-          themeColor: primaryColor || '#8b5cf6',
+          themeColor,
+          scale: 6,
           lightIntensity: 1.2,
-          ambientLightIntensity: 0.9,
           shadowTransparency: 0.7,
-          delay: 200,
+          gravity: 2,
+          spinForce: 4,
+          throwForce: 5,
         });
 
         await box.init();
 
         if (isMounted) {
           diceBoxRef.current = box;
+          setIsReady(true);
+          console.log('[Roller3D] Initialized successfully');
         } else {
-          box.clear();
+          box.clear?.();
         }
       } catch (error) {
-        console.error('Erro ao inicializar o Roller3D:', error);
+        console.error('[Roller3D] Initialization failed:', error);
       }
     };
 
-    initializationRef.current = initialize();
+    initPromiseRef.current = initialize();
 
     return () => {
       isMounted = false;
-      diceBoxRef.current?.clear();
-      diceBoxRef.current = null;
+      if (diceBoxRef.current) {
+        diceBoxRef.current.clear?.();
+        diceBoxRef.current = null;
+      }
+      setIsReady(false);
     };
   }, [containerId]);
 
   useImperativeHandle(ref, () => ({
     async roll(result?: DiceResult) {
+      // Wait for initialization
+      if (initPromiseRef.current) {
+        await initPromiseRef.current;
+      }
+
+      const box = diceBoxRef.current;
+      if (!box) {
+        console.warn('[Roller3D] DiceBox not ready, skipping roll');
+        return;
+      }
+
       try {
-        await initializationRef.current;
-
-        if (!diceBoxRef.current) return;
-
-        diceBoxRef.current.show();
-        await diceBoxRef.current.roll(notationFromResult(result));
+        const notation = notationFromResult(result);
+        console.log('[Roller3D] Rolling:', notation);
+        
+        // Show the dice box and roll
+        box.show();
+        
+        await box.roll(notation);
+        
+        // Auto-hide after animation
+        setTimeout(() => {
+          box.hide?.();
+        }, 3000);
       } catch (error) {
-        console.error('Falha ao rolar dados em 3D:', error);
+        console.error('[Roller3D] Roll failed:', error);
       }
     },
-  }));
+  }), [notationFromResult]);
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-50 ${className ?? ''}`}
+      className={`pointer-events-none fixed inset-0 z-50 ${className ?? ''}`}
       aria-hidden="true"
     >
-      <div id={containerId} ref={containerRef} className="w-full h-full" />
+      <div 
+        id={containerId} 
+        ref={containerRef} 
+        className="w-full h-full"
+        style={{ minHeight: '100vh', minWidth: '100vw' }}
+      />
     </div>
   );
 });
+
+// Helper function to convert HSL to Hex
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}

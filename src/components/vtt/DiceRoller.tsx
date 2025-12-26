@@ -263,7 +263,7 @@ export function DiceRoller({
     setInvokedAspects(prev => [...prev, aspect.name]);
 
     await sleep(100);
-    const rerollResult = onRoll(
+    const rerollResult = await onRoll(
       result.modifier, 
       result.skill, 
       result.action, 

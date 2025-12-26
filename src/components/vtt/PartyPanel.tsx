@@ -20,7 +20,7 @@ export function PartyPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const freshCharacters = partyCharacters.filter((character) => {
-    const rawLastSeen = character.lastSeen;
+    const rawLastSeen = character.lastSeen as Date | string | { toDate(): Date } | null | undefined;
     if (!rawLastSeen) return false;
 
     const lastSeenDate = rawLastSeen instanceof Date 
@@ -39,7 +39,7 @@ export function PartyPanel({
 
   if (freshCharacters.length === 0) {
     return (
-      <div className="glass-panel p-4 w-64">
+      <div className="glass-panel p-4 w-72">
         <div className="flex items-center gap-2 mb-3">
           <Users className="w-4 h-4 text-primary" />
           <span className="font-display text-sm">Grupo</span>
@@ -52,7 +52,7 @@ export function PartyPanel({
   }
 
   return (
-    <div className="glass-panel p-4 w-64 max-h-[60vh] overflow-y-auto">
+    <div className="glass-panel p-4 w-72 max-h-[60vh] overflow-y-auto">
       <div className="flex items-center gap-2 mb-3">
         <Users className="w-4 h-4 text-primary" />
         <span className="font-display text-sm">Grupo</span>
@@ -111,16 +111,22 @@ export function PartyPanel({
                   {/* Name */}
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-1">
-                      <span className="font-display text-sm truncate">
+                      <span 
+                        className="font-display text-sm truncate"
+                        title={character.name}
+                      >
                         {character.name}
                       </span>
                       {isMe && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-primary/20 text-primary">
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-primary/20 text-primary shrink-0">
                           você
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground truncate block">
+                    <span 
+                      className="text-[10px] text-muted-foreground line-clamp-1 block"
+                      title={character.ownerName}
+                    >
                       {character.ownerName}
                     </span>
                   </div>
@@ -162,10 +168,10 @@ export function PartyPanel({
                                 onClick={() => onInvokeAspect?.(character.name, aspect)}
                                 className="w-full text-left text-xs p-1.5 rounded bg-muted/50 
                                          hover:bg-primary/20 transition-colors flex items-center gap-1"
-                                title="Clique para invocar"
+                                title={`Clique para invocar: ${aspect}`}
                               >
                                 <Sparkles className="w-3 h-3 text-accent flex-shrink-0" />
-                                <span className="truncate">{aspect}</span>
+                                <span className="line-clamp-2 leading-snug">{aspect}</span>
                               </button>
                             ))}
                           </div>

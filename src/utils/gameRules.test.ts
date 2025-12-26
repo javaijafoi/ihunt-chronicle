@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 
 import { calculateStressTracks } from './gameRules';
 import { Character } from '../types/game';

@@ -39,7 +39,7 @@ export function CharacterHUD({
     >
       {/* Character Header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-primary">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-primary shrink-0">
           {character.avatar ? (
             <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
           ) : (
@@ -47,12 +47,20 @@ export function CharacterHUD({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-display text-lg text-primary truncate">{character.name}</h3>
-          <p className="text-xs text-muted-foreground truncate font-ui">
+          <h3 
+            className="font-display text-lg text-primary truncate" 
+            title={character.name}
+          >
+            {character.name}
+          </h3>
+          <p 
+            className="text-xs text-muted-foreground line-clamp-2 font-ui leading-tight"
+            title={character.aspects.highConcept}
+          >
             {character.aspects.highConcept}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {onOpenDice && (
             <button
               onClick={onOpenDice}
@@ -137,11 +145,17 @@ export function CharacterHUD({
         <div className="text-xs text-muted-foreground font-ui uppercase tracking-wider mb-2">
           Aspectos
         </div>
-        <div className="space-y-1">
-          <div className="aspect-tag text-xs truncate">
+        <div className="space-y-1.5">
+          <div 
+            className="aspect-tag text-xs line-clamp-2 leading-snug"
+            title={character.aspects.highConcept}
+          >
             {character.aspects.highConcept}
           </div>
-          <div className="aspect-tag text-xs truncate">
+          <div 
+            className="aspect-tag text-xs line-clamp-2 leading-snug"
+            title={character.aspects.drama}
+          >
             {character.aspects.drama}
           </div>
         </div>
