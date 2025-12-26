@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Crown, Shield } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, Bookmark, User, Dices } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -17,11 +17,11 @@ import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
-import { WidgetsSidebar } from '@/components/vtt/WidgetsSidebar';
 import { Roller3D, type Roller3DHandle } from '@/components/vtt/Roller3D';
 import { useGameEvents } from '@/hooks/useGameEvents';
 import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
+import { DraggableWindow } from '@/components/vtt/DraggableWindow';
 
 export function VTTPage() {
   const navigate = useNavigate();
@@ -58,9 +58,20 @@ export function VTTPage() {
     user?.uid || currentSession?.id || GLOBAL_SESSION_ID,
   );
 
-  const [isDiceOpen, setIsDiceOpen] = useState(false);
+  const [windows, setWindows] = useState({
+    party: true,
+    aspects: true,
+    sheet: false,
+    dice: false,
+  });
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const toggleWindow = (name: keyof typeof windows, value?: boolean) => {
+    setWindows((prev) => ({
+      ...prev,
+      [name]: typeof value === 'boolean' ? value : !prev[name],
+    }));
+  };
 
   useEffect(() => {
     if (!activeCharacter || !user) return;
@@ -107,7 +118,7 @@ export function VTTPage() {
 
   const openDiceRoller = (skill?: string | null) => {
     setPresetSkill(skill ?? null);
-    setIsDiceOpen(true);
+    toggleWindow('dice', true);
   };
 
   const handleLeaveSession = async () => {
@@ -240,48 +251,48 @@ export function VTTPage() {
 
         {/* Main Content Area */}
         <div className="flex-1 flex min-h-0 px-4 gap-4">
-          {/* Left Sidebar: Widgets */}
-          <div className="pointer-events-auto h-[calc(100%-4rem)]">
-            <WidgetsSidebar
-              partyContent={
-                partyCharacters.length > 0 ? (
-                  <PartyPanel
-                    partyCharacters={partyCharacters}
-                    myCharacterId={activeCharacter?.id}
-                    onViewCharacter={(char) => setViewingCharacter(char)}
-                    onInvokeAspect={handleInvokeAspect}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum jogador online.</p>
-                )
-              }
-              characterContent={
-                selectedCharacter ? (
-                  <CharacterHUD
-                    character={selectedCharacter}
-                    onSpendFate={() => spendFatePoint(selectedCharacter.id)}
-                    onGainFate={() => gainFatePoint(selectedCharacter.id)}
-                    onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
-                    onOpenSheet={() => setIsSheetOpen(true)}
-                    onOpenDice={() => openDiceRoller()}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum personagem selecionado.</p>
-                )
-              }
-              aspectsContent={
-                <SceneAspects
-                  aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
-                  onAddAspect={addSceneAspect}
-                  onInvokeAspect={invokeAspect}
-                  canEdit={isGM}
-                />
-              }
-            />
-          </div>
+          <div className="flex-1 relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
+              {([
+                { key: 'party', label: 'Grupo', icon: <Users className="w-5 h-5" /> },
+                { key: 'aspects', label: 'Aspectos', icon: <Bookmark className="w-5 h-5" /> },
+                { key: 'sheet', label: 'Ficha', icon: <User className="w-5 h-5" /> },
+                { key: 'dice', label: 'Rolador', icon: <Dices className="w-5 h-5" /> },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => toggleWindow(item.key)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors shadow-sm ${
+                    windows[item.key]
+                      ? 'border-primary bg-primary/10 text-primary glow-primary'
+                      : 'border-border bg-background/70 hover:border-primary/40 text-foreground'
+                  }`}
+                  aria-pressed={windows[item.key]}
+                >
+                  <span className="shrink-0">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
 
-          {/* Center: Scene (empty space for canvas) */}
-          <div className="flex-1" />
+            <div className="absolute left-24 bottom-8 pointer-events-auto max-w-md">
+              {selectedCharacter ? (
+                <CharacterHUD
+                  character={selectedCharacter}
+                  onSpendFate={() => spendFatePoint(selectedCharacter.id)}
+                  onGainFate={() => gainFatePoint(selectedCharacter.id)}
+                  onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
+                  onOpenSheet={() => toggleWindow('sheet', true)}
+                  onOpenDice={() => openDiceRoller()}
+                />
+              ) : (
+                <div className="glass-panel px-3 py-2 text-sm text-muted-foreground">
+                  Nenhum personagem selecionado.
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Right Sidebar: Chat */}
           <motion.div 
@@ -300,7 +311,7 @@ export function VTTPage() {
         <div className="h-16 flex items-center justify-center pointer-events-auto shrink-0">
           <Dock
             onRollDice={() => openDiceRoller()}
-            onOpenSheet={() => setIsSheetOpen(true)}
+            onOpenSheet={() => toggleWindow('sheet', true)}
             onOpenSafety={() => setIsSafetyOpen(true)}
           />
         </div>
@@ -308,93 +319,155 @@ export function VTTPage() {
 
       <Roller3D ref={rollerRef} />
 
-      {/* Layer 2: Overlays */}
-      <DiceRoller
-        isOpen={isDiceOpen}
+      <DraggableWindow
+        title="Grupo"
+        isOpen={windows.party}
+        onClose={() => toggleWindow('party', false)}
+        initialPosition={{ x: 32, y: 140 }}
+      >
+        {partyCharacters.length > 0 ? (
+          <PartyPanel
+            partyCharacters={partyCharacters}
+            myCharacterId={activeCharacter?.id}
+            onViewCharacter={(char) => setViewingCharacter(char)}
+            onInvokeAspect={handleInvokeAspect}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhum jogador online.</p>
+        )}
+      </DraggableWindow>
+
+      <DraggableWindow
+        title="Aspectos da Cena"
+        isOpen={windows.aspects}
+        onClose={() => toggleWindow('aspects', false)}
+        initialPosition={{ x: 420, y: 160 }}
+        className="w-[420px]"
+      >
+        <SceneAspects
+          aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
+          onAddAspect={addSceneAspect}
+          onInvokeAspect={invokeAspect}
+          canEdit={isGM}
+        />
+      </DraggableWindow>
+
+      <DraggableWindow
+        title="Rolador de Dados"
+        isOpen={windows.dice}
         onClose={() => {
-          setIsDiceOpen(false);
+          toggleWindow('dice', false);
           setPresetSkill(null);
         }}
-        onRoll={handleRollDice}
-        skills={selectedCharacter?.skills}
-        presetSkill={presetSkill}
-        fatePoints={selectedCharacter?.fatePoints}
-        onSpendFate={() => {
-          if (selectedCharacter) {
-            spendFatePoint(selectedCharacter.id);
-          }
-        }}
-        sceneAspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
-        myCharacter={selectedCharacter}
-        partyCharacters={partyCharacters.map(pc => ({
-          name: pc.name,
-          aspects: pc.aspects,
-        }))}
-        onInvokeAspect={(aspectName, source, useFreeInvoke) => {
-          if (useFreeInvoke) {
-            invokeAspect(aspectName, true);
-          } else {
-            addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
-          }
-        }}
-      />
+        initialPosition={{ x: 220, y: 120 }}
+        className="w-[520px]"
+      >
+        <DiceRoller
+          variant="window"
+          isOpen={windows.dice}
+          onClose={() => {
+            toggleWindow('dice', false);
+            setPresetSkill(null);
+          }}
+          onRoll={handleRollDice}
+          skills={selectedCharacter?.skills}
+          presetSkill={presetSkill}
+          fatePoints={selectedCharacter?.fatePoints}
+          onSpendFate={() => {
+            if (selectedCharacter) {
+              spendFatePoint(selectedCharacter.id);
+            }
+          }}
+          sceneAspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
+          myCharacter={selectedCharacter}
+          partyCharacters={partyCharacters.map(pc => ({
+            name: pc.name,
+            aspects: pc.aspects,
+          }))}
+          onInvokeAspect={(aspectName, source, useFreeInvoke) => {
+            if (useFreeInvoke) {
+              invokeAspect(aspectName, true);
+            } else {
+              addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
+            }
+          }}
+        />
+      </DraggableWindow>
+
+      {selectedCharacter && (
+        <DraggableWindow
+          title="Ficha do Personagem"
+          isOpen={windows.sheet}
+          onClose={() => toggleWindow('sheet', false)}
+          initialPosition={{ x: 640, y: 80 }}
+          className="w-[900px] max-w-[90vw]"
+        >
+          <CharacterSheet
+            variant="window"
+            character={selectedCharacter}
+            isOpen={windows.sheet}
+            onClose={() => toggleWindow('sheet', false)}
+            onSpendFate={
+              canManageActiveState ? () => spendFatePoint(selectedCharacter.id) : undefined
+            }
+            onGainFate={
+              canManageActiveState ? () => gainFatePoint(selectedCharacter.id) : undefined
+            }
+            onToggleStress={
+              canManageActiveState
+                ? (track, index) => toggleStress(selectedCharacter.id, track, index)
+                : undefined
+            }
+            onSetConsequence={
+              canManageActiveState
+                ? (severity, value) => setConsequence(selectedCharacter.id, severity, value)
+                : undefined
+            }
+            readOnly={!canManageActiveState}
+            onSkillClick={(skill) => openDiceRoller(skill)}
+          />
+        </DraggableWindow>
+      )}
+
+      {/* Viewing another character's sheet */}
+      {viewingCharacter && (
+        <DraggableWindow
+          title={`Ficha: ${viewingCharacter.name}`}
+          isOpen={!!viewingCharacter}
+          onClose={() => setViewingCharacter(null)}
+          initialPosition={{ x: 680, y: 180 }}
+          className="w-[900px] max-w-[90vw]"
+        >
+          <CharacterSheet
+            variant="window"
+            character={viewingCharacter}
+            isOpen={!!viewingCharacter}
+            onClose={() => setViewingCharacter(null)}
+            onSpendFate={
+              canManageViewingState ? () => spendFatePoint(viewingCharacter.id) : undefined
+            }
+            onGainFate={
+              canManageViewingState ? () => gainFatePoint(viewingCharacter.id) : undefined
+            }
+            onToggleStress={
+              canManageViewingState
+                ? (track, index) => toggleStress(viewingCharacter.id, track, index)
+                : undefined
+            }
+            onSetConsequence={
+              canManageViewingState
+                ? (severity, value) => setConsequence(viewingCharacter.id, severity, value)
+                : undefined
+            }
+            readOnly={!canManageViewingState}
+          />
+        </DraggableWindow>
+      )}
 
       <SafetyCard
         isOpen={isSafetyOpen}
         onClose={() => setIsSafetyOpen(false)}
       />
-
-      {selectedCharacter && (
-        <CharacterSheet
-          character={selectedCharacter}
-          isOpen={isSheetOpen}
-          onClose={() => setIsSheetOpen(false)}
-          onSpendFate={
-            canManageActiveState ? () => spendFatePoint(selectedCharacter.id) : undefined
-          }
-          onGainFate={
-            canManageActiveState ? () => gainFatePoint(selectedCharacter.id) : undefined
-          }
-          onToggleStress={
-            canManageActiveState
-              ? (track, index) => toggleStress(selectedCharacter.id, track, index)
-              : undefined
-          }
-          onSetConsequence={
-            canManageActiveState
-              ? (severity, value) => setConsequence(selectedCharacter.id, severity, value)
-              : undefined
-          }
-          readOnly={!canManageActiveState}
-          onSkillClick={(skill) => openDiceRoller(skill)}
-        />
-      )}
-
-      {/* Viewing another character's sheet */}
-      {viewingCharacter && (
-        <CharacterSheet
-          character={viewingCharacter}
-          isOpen={true}
-          onClose={() => setViewingCharacter(null)}
-          onSpendFate={
-            canManageViewingState ? () => spendFatePoint(viewingCharacter.id) : undefined
-          }
-          onGainFate={
-            canManageViewingState ? () => gainFatePoint(viewingCharacter.id) : undefined
-          }
-          onToggleStress={
-            canManageViewingState
-              ? (track, index) => toggleStress(viewingCharacter.id, track, index)
-              : undefined
-          }
-          onSetConsequence={
-            canManageViewingState
-              ? (severity, value) => setConsequence(viewingCharacter.id, severity, value)
-              : undefined
-          }
-          readOnly={!canManageViewingState}
-        />
-      )}
     </div>
   );
 }
