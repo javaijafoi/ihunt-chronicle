@@ -21,17 +21,35 @@ export const Roller3D = forwardRef<Roller3DHandle, Roller3DProps>(function Rolle
   const [isReady, setIsReady] = useState(false);
 
   const notationFromResult = useCallback((result?: DiceResult) => {
-    if (!result) {
-      return '4dF';
-    }
-
-    // Standard Fate roll uses 4 dice
-    // Advantage: 3dF + 1d6
-    if (result.type === 'advantage') {
+    if (result?.type === 'advantage') {
       return '3dF+1d6';
     }
 
     return '4dF';
+  }, []);
+
+  const valuesFromResult = useCallback((result?: DiceResult) => {
+    if (!result) return undefined;
+
+    const fateFaceMap: Record<DiceResult['fateDice'][number], number> = {
+      plus: 1,
+      minus: -1,
+      blank: 0,
+    };
+
+    const expectedFateDice = result.type === 'advantage' ? 3 : 4;
+    const fateDiceFaces =
+      result.fateDice.length >= expectedFateDice
+        ? result.fateDice.slice(0, expectedFateDice)
+        : [...result.fateDice, ...Array(expectedFateDice - result.fateDice.length).fill('blank')];
+
+    const fateValues = fateDiceFaces.map(face => fateFaceMap[face]);
+
+    if (result.type === 'advantage' && typeof result.d6 === 'number') {
+      return [...fateValues, result.d6];
+    }
+
+    return fateValues;
   }, []);
 
   useEffect(() => {
@@ -110,27 +128,29 @@ export const Roller3D = forwardRef<Roller3DHandle, Roller3DProps>(function Rolle
 
   useImperativeHandle(ref, () => ({
     async roll(result?: DiceResult) {
-      // Wait for initialization
       if (initPromiseRef.current) {
         await initPromiseRef.current;
       }
 
       const box = diceBoxRef.current;
-      if (!box) {
+      if (!box || !isReady) {
         console.warn('[Roller3D] DiceBox not ready, skipping roll');
         return;
       }
 
       try {
         const notation = notationFromResult(result);
+        const values = valuesFromResult(result);
         console.log('[Roller3D] Rolling:', notation);
-        
-        // Show the dice box and roll
+
         box.show();
-        
-        await box.roll(notation);
-        
-        // Auto-hide after animation
+
+        if (values) {
+          await box.roll(notation, values);
+        } else {
+          await box.roll(notation);
+        }
+
         setTimeout(() => {
           box.hide?.();
         }, 3000);
@@ -138,7 +158,7 @@ export const Roller3D = forwardRef<Roller3DHandle, Roller3DProps>(function Rolle
         console.error('[Roller3D] Roll failed:', error);
       }
     },
-  }), [notationFromResult]);
+  }), [isReady, notationFromResult, valuesFromResult]);
 
   return (
     <div
