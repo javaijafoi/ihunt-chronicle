@@ -15,6 +15,7 @@ type DraggableWindowProps = {
   className?: string;
   style?: CSSProperties;
   initialPosition?: Position;
+  contentClassName?: string;
 } & (
   | {
       id: string;
@@ -36,6 +37,7 @@ export function DraggableWindow({
   id,
   storageKey,
   initialPosition = { x: 0, y: 0 },
+  contentClassName = '',
 }: DraggableWindowProps) {
   const key = storageKey ?? id;
 
@@ -133,7 +135,7 @@ export function DraggableWindow({
           <X className="w-4 h-4" />
         </button>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto p-4">{children}</div>
+      <div className={`max-h-[60vh] overflow-y-auto p-4 ${contentClassName}`}>{children}</div>
     </motion.div>
   );
 }
