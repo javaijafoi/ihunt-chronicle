@@ -128,13 +128,15 @@ export function VTTPage() {
   ) => {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
 
-    const animation = rollerRef.current?.roll(diceResult);
-    void emitRollEvent(diceResult);
+    void createRollLog(diceResult);
 
-    void (async () => {
+    try {
+      const animation = rollerRef.current?.roll(diceResult);
+      await emitRollEvent(diceResult);
       await (animation ?? Promise.resolve());
-      await createRollLog(diceResult);
-    })();
+    } catch (error) {
+      console.warn('Dice roll animation/event failed', error);
+    }
 
     return diceResult;
   };
