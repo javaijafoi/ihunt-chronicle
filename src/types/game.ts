@@ -100,6 +100,7 @@ export interface RollLogDetails {
   total: number;
   type: 'normal' | 'advantage';
   outcome: string;
+  avatar?: string;
 }
 
 export interface LogEntry {

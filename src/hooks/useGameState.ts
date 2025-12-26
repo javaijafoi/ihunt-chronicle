@@ -382,6 +382,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       total: result.total,
       type: result.type,
       outcome: getOutcomeLabel(),
+      avatar: selectedCharacter?.avatar,
     };
 
     const actionText = result.action ? ACTION_LABELS[result.action] : 'Rolagem Livre';
