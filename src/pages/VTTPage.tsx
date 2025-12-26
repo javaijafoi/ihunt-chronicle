@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Crown, Shield, Users, Bookmark, User, Dices } from 'lucide-react';
@@ -17,8 +17,6 @@ import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { PartyPanel } from '@/components/vtt/PartyPanel';
-import { Roller3D, type Roller3DHandle } from '@/components/vtt/Roller3D';
-import { useGameEvents } from '@/hooks/useGameEvents';
 import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { DraggableWindow } from '@/components/vtt/DraggableWindow';
@@ -34,7 +32,6 @@ export function VTTPage() {
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
-  const rollerRef = useRef<Roller3DHandle | null>(null);
   
   const {
     gameState,
@@ -49,14 +46,6 @@ export function VTTPage() {
     addLog,
     createRollLog,
   } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
-  const {
-    incomingRoll,
-    emitRollEvent,
-    acknowledgeRollEvent,
-  } = useGameEvents(
-    currentSession?.id || GLOBAL_SESSION_ID,
-    user?.uid || currentSession?.id || GLOBAL_SESSION_ID,
-  );
 
   const [windows, setWindows] = useState({
     party: true,
@@ -93,13 +82,6 @@ export function VTTPage() {
       });
     }
   }, [activeCharacter, presenceMap, user]);
-
-  useEffect(() => {
-    if (!incomingRoll) return;
-
-    rollerRef.current?.roll(incomingRoll.result);
-    acknowledgeRollEvent(incomingRoll.id);
-  }, [acknowledgeRollEvent, incomingRoll]);
 
   // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
@@ -140,14 +122,6 @@ export function VTTPage() {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
 
     void createRollLog(diceResult);
-
-    try {
-      const animation = rollerRef.current?.roll(diceResult);
-      await emitRollEvent(diceResult);
-      await (animation ?? Promise.resolve());
-    } catch (error) {
-      console.warn('Dice roll animation/event failed', error);
-    }
 
     return diceResult;
   };
@@ -313,12 +287,9 @@ export function VTTPage() {
             onRollDice={() => openDiceRoller()}
             onOpenSheet={() => toggleWindow('sheet', true)}
             onOpenSafety={() => setIsSafetyOpen(true)}
-            onHoldDice={() => rollerRef.current?.roll()}
           />
         </div>
       </div>
-
-      <Roller3D ref={rollerRef} />
 
       <DraggableWindow
         title="Grupo"
