@@ -283,7 +283,7 @@ export function VTTPage() {
                   onSpendFate={() => spendFatePoint(selectedCharacter.id)}
                   onGainFate={() => gainFatePoint(selectedCharacter.id)}
                   onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
-                  onOpenSheet={() => toggleWindow('sheet', true)}
+                  onOpenFullSheet={() => toggleWindow('sheet', true)}
                   onOpenDice={() => openDiceRoller()}
                 />
               ) : (
