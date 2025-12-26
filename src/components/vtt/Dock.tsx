@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Dices, BookOpen, Shield, Users, Settings, Coffee, Bookmark } from 'lucide-react';
+import { Dices, BookOpen, Shield, Settings, Coffee } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DockProps {
   onRollDice: () => void;
@@ -11,8 +12,6 @@ interface DockProps {
 const dockItems = [
   { id: 'dice', icon: Dices, label: 'Dados', action: 'onRollDice' },
   { id: 'sheet', icon: BookOpen, label: 'Ficha', action: 'onOpenSheet' },
-  { id: 'aspects', icon: Bookmark, label: 'Aspectos', action: null },
-  { id: 'players', icon: Users, label: 'Jogadores', action: null },
   { id: 'safety', icon: Shield, label: 'Segurança', action: 'onOpenSafety' },
   { id: 'break', icon: Coffee, label: 'Intervalo', action: null },
   { id: 'settings', icon: Settings, label: 'Config', action: null },
@@ -38,19 +37,25 @@ export function Dock({ onRollDice, onOpenSheet, onOpenSafety, activeTool }: Dock
         const isActive = activeTool === item.id;
         
         return (
-          <motion.button
-            key={item.id}
-            className={`dock-button ${isActive ? 'active' : ''}`}
-            onClick={() => handleAction(item.action)}
-            whileHover={{ y: -4 }}
-            whileTap={{ scale: 0.95 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
-            <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-foreground'}`} />
-            <span className="text-xs font-ui text-muted-foreground">{item.label}</span>
-          </motion.button>
+          <Tooltip key={item.id}>
+            <TooltipTrigger asChild>
+              <motion.button
+                className={`dock-button ${isActive ? 'active' : ''}`}
+                onClick={() => handleAction(item.action)}
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-foreground'}`} />
+                <span className="text-xs font-ui text-muted-foreground">{item.label}</span>
+              </motion.button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{item.label}</p>
+            </TooltipContent>
+          </Tooltip>
         );
       })}
     </motion.div>

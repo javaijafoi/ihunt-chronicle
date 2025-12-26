@@ -214,11 +214,7 @@ export function GameLog({ logs, onSendMessage, currentUserName }: GameLogProps) 
   };
 
   return (
-    <motion.div
-      className="glass-panel flex flex-col h-full"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-    >
+    <div className="glass-panel flex flex-col h-full w-full">
       {/* Header */}
       <div className="p-3 border-b border-border shrink-0">
         <h3 className="font-display text-lg flex items-center gap-2">
@@ -281,6 +277,6 @@ export function GameLog({ logs, onSendMessage, currentUserName }: GameLogProps) 
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
