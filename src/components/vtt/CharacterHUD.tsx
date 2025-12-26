@@ -9,7 +9,7 @@ interface CharacterHUDProps {
   onSpendFate: () => void;
   onGainFate: () => void;
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
-  onOpenSheet: () => void;
+  onOpenFullSheet: () => void;
   onOpenDice?: () => void;
 }
 
@@ -18,7 +18,7 @@ export function CharacterHUD({
   onSpendFate, 
   onGainFate, 
   onToggleStress,
-  onOpenSheet,
+  onOpenFullSheet,
   onOpenDice
 }: CharacterHUDProps) {
   const calculatedTracks = calculateStressTracks(character);
@@ -33,9 +33,9 @@ export function CharacterHUD({
 
   return (
     <motion.div
-      className="glass-panel p-4 w-80"
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
+      className="glass-panel p-4 w-full max-w-[21rem]"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
     >
       {/* Character Header */}
       <div className="flex items-center gap-3 mb-4">
@@ -71,7 +71,7 @@ export function CharacterHUD({
             </button>
           )}
           <button
-            onClick={onOpenSheet}
+            onClick={onOpenFullSheet}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
             title="Ver ficha completa"
           >
