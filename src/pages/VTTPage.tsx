@@ -58,6 +58,7 @@ export function VTTPage() {
     user?.uid || currentSession?.id || GLOBAL_SESSION_ID,
   );
 
+  const sessionStorageKey = currentSession?.id || GLOBAL_SESSION_ID;
   const [windows, setWindows] = useState({
     party: true,
     aspects: true,
@@ -325,6 +326,7 @@ export function VTTPage() {
         isOpen={windows.party}
         onClose={() => toggleWindow('party', false)}
         initialPosition={{ x: 32, y: 140 }}
+        storageKey={`${sessionStorageKey}:party-window`}
       >
         {partyCharacters.length > 0 ? (
           <PartyPanel
@@ -344,6 +346,7 @@ export function VTTPage() {
         onClose={() => toggleWindow('aspects', false)}
         initialPosition={{ x: 420, y: 160 }}
         className="w-[420px]"
+        storageKey={`${sessionStorageKey}:scene-aspects-window`}
       >
         <SceneAspects
           aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
@@ -362,6 +365,7 @@ export function VTTPage() {
         }}
         initialPosition={{ x: 220, y: 120 }}
         className="w-[520px]"
+        storageKey={`${sessionStorageKey}:dice-roller-window`}
       >
         <DiceRoller
           variant="window"
@@ -402,6 +406,7 @@ export function VTTPage() {
           onClose={() => toggleWindow('sheet', false)}
           initialPosition={{ x: 640, y: 80 }}
           className="w-[900px] max-w-[90vw]"
+          storageKey={`${sessionStorageKey}:character-sheet:${selectedCharacter.id}`}
         >
           <CharacterSheet
             variant="window"
@@ -438,6 +443,7 @@ export function VTTPage() {
           onClose={() => setViewingCharacter(null)}
           initialPosition={{ x: 680, y: 180 }}
           className="w-[900px] max-w-[90vw]"
+          storageKey={`${sessionStorageKey}:viewing-sheet:${viewingCharacter.id}`}
         >
           <CharacterSheet
             variant="window"
