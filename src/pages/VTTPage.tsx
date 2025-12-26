@@ -25,6 +25,7 @@ import { PartyCharacter } from '@/types/session';
 
 export function VTTPage() {
   const navigate = useNavigate();
+  const PRESENCE_RECENCY_TOLERANCE_MS = 10_000;
   
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
@@ -68,7 +69,11 @@ export function VTTPage() {
       (presence) => presence.characterId === activeCharacter.id
     );
 
-    if (activePresence && activePresence.ownerId !== user.uid) {
+    const lastSeenTime = activePresence?.lastSeen?.getTime();
+    const hasRecentPresence =
+      typeof lastSeenTime === 'number' && Date.now() - lastSeenTime <= PRESENCE_RECENCY_TOLERANCE_MS;
+
+    if (activePresence && activePresence.ownerId !== user.uid && hasRecentPresence) {
       setActiveCharacter(null);
       toast({
         title: 'Personagem desconectado',
