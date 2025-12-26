@@ -380,7 +380,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                     >
                       {/* Avatar & Name */}
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center border border-border">
+                        <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center border border-border shrink-0">
                           {character.avatar ? (
                             <img 
                               src={character.avatar} 
@@ -392,10 +392,16 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-display text-lg text-primary truncate">
+                          <h3 
+                            className="font-display text-lg text-primary line-clamp-2 leading-tight"
+                            title={character.name}
+                          >
                             {character.name}
                           </h3>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p 
+                            className="text-xs text-muted-foreground line-clamp-1"
+                            title={character.aspects.job || 'Sem emprego'}
+                          >
                             {character.aspects.job || 'Sem emprego'}
                           </p>
                         </div>
@@ -408,7 +414,10 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                       )}
 
                       {/* High Concept */}
-                      <p className="text-sm text-foreground/80 line-clamp-2 flex-1">
+                      <p 
+                        className="text-sm text-foreground/80 line-clamp-3 flex-1 leading-snug"
+                        title={character.aspects.highConcept || 'Sem alto conceito'}
+                      >
                         {character.aspects.highConcept || 'Sem alto conceito'}
                       </p>
 

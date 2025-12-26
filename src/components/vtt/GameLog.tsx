@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Dices, Sparkles, Bookmark, Info, Send } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import { LogEntry, RollLogDetails } from '@/types/game';
 
 interface GameLogProps {
@@ -68,8 +69,9 @@ export function GameLog({ logs, onSendMessage }: GameLogProps) {
     }
   };
 
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('pt-BR', { 
+  const formatTime = (date: Date | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    return d.toLocaleTimeString('pt-BR', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });

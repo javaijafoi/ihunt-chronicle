@@ -213,7 +213,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
 
           const { characters, gmFatePool, logEntry } = updater(currentCharacters, currentFatePool);
 
-          const updatePayload: Partial<FirestoreSessionData> = {
+          const updatePayload: Record<string, unknown> = {
             characters,
             gmFatePool: gmFatePool ?? currentFatePool,
             updatedAt: serverTimestamp(),
