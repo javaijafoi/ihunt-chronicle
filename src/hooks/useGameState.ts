@@ -7,13 +7,15 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  getDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
-import sceneBackground from '@/assets/scene-default.jpg';
-import { GLOBAL_SESSION_ID } from './useSession';
-import { useAuth } from './useAuth';
+  import { db } from '@/lib/firebase';
+  import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
+  import sceneBackground from '@/assets/scene-default.jpg';
+  import { GLOBAL_SESSION_ID } from './useSession';
+  import { useAuth } from './useAuth';
+  import { toast } from '@/hooks/use-toast';
 
 const ACTION_LABELS: Record<ActionType, string> = {
   superar: 'Superar',
@@ -174,22 +176,78 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     ensureCharacterInSession();
   }, [initialCharacter, initialState, sessionRef]);
 
+  const addLocalLogEntry = useCallback((logEntry: LogEntry) => {
+    setGameState((prev) =>
+      prev.logs.some((log) => log.id === logEntry.id)
+        ? prev
+        : { ...prev, logs: [...prev.logs, logEntry] }
+    );
+  }, []);
+
+  const getAppendLogErrorMessage = useCallback((error: unknown, fallback: string) => {
+    if (error instanceof Error) {
+      if (error.message === 'PresenceMissing' || error.message === 'PresenceInactive') {
+        return 'Sua presença na sessão expirou. Entre novamente para publicar ações.';
+      }
+
+      if (error.message === 'Usuário não autenticado na sessão.') {
+        return 'Faça login e reconecte-se à sessão para registrar suas ações.';
+      }
+
+      return error.message || fallback;
+    }
+
+    return fallback;
+  }, []);
+
+  const ensureActivePresence = useCallback(async () => {
+    if (!user?.uid) {
+      throw new Error('Usuário não autenticado na sessão.');
+    }
+
+    const presenceRef = doc(sessionRef, 'presence', user.uid);
+    const presenceSnap = await getDoc(presenceRef);
+
+    if (!presenceSnap.exists()) {
+      throw new Error('PresenceMissing');
+    }
+
+    const presenceData = presenceSnap.data() as {
+      online?: boolean;
+      lastSeen?: Timestamp | Date | number | null;
+    };
+
+    const lastSeenMs =
+      presenceData.lastSeen instanceof Timestamp
+        ? presenceData.lastSeen.toMillis()
+        : presenceData.lastSeen instanceof Date
+        ? presenceData.lastSeen.getTime()
+        : typeof presenceData.lastSeen === 'number'
+        ? presenceData.lastSeen
+        : null;
+
+    const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= 70_000;
+
+    if (!presenceData.online || !isRecent) {
+      throw new Error('PresenceInactive');
+    }
+  }, [sessionRef, user?.uid]);
+
   const appendLog = useCallback(async (logEntry: LogEntry) => {
     try {
+      await ensureActivePresence();
+
       await updateDoc(sessionRef, {
         logs: arrayUnion(mapLogToFirestore(logEntry)),
         updatedAt: serverTimestamp(),
       });
 
-      setGameState((prev) =>
-        prev.logs.some((log) => log.id === logEntry.id)
-          ? prev
-          : { ...prev, logs: [...prev.logs, logEntry] }
-      );
+      addLocalLogEntry(logEntry);
     } catch (error) {
       console.error('Erro ao registrar log da sessão:', error);
+      throw error;
     }
-  }, [sessionRef]);
+  }, [addLocalLogEntry, ensureActivePresence, sessionRef]);
 
   const updateCharactersTransaction = useCallback(
     async (
@@ -395,8 +453,21 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       details,
     };
 
-    await appendLog(logEntry);
-  }, [appendLog]);
+    try {
+      await appendLog(logEntry);
+    } catch (error) {
+      console.error('Erro ao publicar log de rolagem:', error);
+      addLocalLogEntry(logEntry);
+      toast({
+        title: 'Rolagem não publicada',
+        description: getAppendLogErrorMessage(
+          error,
+          'Sua rolagem não foi publicada na sessão. Verifique sua conexão ou reconecte-se.'
+        ),
+        variant: 'destructive',
+      });
+    }
+  }, [addLocalLogEntry, appendLog, getAppendLogErrorMessage, selectedCharacter?.avatar]);
 
   const spendFatePoint = useCallback(
     async (characterId: string) => {
@@ -627,10 +698,23 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
           timestamp: new Date(),
         };
 
-        await appendLog(logEntry);
+        try {
+          await appendLog(logEntry);
+        } catch (error) {
+          console.error('Erro ao publicar invocação de aspecto:', error);
+          addLocalLogEntry(logEntry);
+          toast({
+            title: 'Invocação não publicada',
+            description: getAppendLogErrorMessage(
+              error,
+              'Não foi possível registrar a invocação. Refaça a ação após reconectar-se à sessão.'
+            ),
+            variant: 'destructive',
+          });
+        }
       }
     },
-    [appendLog, initialState.currentScene, selectedCharacter, sessionRef, spendFatePoint]
+    [addLocalLogEntry, appendLog, getAppendLogErrorMessage, initialState.currentScene, selectedCharacter, sessionRef, spendFatePoint]
   );
 
   const addLog = useCallback(
@@ -643,9 +727,22 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
         timestamp: new Date(),
       };
 
-      await appendLog(logEntry);
+      try {
+        await appendLog(logEntry);
+      } catch (error) {
+        console.error('Erro ao publicar log da sessão:', error);
+        addLocalLogEntry(logEntry);
+        toast({
+          title: 'Mensagem não publicada',
+          description: getAppendLogErrorMessage(
+            error,
+            'Não foi possível enviar sua mensagem. Tente novamente após reconectar à sessão.'
+          ),
+          variant: 'destructive',
+        });
+      }
     },
-    [appendLog, selectedCharacter?.name]
+    [addLocalLogEntry, appendLog, getAppendLogErrorMessage, selectedCharacter?.name]
   );
 
   return {
