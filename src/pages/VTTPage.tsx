@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, ArrowLeft } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -121,36 +121,49 @@ export function VTTPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Left: Logo & Session Info */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Left: Navigation & Logo */}
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                to="/"
+                className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+              >
+                <Home className="w-4 h-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Página Inicial</TooltipContent>
+          </Tooltip>
+
           <div className="glass-panel px-3 py-1.5">
             <h1 className="font-display text-xl">
               <span className="text-primary text-glow-primary">#i</span>
               <span className="text-foreground">HUNT</span>
-              <span className="text-muted-foreground text-xs ml-1.5 font-ui">VTT</span>
             </h1>
           </div>
 
           {currentSession && (
-            <div className="glass-panel px-2.5 py-1.5 flex items-center gap-2">
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground leading-tight">
-                  {currentSession.name}
-                </span>
-              </div>
+            <div className="glass-panel px-2 py-1.5 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground truncate max-w-24">
+                {currentSession.name}
+              </span>
               {isGM && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[10px] text-secondary">
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-muted text-[10px] text-secondary">
                   <Crown className="w-2.5 h-2.5" />
                   GM
                 </span>
               )}
-              <button
-                onClick={handleLeaveSession}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                title="Trocar de personagem"
-              >
-                <LogOut className="w-3 h-3 text-muted-foreground" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleLeaveSession}
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                  >
+                    <LogOut className="w-3 h-3 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Trocar Personagem</TooltipContent>
+              </Tooltip>
             </div>
           )}
 
@@ -264,21 +277,21 @@ export function VTTPage() {
             {showSheet && selectedCharacter ? (
               <motion.div
                 key="sheet"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 className="absolute inset-0 z-20 bg-background overflow-auto"
               >
+                <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/90 backdrop-blur-sm border-b border-border">
+                  <h2 className="font-display text-xl text-primary">Ficha do Personagem</h2>
+                  <button
+                    onClick={() => setShowSheet(false)}
+                    className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="p-4 max-w-5xl mx-auto">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-display text-2xl text-primary">Ficha do Personagem</h2>
-                    <button
-                      onClick={() => setShowSheet(false)}
-                      className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
                   <CharacterSheet
                     variant="window"
                     character={selectedCharacter}
@@ -314,27 +327,27 @@ export function VTTPage() {
             )}
           </AnimatePresence>
 
-          {/* Dice Roller Modal */}
+          {/* Dice Roller Panel - Bottom center */}
           <AnimatePresence>
             {showDice && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[520px] max-w-[95%]"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[400px] max-w-[95%]"
               >
-                <div className="glass-panel p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-display text-lg text-primary flex items-center gap-2">
-                      <Dices className="w-5 h-5" />
-                      Rolador de Dados
+                <div className="glass-panel p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-display text-base text-primary flex items-center gap-2">
+                      <Dices className="w-4 h-4" />
+                      Rolador
                     </h3>
                     <button
                       onClick={() => {
                         setShowDice(false);
                         setPresetSkill(null);
                       }}
-                      className="p-1.5 rounded hover:bg-muted transition-colors"
+                      className="p-1 rounded hover:bg-muted transition-colors"
                     >
                       <X className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -388,16 +401,16 @@ export function VTTPage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-auto"
           >
+            <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/90 backdrop-blur-sm border-b border-border">
+              <h2 className="font-display text-xl text-primary">{viewingCharacter.name}</h2>
+              <button
+                onClick={() => setViewingCharacter(null)}
+                className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <div className="p-4 max-w-5xl mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display text-2xl text-primary">Ficha: {viewingCharacter.name}</h2>
-                <button
-                  onClick={() => setViewingCharacter(null)}
-                  className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
               <CharacterSheet
                 variant="window"
                 character={viewingCharacter}

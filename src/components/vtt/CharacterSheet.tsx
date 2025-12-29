@@ -46,47 +46,58 @@ export function CharacterSheet({
   );
 
   const sheetBody = (
-    <div className="relative glass-panel w-full max-w-4xl">
-      {/* Header */}
-      <div className="sticky top-0 z-10 glass-panel rounded-t-lg border-b border-border p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border-2 border-primary">
-            {character.avatar ? (
-              <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <User className="w-8 h-8 text-primary" />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
+    <div className="relative w-full max-w-4xl">
+      {/* Character Info Header - Only show in modal variant */}
+      {variant === 'modal' && (
+        <div className="sticky top-0 z-10 glass-panel rounded-t-lg border-b border-border p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border-2 border-primary">
+              {character.avatar ? (
+                <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-8 h-8 text-primary" />
+              )}
+            </div>
+            <div>
               <h2 className="font-display text-3xl text-glow-primary text-primary">
                 {character.name}
               </h2>
-              {readOnly && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs font-ui text-muted-foreground border border-border">
-                  <Eye className="w-3 h-3" />
-                  Visualização
-                </span>
-              )}
-            </div>
-            <p className="text-muted-foreground font-ui">
-              {character.aspects.highConcept}
-            </p>
-            {character.drive && (
-              <p className="text-sm text-secondary flex items-center gap-1 mt-1">
-                <span>{getDriveById(character.drive)?.icon}</span>
-                {getDriveById(character.drive)?.name}
+              <p className="text-muted-foreground font-ui">
+                {character.aspects.highConcept}
               </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      {/* Character identity bar for window variant */}
+      {variant === 'window' && (
+        <div className="flex items-center gap-3 mb-4 p-3 glass-panel rounded-lg">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-primary shrink-0">
+            {character.avatar ? (
+              <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <User className="w-6 h-6 text-primary" />
             )}
           </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display text-xl text-primary truncate">{character.name}</h3>
+            <p className="text-xs text-muted-foreground truncate">{character.aspects.highConcept}</p>
+          </div>
+          {readOnly && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs font-ui text-muted-foreground border border-border shrink-0">
+              <Eye className="w-3 h-3" />
+              Visualização
+            </span>
+          )}
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
+      )}
 
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column */}
