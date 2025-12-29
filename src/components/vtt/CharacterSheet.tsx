@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye } from 'lucide-react';
+import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye, Info } from 'lucide-react';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
 import { GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 import { calculateStressTracks } from '@/utils/gameRules';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CharacterSheetProps {
   character: Character;
@@ -120,31 +121,39 @@ export function CharacterSheet({
 
           {/* Aspects */}
           <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-primary mb-4 flex items-center gap-2">
+            <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               Aspectos
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div>
-                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
-                <div className="aspect-tag mt-1">{character.aspects.highConcept}</div>
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
+                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.highConcept}>
+                  {character.aspects.highConcept}
+                </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
-                <div className="aspect-tag mt-1">{character.aspects.drama}</div>
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
+                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.drama}>
+                  {character.aspects.drama}
+                </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
-                <div className="aspect-tag mt-1">{character.aspects.job}</div>
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
+                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.job}>
+                  {character.aspects.job}
+                </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
-                <div className="aspect-tag mt-1">{character.aspects.dreamBoard}</div>
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
+                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.dreamBoard}>
+                  {character.aspects.dreamBoard}
+                </div>
               </div>
               {character.aspects.free.map((aspect, i) => (
                 <div key={i}>
-                  <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
-                  <div className="aspect-tag mt-1">{aspect}</div>
+                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
+                  <div className="aspect-tag mt-0.5 text-sm truncate" title={aspect}>{aspect}</div>
                 </div>
               ))}
             </div>
@@ -152,36 +161,52 @@ export function CharacterSheet({
 
           {/* Maneuvers */}
           <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-secondary mb-4 flex items-center gap-2">
+            <h3 className="font-display text-xl text-secondary mb-3 flex items-center gap-2">
               <Zap className="w-5 h-5" />
               Manobras
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {character.maneuvers.map((maneuverId, i) => {
-                // Resolve maneuver name from ID
                 const drive = character.drive ? getDriveById(character.drive) : undefined;
                 let maneuverName = maneuverId;
+                let maneuverDescription = '';
                 let isFree = false;
                 
                 if (drive) {
                   if (drive.freeManeuver.id === maneuverId) {
                     maneuverName = drive.freeManeuver.name;
+                    maneuverDescription = drive.freeManeuver.description;
                     isFree = true;
                   } else {
                     const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
-                    if (exclusive) maneuverName = exclusive.name;
+                    if (exclusive) {
+                      maneuverName = exclusive.name;
+                      maneuverDescription = exclusive.description;
+                    }
                   }
                 }
                 const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
-                if (general) maneuverName = general.name;
+                if (general) {
+                  maneuverName = general.name;
+                  maneuverDescription = general.description;
+                }
 
                 return (
-                  <div key={i} className={`px-3 py-2 rounded-md font-ui text-sm ${
-                    isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
-                  }`}>
-                    {maneuverName}
-                    {isFree && <span className="ml-2 text-xs opacity-70">(grátis)</span>}
-                  </div>
+                  <Tooltip key={i}>
+                    <TooltipTrigger asChild>
+                      <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${
+                        isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                      }`}>
+                        <span className="truncate flex-1">{maneuverName}</span>
+                        {isFree && <span className="text-[10px] opacity-70 shrink-0">(grátis)</span>}
+                        <Info className="w-3 h-3 opacity-50 shrink-0" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="font-medium mb-1">{maneuverName}</p>
+                      <p className="text-xs text-muted-foreground">{maneuverDescription}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 );
               })}
             </div>
@@ -192,22 +217,22 @@ export function CharacterSheet({
         <div className="space-y-6">
           {/* Skills */}
           <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-primary mb-4 flex items-center gap-2">
+            <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
               <Target className="w-5 h-5" />
               Perícias
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {Object.entries(character.skills).map(([skill, value]) => (
                 <button
                   key={skill}
                   onClick={() => onSkillClick?.(skill)}
-                  className={`p-2 rounded-md text-left border transition-colors ${
-                    onSkillClick ? 'hover:border-primary/50 hover:text-primary' : ''
+                  className={`p-1.5 rounded text-center border transition-colors ${
+                    onSkillClick ? 'hover:border-primary/50 hover:text-primary cursor-pointer' : 'cursor-default'
                   }`}
                   disabled={!onSkillClick}
                 >
-                  <div className="font-display text-lg">+{value}</div>
-                  <div className="text-sm text-muted-foreground capitalize">{skill}</div>
+                  <div className="font-display text-lg leading-none">+{value}</div>
+                  <div className="text-[10px] text-muted-foreground capitalize truncate">{skill}</div>
                 </button>
               ))}
             </div>
@@ -303,29 +328,47 @@ export function CharacterSheet({
 
           {/* Drives */}
           <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-accent mb-4 flex items-center gap-2">
+            <h3 className="font-display text-xl text-accent mb-3 flex items-center gap-2">
               <Zap className="w-5 h-5" />
               Impulso
             </h3>
             {character.drive ? (
-              <div className="space-y-3">
-                <div className="glass-panel p-3 bg-muted/30 border-primary/20">
+              <div className="space-y-2">
+                <div className="glass-panel p-2.5 bg-muted/30 border-primary/20">
                   <p className="text-sm text-foreground flex items-center gap-2">
-                    <span className="text-lg">{getDriveById(character.drive)?.icon}</span>
-                    <span className="font-display">{getDriveById(character.drive)?.name}</span>
+                    <span className="text-base">{getDriveById(character.drive)?.icon}</span>
+                    <span className="font-display truncate">{getDriveById(character.drive)?.name}</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">{getDriveById(character.drive)?.summary}</p>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{getDriveById(character.drive)?.summary}</p>
                 </div>
-                <div className="glass-panel p-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
-                  <p className="font-display text-lg text-primary">{getDriveById(character.drive)?.freeManeuver.name}</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {getDriveById(character.drive)?.exclusiveManeuvers.map((maneuver) => (
-                    <div key={maneuver.id} className="glass-panel p-3 bg-muted/50">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Manobra Exclusiva</p>
-                      <p className="font-display text-lg">{maneuver.name}</p>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="glass-panel p-2.5 cursor-help">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
+                      <p className="font-display text-sm text-primary truncate">{getDriveById(character.drive)?.freeManeuver.name}</p>
                     </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    <p className="font-medium mb-1">{getDriveById(character.drive)?.freeManeuver.name}</p>
+                    <p className="text-xs text-muted-foreground">{getDriveById(character.drive)?.freeManeuver.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <div className="grid grid-cols-2 gap-1.5">
+                  {getDriveById(character.drive)?.exclusiveManeuvers.map((maneuver) => (
+                    <Tooltip key={maneuver.id}>
+                      <TooltipTrigger asChild>
+                        <div className="glass-panel p-2 bg-muted/50 cursor-help">
+                          <p className="text-[10px] text-muted-foreground uppercase">Exclusiva</p>
+                          <p className="font-display text-sm truncate">{maneuver.name}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <p className="font-medium mb-1">{maneuver.name}</p>
+                        <p className="text-xs text-muted-foreground">{maneuver.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
