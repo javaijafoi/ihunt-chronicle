@@ -62,12 +62,43 @@ const mapLogFromFirestore = (entry: FirestoreLogEntry): LogEntry => ({
     : new Date(entry.timestamp),
 });
 
-const mapLogToFirestore = (entry: LogEntry): FirestoreLogEntry => ({
-  ...entry,
-  timestamp: entry.timestamp instanceof Date
+const removeUndefinedDeep = <T>(value: T): T => {
+  if (value === undefined || value === null) return value;
+
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedDeep(item)) as T;
+  }
+
+  if (value instanceof Timestamp || value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, removeUndefinedDeep(v)]);
+
+    return Object.fromEntries(entries) as T;
+  }
+
+  return value;
+};
+
+const mapLogToFirestore = (entry: LogEntry): FirestoreLogEntry => {
+  const timestamp = entry.timestamp instanceof Date
     ? Timestamp.fromDate(entry.timestamp)
-    : entry.timestamp,
-});
+    : entry.timestamp;
+
+  const sanitizedEntry = removeUndefinedDeep({
+    ...entry,
+    timestamp,
+    details: entry.details ? removeUndefinedDeep(entry.details) : undefined,
+  });
+
+  return sanitizedEntry as FirestoreLogEntry;
+};
 
 const normalizeScene = (scene: GameState['currentScene']): GameState['currentScene'] => {
   if (!scene) return null;
