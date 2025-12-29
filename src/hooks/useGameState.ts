@@ -61,6 +61,44 @@ const mapLogFromFirestore = (entry: FirestoreLogEntry): LogEntry => ({
     : new Date(entry.timestamp),
 });
 
+const isTransientError = (error: unknown): boolean => {
+  if (!error) return false;
+
+  const transientCodes = ['aborted', 'unavailable', 'deadline-exceeded', 'resource-exhausted'];
+  if (typeof error === 'object' && 'code' in (error as Record<string, unknown>)) {
+    const code = (error as { code?: string }).code;
+    if (code && transientCodes.includes(code)) return true;
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    const transientKeywords = ['network', 'timeout', 'unavailable', 'resource exhausted'];
+    return transientKeywords.some((keyword) => message.includes(keyword));
+  }
+
+  return false;
+};
+
+const withRetry = async <T>(fn: () => Promise<T>, attempts: number = 3): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientError(error) || attempt === attempts) {
+        throw error;
+      }
+
+      const delay = 100 * 2 ** (attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+};
+
 const removeUndefinedDeep = <T>(value: T): T => {
   if (value === undefined || value === null) return value;
 
@@ -281,14 +319,17 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     try {
       await ensurePresence();
 
-      await updateDoc(sessionRef, {
-        logs: arrayUnion(mapLogToFirestore(logEntry)),
-        updatedAt: serverTimestamp(),
-      });
+      await withRetry(
+        () => updateDoc(sessionRef, {
+          logs: arrayUnion(mapLogToFirestore(logEntry)),
+          updatedAt: serverTimestamp(),
+        })
+      );
 
       addLocalLogEntry(logEntry);
     } catch (error) {
       console.error('Erro ao registrar log da sessão:', error);
+      addLocalLogEntry(logEntry);
       throw error;
     }
   }, [addLocalLogEntry, ensurePresence, sessionRef]);
