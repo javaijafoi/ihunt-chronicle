@@ -7,7 +7,6 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-  getDoc,
   updateDoc,
 } from 'firebase/firestore';
   import { db } from '@/lib/firebase';
@@ -218,11 +217,11 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
   const getAppendLogErrorMessage = useCallback((error: unknown, fallback: string) => {
     if (error instanceof Error) {
       if (error.message === 'PresenceMissing' || error.message === 'PresenceInactive') {
-        return 'Sua presença na sessão expirou. Entre novamente para publicar ações.';
+        return 'Falha ao reconectar sua presença na sessão. Entre novamente para continuar.';
       }
 
       if (error.message === 'Usuário não autenticado na sessão.') {
-        return 'Faça login e reconecte-se à sessão para registrar suas ações.';
+        return 'Faça login e entre novamente na sessão para reconectar sua presença e registrar ações.';
       }
 
       return error.message || fallback;
@@ -231,42 +230,56 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     return fallback;
   }, []);
 
-  const ensureActivePresence = useCallback(async () => {
+  const ensurePresence = useCallback(async () => {
     if (!user?.uid) {
       throw new Error('Usuário não autenticado na sessão.');
     }
 
-    const presenceRef = doc(sessionRef, 'presence', user.uid);
-    const presenceSnap = await getDoc(presenceRef);
-
-    if (!presenceSnap.exists()) {
-      throw new Error('PresenceMissing');
-    }
-
-    const presenceData = presenceSnap.data() as {
-      online?: boolean;
-      lastSeen?: Timestamp | Date | number | null;
+    const presenceRef = doc(db, 'sessions', sessionId, 'presence', user.uid);
+    const presencePayload = {
+      ownerId: user.uid,
+      ownerName: user.displayName || user.email || 'Jogador',
+      characterId: selectedCharacter?.id ?? initialCharacter?.id,
+      online: true,
+      lastSeen: serverTimestamp(),
     };
 
-    const lastSeenMs =
-      presenceData.lastSeen instanceof Timestamp
-        ? presenceData.lastSeen.toMillis()
-        : presenceData.lastSeen instanceof Date
-        ? presenceData.lastSeen.getTime()
-        : typeof presenceData.lastSeen === 'number'
-        ? presenceData.lastSeen
-        : null;
+    await runTransaction(db, async (transaction) => {
+      const presenceSnap = await transaction.get(presenceRef);
 
-    const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= 70_000;
+      if (!presenceSnap.exists()) {
+        transaction.set(presenceRef, presencePayload, { merge: true });
+        return;
+      }
 
-    if (!presenceData.online || !isRecent) {
-      throw new Error('PresenceInactive');
-    }
-  }, [sessionRef, user?.uid]);
+      const presenceData = presenceSnap.data() as {
+        online?: boolean;
+        lastSeen?: Timestamp | Date | number | null;
+      };
+
+      const lastSeenMs =
+        presenceData.lastSeen instanceof Timestamp
+          ? presenceData.lastSeen.toMillis()
+          : presenceData.lastSeen instanceof Date
+          ? presenceData.lastSeen.getTime()
+          : typeof presenceData.lastSeen === 'number'
+          ? presenceData.lastSeen
+          : null;
+
+      const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= 70_000;
+
+      if (presenceData.online && isRecent) {
+        transaction.update(presenceRef, presencePayload);
+        return;
+      }
+
+      transaction.set(presenceRef, presencePayload, { merge: true });
+    });
+  }, [initialCharacter?.id, selectedCharacter?.id, sessionId, user?.displayName, user?.email, user?.uid]);
 
   const appendLog = useCallback(async (logEntry: LogEntry) => {
     try {
-      await ensureActivePresence();
+      await ensurePresence();
 
       await updateDoc(sessionRef, {
         logs: arrayUnion(mapLogToFirestore(logEntry)),
@@ -278,7 +291,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       console.error('Erro ao registrar log da sessão:', error);
       throw error;
     }
-  }, [addLocalLogEntry, ensureActivePresence, sessionRef]);
+  }, [addLocalLogEntry, ensurePresence, sessionRef]);
 
   const updateCharactersTransaction = useCallback(
     async (
@@ -493,7 +506,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
         title: 'Rolagem não publicada',
         description: getAppendLogErrorMessage(
           error,
-          'Sua rolagem não foi publicada na sessão. Verifique sua conexão ou reconecte-se.'
+          'Falha ao reconectar sua presença. Entre novamente na sessão para publicar a rolagem.'
         ),
         variant: 'destructive',
       });
@@ -738,7 +751,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
             title: 'Invocação não publicada',
             description: getAppendLogErrorMessage(
               error,
-              'Não foi possível registrar a invocação. Refaça a ação após reconectar-se à sessão.'
+              'Não foi possível reconectar sua presença. Entre novamente na sessão e tente registrar a invocação.'
             ),
             variant: 'destructive',
           });
@@ -767,7 +780,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
           title: 'Mensagem não publicada',
           description: getAppendLogErrorMessage(
             error,
-            'Não foi possível enviar sua mensagem. Tente novamente após reconectar à sessão.'
+            'Não foi possível reconectar sua presença. Entre novamente na sessão e tente enviar a mensagem.'
           ),
           variant: 'destructive',
         });
