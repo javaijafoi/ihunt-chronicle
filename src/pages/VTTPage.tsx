@@ -1,47 +1,38 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Crown, Shield } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
-import { CharacterHUD } from '@/components/vtt/CharacterHUD';
-import { SceneAspects } from '@/components/vtt/SceneAspects';
-import { GameLog } from '@/components/vtt/GameLog';
-import { Dock } from '@/components/vtt/Dock';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
-import { PartyPanel } from '@/components/vtt/PartyPanel';
+import { LeftSidebar } from '@/components/vtt/LeftSidebar';
+import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
-import { DraggableWindow } from '@/components/vtt/DraggableWindow';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function VTTPage() {
   const navigate = useNavigate();
   const PRESENCE_RECENCY_TOLERANCE_MS = 10_000;
 
-  const defaultWindowPositions = {
-    chat: { x: 32, y: 104 },
-    hud: { x: 32, y: 360 },
-    sheet: { x: 480, y: 80 },
-    party: { x: 820, y: 120 },
-    dice: { x: 280, y: 160 },
-    aspects: { x: 1060, y: 160 },
-  } as const;
-  
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
-  
+
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
-  
+  const [showSheet, setShowSheet] = useState(false);
+  const [showDice, setShowDice] = useState(false);
+  const [isSafetyOpen, setIsSafetyOpen] = useState(false);
+
   const {
     gameState,
     selectedCharacter,
@@ -55,37 +46,6 @@ export function VTTPage() {
     addLog,
     createRollLog,
   } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
-
-  const sessionStorageKey = currentSession?.id || GLOBAL_SESSION_ID;
-  const [windows, setWindows] = useState({
-    chat: true,
-    hud: true,
-    sheet: false,
-    party: true,
-    dice: false,
-    aspects: true,
-  });
-  const [isSafetyOpen, setIsSafetyOpen] = useState(false);
-
-  const toggleWindow = (name: keyof typeof windows, value?: boolean) => {
-    setWindows((prev) => {
-      const nextValue = typeof value === 'boolean' ? value : !prev[name];
-      const nextState = {
-        ...prev,
-        [name]: nextValue,
-      };
-
-      if (name === 'sheet') {
-        nextState.hud = nextValue ? false : true;
-      }
-
-      if (name === 'hud' && nextValue && prev.sheet) {
-        nextState.sheet = false;
-      }
-
-      return nextState;
-    });
-  };
 
   useEffect(() => {
     if (!activeCharacter || !user) return;
@@ -116,16 +76,12 @@ export function VTTPage() {
 
   // Show character select if no active character
   if (!activeCharacter) {
-    return (
-      <CharacterSelect 
-        onSelectCharacter={setActiveCharacter} 
-      />
-    );
+    return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
   }
 
   const openDiceRoller = (skill?: string | null) => {
     setPresetSkill(skill ?? null);
-    toggleWindow('dice', true);
+    setShowDice(true);
   };
 
   const handleLeaveSession = async () => {
@@ -145,9 +101,7 @@ export function VTTPage() {
     opposition?: number
   ) => {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
-
     void createRollLog(diceResult);
-
     return diceResult;
   };
 
@@ -157,309 +111,318 @@ export function VTTPage() {
   const canManageViewingState = canManageCharacter(viewingCharacter);
   const canManageActiveState = canManageCharacter(selectedCharacter);
 
+  const sceneAspects = currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
+
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background">
-      {/* Layer 0: Canvas */}
-      <SceneCanvas scene={gameState.currentScene} />
+    <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
+      {/* Top Bar */}
+      <motion.header
+        className="h-14 px-4 flex items-center justify-between shrink-0 border-b border-border bg-background/90 backdrop-blur-sm z-10"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        {/* Left: Logo & Session Info */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="glass-panel px-3 py-1.5">
+            <h1 className="font-display text-xl">
+              <span className="text-primary text-glow-primary">#i</span>
+              <span className="text-foreground">HUNT</span>
+              <span className="text-muted-foreground text-xs ml-1.5 font-ui">VTT</span>
+            </h1>
+          </div>
 
-      {/* Layer 1: UI */}
-      <div className="absolute inset-0 pointer-events-none flex flex-col">
-        {/* Top Bar */}
-        <motion.div 
-          className="h-16 px-4 pointer-events-auto flex items-center justify-between shrink-0"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {/* Left: Logo & Session Info */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="glass-panel px-4 py-2">
-              <h1 className="font-display text-2xl">
-                <span className="text-primary text-glow-primary">#i</span>
-                <span className="text-foreground">HUNT</span>
-                <span className="text-muted-foreground text-sm ml-2 font-ui">VTT</span>
-              </h1>
+          {currentSession && (
+            <div className="glass-panel px-2.5 py-1.5 flex items-center gap-2">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground leading-tight">
+                  {currentSession.name}
+                </span>
+              </div>
+              {isGM && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[10px] text-secondary">
+                  <Crown className="w-2.5 h-2.5" />
+                  GM
+                </span>
+              )}
+              <button
+                onClick={handleLeaveSession}
+                className="p-1 rounded hover:bg-muted transition-colors"
+                title="Trocar de personagem"
+              >
+                <LogOut className="w-3 h-3 text-muted-foreground" />
+              </button>
             </div>
+          )}
 
-            {currentSession && (
-              <div className="glass-panel px-3 py-2 flex items-center gap-3">
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">
-                    {currentSession.name}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                    Sessão Global
-                  </span>
-                </div>
-                {isGM && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted text-xs text-secondary">
-                    <Crown className="w-3 h-3" />
-                    GM
-                  </span>
+          {userProfile && (
+            <div className="glass-panel px-2.5 py-1.5 flex items-center gap-2">
+              <div className="relative w-7 h-7 rounded-full overflow-hidden border border-border bg-muted">
+                {userProfile.photoURL ? (
+                  <img
+                    src={userProfile.photoURL}
+                    alt={userProfile.displayName || 'Avatar'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                    {(userProfile.displayName || 'C').charAt(0).toUpperCase()}
+                  </div>
                 )}
-                <button
-                  onClick={handleLeaveSession}
-                  className="p-1 rounded hover:bg-muted transition-colors"
-                  title="Trocar de personagem"
-                >
-                  <LogOut className="w-3 h-3 text-muted-foreground" />
-                </button>
               </div>
-            )}
-
-            {userProfile && (
-              <div className="glass-panel px-3 py-2 flex items-center gap-3 shadow-lg/30 backdrop-blur-md">
-                <div className="relative w-9 h-9 rounded-full overflow-hidden border border-border/60 bg-muted">
-                  {userProfile.photoURL ? (
-                    <img
-                      src={userProfile.photoURL}
-                      alt={userProfile.displayName || 'Avatar'}
-                      className="w-full h-full object-cover"
-                    />
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-foreground leading-tight">
+                  {userProfile.displayName || 'Caçador'}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                  {isSessionGM ? (
+                    <Crown className="w-2.5 h-2.5 text-secondary" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
-                      {(userProfile.displayName || 'C').charAt(0).toUpperCase()}
-                    </div>
+                    <Shield className="w-2.5 h-2.5 text-primary" />
                   )}
-                </div>
-
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-foreground leading-tight">
-                    {userProfile.displayName || 'Caçador'}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                    {isSessionGM ? (
-                      <Crown className="w-3 h-3 text-secondary" />
-                    ) : (
-                      <Shield className="w-3 h-3 text-primary" />
-                    )}
-                    {isSessionGM ? 'Mestre da Mesa' : 'Caçador'}
-                  </span>
-                </div>
+                  {isSessionGM ? 'Mestre' : 'Caçador'}
+                </span>
               </div>
-            )}
-          </div>
-
-          {/* Right: GM Fate Pool */}
-          <div className="glass-panel px-4 py-2 flex items-center gap-3">
-            <span className="text-xs text-muted-foreground font-ui uppercase tracking-wider">GM Pool</span>
-            <span className="font-display text-2xl text-accent text-glow-accent">
-              {currentSession?.gmFatePool ?? gameState.gmFatePool}
-            </span>
-          </div>
-        </motion.div>
-
-        <div className="flex-1" />
-
-        {/* Bottom Dock */}
-        <div className="h-16 flex items-center justify-center pointer-events-auto shrink-0">
-          <Dock
-            windows={windows}
-            onToggleWindow={(windowName) => {
-              if (windowName === 'dice') {
-                setPresetSkill(null);
-              }
-              toggleWindow(windowName);
-            }}
-            onOpenSafety={() => setIsSafetyOpen(true)}
-            onHoldDice={() => openDiceRoller()}
-          />
+            </div>
+          )}
         </div>
+
+        {/* Center: Action Buttons */}
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => openDiceRoller()}
+                className={`p-2.5 rounded-lg transition-colors ${
+                  showDice ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
+                }`}
+              >
+                <Dices className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Rolar Dados</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowSheet(!showSheet)}
+                className={`p-2.5 rounded-lg transition-colors ${
+                  showSheet ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Ficha do Personagem</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsSafetyOpen(true)}
+                className="p-2.5 rounded-lg glass-panel hover:bg-muted transition-colors"
+              >
+                <Shield className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Ferramentas de Segurança</TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Right: GM Fate Pool */}
+        <div className="glass-panel px-3 py-1.5 flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">GM Pool</span>
+          <span className="font-display text-xl text-accent text-glow-accent">
+            {currentSession?.gmFatePool ?? gameState.gmFatePool}
+          </span>
+        </div>
+      </motion.header>
+
+      {/* Main 3-column layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left Sidebar: Widgets */}
+        <LeftSidebar
+          partyCharacters={partyCharacters}
+          myCharacterId={activeCharacter?.id}
+          onViewCharacter={setViewingCharacter}
+          onInvokeAspect={handleInvokeAspect}
+          sceneAspects={sceneAspects}
+          onAddAspect={addSceneAspect}
+          onInvokeSceneAspect={invokeAspect}
+          canEditAspects={isGM}
+          selectedCharacter={selectedCharacter}
+          onSpendFate={() => selectedCharacter && spendFatePoint(selectedCharacter.id)}
+          onGainFate={() => selectedCharacter && gainFatePoint(selectedCharacter.id)}
+          onToggleStress={(track, index) => selectedCharacter && toggleStress(selectedCharacter.id, track, index)}
+          onOpenFullSheet={() => setShowSheet(true)}
+          onOpenDice={() => openDiceRoller()}
+        />
+
+        {/* Center: Game Area or Character Sheet */}
+        <main className="flex-1 relative min-h-0">
+          <AnimatePresence mode="wait">
+            {showSheet && selectedCharacter ? (
+              <motion.div
+                key="sheet"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute inset-0 z-20 bg-background overflow-auto"
+              >
+                <div className="p-4 max-w-5xl mx-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-display text-2xl text-primary">Ficha do Personagem</h2>
+                    <button
+                      onClick={() => setShowSheet(false)}
+                      className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <CharacterSheet
+                    variant="window"
+                    character={selectedCharacter}
+                    isOpen={showSheet}
+                    onClose={() => setShowSheet(false)}
+                    onSpendFate={canManageActiveState ? () => spendFatePoint(selectedCharacter.id) : undefined}
+                    onGainFate={canManageActiveState ? () => gainFatePoint(selectedCharacter.id) : undefined}
+                    onToggleStress={
+                      canManageActiveState
+                        ? (track, index) => toggleStress(selectedCharacter.id, track, index)
+                        : undefined
+                    }
+                    onSetConsequence={
+                      canManageActiveState
+                        ? (severity, value) => setConsequence(selectedCharacter.id, severity, value)
+                        : undefined
+                    }
+                    readOnly={!canManageActiveState}
+                    onSkillClick={(skill) => openDiceRoller(skill)}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="canvas"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0"
+              >
+                <SceneCanvas scene={gameState.currentScene} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Dice Roller Modal */}
+          <AnimatePresence>
+            {showDice && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[520px] max-w-[95%]"
+              >
+                <div className="glass-panel p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-display text-lg text-primary flex items-center gap-2">
+                      <Dices className="w-5 h-5" />
+                      Rolador de Dados
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowDice(false);
+                        setPresetSkill(null);
+                      }}
+                      className="p-1.5 rounded hover:bg-muted transition-colors"
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <DiceRoller
+                    variant="window"
+                    isOpen={showDice}
+                    onClose={() => {
+                      setShowDice(false);
+                      setPresetSkill(null);
+                    }}
+                    onRoll={handleRollDice}
+                    skills={selectedCharacter?.skills}
+                    presetSkill={presetSkill}
+                    fatePoints={selectedCharacter?.fatePoints}
+                    onSpendFate={() => {
+                      if (selectedCharacter) {
+                        spendFatePoint(selectedCharacter.id);
+                      }
+                    }}
+                    sceneAspects={sceneAspects}
+                    myCharacter={selectedCharacter}
+                    partyCharacters={partyCharacters.map((pc) => ({
+                      name: pc.name,
+                      aspects: pc.aspects,
+                    }))}
+                    onInvokeAspect={(aspectName, source, useFreeInvoke) => {
+                      if (useFreeInvoke) {
+                        invokeAspect(aspectName, true);
+                      } else {
+                        addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
+                      }
+                    }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+
+        {/* Right Sidebar: Chat */}
+        <RightSidebar logs={gameState.logs} onSendMessage={(msg) => addLog(msg, 'chat')} />
       </div>
 
-      <DraggableWindow
-        id="party"
-        title="Grupo"
-        isOpen={windows.party}
-        onClose={() => toggleWindow('party', false)}
-
-        initialPosition={{ x: 32, y: 140 }}
-        storageKey={`${sessionStorageKey}:party-window`}
-      >
-        {partyCharacters.length > 0 ? (
-          <PartyPanel
-            partyCharacters={partyCharacters}
-            myCharacterId={activeCharacter?.id}
-            onViewCharacter={(char) => setViewingCharacter(char)}
-            onInvokeAspect={handleInvokeAspect}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">Nenhum jogador online.</p>
-        )}
-      </DraggableWindow>
-
-      <DraggableWindow
-        id="aspects"
-        title="Aspectos da Cena"
-        isOpen={windows.aspects}
-        onClose={() => toggleWindow('aspects', false)}
-        initialPosition={defaultWindowPositions.aspects}
-        className="w-[420px]"
-        storageKey={`${sessionStorageKey}:scene-aspects-window`}
-      >
-        <SceneAspects
-          aspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
-          onAddAspect={addSceneAspect}
-          onInvokeAspect={invokeAspect}
-          canEdit={isGM}
-        />
-      </DraggableWindow>
-
-      <DraggableWindow
-        id="dice"
-        title="Rolador de Dados"
-        isOpen={windows.dice}
-        onClose={() => {
-          toggleWindow('dice', false);
-          setPresetSkill(null);
-        }}
-        initialPosition={defaultWindowPositions.dice}
-        className="w-[520px]"
-        storageKey={`${sessionStorageKey}:dice-roller-window`}
-      >
-        <DiceRoller
-          variant="window"
-          isOpen={windows.dice}
-          onClose={() => {
-            toggleWindow('dice', false);
-            setPresetSkill(null);
-          }}
-          onRoll={handleRollDice}
-          skills={selectedCharacter?.skills}
-          presetSkill={presetSkill}
-          fatePoints={selectedCharacter?.fatePoints}
-          onSpendFate={() => {
-            if (selectedCharacter) {
-              spendFatePoint(selectedCharacter.id);
-            }
-          }}
-          sceneAspects={currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || []}
-          myCharacter={selectedCharacter}
-          partyCharacters={partyCharacters.map(pc => ({
-            name: pc.name,
-            aspects: pc.aspects,
-          }))}
-          onInvokeAspect={(aspectName, source, useFreeInvoke) => {
-            if (useFreeInvoke) {
-              invokeAspect(aspectName, true);
-            } else {
-              addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
-            }
-          }}
-        />
-      </DraggableWindow>
-
-      {selectedCharacter && windows.hud && !windows.sheet && (
-        <DraggableWindow
-          id="hud"
-          title="HUD do Personagem"
-          isOpen={windows.hud}
-          onClose={() => toggleWindow('hud', false)}
-          initialPosition={defaultWindowPositions.hud}
-          className="w-[380px]"
-        >
-          <CharacterHUD
-            character={selectedCharacter}
-            onSpendFate={() => spendFatePoint(selectedCharacter.id)}
-            onGainFate={() => gainFatePoint(selectedCharacter.id)}
-            onToggleStress={(track, index) => toggleStress(selectedCharacter.id, track, index)}
-            onOpenFullSheet={() => toggleWindow('sheet', true)}
-            onOpenDice={() => openDiceRoller()}
-          />
-        </DraggableWindow>
-      )}
-
-      {selectedCharacter && windows.sheet && (
-        <DraggableWindow
-          id="sheet"
-          title="Ficha do Personagem"
-          isOpen={windows.sheet}
-          onClose={() => toggleWindow('sheet', false)}
-          initialPosition={defaultWindowPositions.sheet}
-          className="w-[900px] max-w-[90vw]"
-          storageKey={`${sessionStorageKey}:character-sheet:${selectedCharacter.id}`}
-        >
-          <CharacterSheet
-            variant="window"
-            character={selectedCharacter}
-            isOpen={windows.sheet}
-            onClose={() => toggleWindow('sheet', false)}
-            onSpendFate={
-              canManageActiveState ? () => spendFatePoint(selectedCharacter.id) : undefined
-            }
-            onGainFate={
-              canManageActiveState ? () => gainFatePoint(selectedCharacter.id) : undefined
-            }
-            onToggleStress={
-              canManageActiveState
-                ? (track, index) => toggleStress(selectedCharacter.id, track, index)
-                : undefined
-            }
-            onSetConsequence={
-              canManageActiveState
-                ? (severity, value) => setConsequence(selectedCharacter.id, severity, value)
-                : undefined
-            }
-            readOnly={!canManageActiveState}
-            onSkillClick={(skill) => openDiceRoller(skill)}
-          />
-        </DraggableWindow>
-      )}
-
-      <DraggableWindow
-        id="chat"
-        title="Chat da Sessão"
-        isOpen={windows.chat}
-        onClose={() => toggleWindow('chat', false)}
-        initialPosition={defaultWindowPositions.chat}
-        className="w-[420px]"
-        contentClassName="p-0 max-h-[72vh]"
-      >
-        <GameLog
-          logs={gameState.logs}
-          onSendMessage={(msg) => addLog(msg, 'chat')}
-        />
-      </DraggableWindow>
-
       {/* Viewing another character's sheet */}
-      {viewingCharacter && (
-        <DraggableWindow
-          title={`Ficha: ${viewingCharacter.name}`}
-          isOpen={!!viewingCharacter}
-          onClose={() => setViewingCharacter(null)}
-          initialPosition={{ x: 680, y: 180 }}
-          className="w-[900px] max-w-[90vw]"
-          storageKey={`${sessionStorageKey}:viewing-sheet:${viewingCharacter.id}`}
-        >
-          <CharacterSheet
-            variant="window"
-            character={viewingCharacter}
-            isOpen={!!viewingCharacter}
-            onClose={() => setViewingCharacter(null)}
-            onSpendFate={
-              canManageViewingState ? () => spendFatePoint(viewingCharacter.id) : undefined
-            }
-            onGainFate={
-              canManageViewingState ? () => gainFatePoint(viewingCharacter.id) : undefined
-            }
-            onToggleStress={
-              canManageViewingState
-                ? (track, index) => toggleStress(viewingCharacter.id, track, index)
-                : undefined
-            }
-            onSetConsequence={
-              canManageViewingState
-                ? (severity, value) => setConsequence(viewingCharacter.id, severity, value)
-                : undefined
-            }
-            readOnly={!canManageViewingState}
-          />
-        </DraggableWindow>
-      )}
+      <AnimatePresence>
+        {viewingCharacter && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-auto"
+          >
+            <div className="p-4 max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display text-2xl text-primary">Ficha: {viewingCharacter.name}</h2>
+                <button
+                  onClick={() => setViewingCharacter(null)}
+                  className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <CharacterSheet
+                variant="window"
+                character={viewingCharacter}
+                isOpen={!!viewingCharacter}
+                onClose={() => setViewingCharacter(null)}
+                onSpendFate={canManageViewingState ? () => spendFatePoint(viewingCharacter.id) : undefined}
+                onGainFate={canManageViewingState ? () => gainFatePoint(viewingCharacter.id) : undefined}
+                onToggleStress={
+                  canManageViewingState
+                    ? (track, index) => toggleStress(viewingCharacter.id, track, index)
+                    : undefined
+                }
+                onSetConsequence={
+                  canManageViewingState
+                    ? (severity, value) => setConsequence(viewingCharacter.id, severity, value)
+                    : undefined
+                }
+                readOnly={!canManageViewingState}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <SafetyCard
-        isOpen={isSafetyOpen}
-        onClose={() => setIsSafetyOpen(false)}
-      />
+      <SafetyCard isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} />
     </div>
   );
 }
