@@ -303,7 +303,7 @@ export function CharacterSheet({
                     <span className="text-lg">{getDriveById(character.drive)?.icon}</span>
                     <span className="font-display">{getDriveById(character.drive)?.name}</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">{getDriveById(character.drive)?.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{getDriveById(character.drive)?.summary}</p>
                 </div>
                 <div className="glass-panel p-3">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
