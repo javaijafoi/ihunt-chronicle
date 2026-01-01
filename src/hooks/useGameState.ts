@@ -160,7 +160,11 @@ const normalizeScene = (scene: GameState['currentScene']): GameState['currentSce
 const isCharacterSelectionError = (error: unknown): error is Error =>
   error instanceof Error && error.message === CHARACTER_SELECTION_ERROR;
 
-export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialCharacter?: Character) {
+export function useGameState(
+  sessionId: string = GLOBAL_SESSION_ID,
+  initialCharacter?: Character,
+  isGM: boolean = false,
+) {
   const { user } = useAuth();
   const initialState = useMemo(() => createInitialState(initialCharacter), [initialCharacter]);
   const sessionRef = useMemo(() => doc(db, 'sessions', sessionId), [sessionId]);
@@ -290,11 +294,14 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
         ? presenceData.characterId.trim()
         : null;
 
-      return selectedCharacter?.id
-        ?? initialCharacter?.id
-        ?? (presenceCharacterId || null);
+      if (selectedCharacter?.id) return selectedCharacter.id;
+      if (initialCharacter?.id) return initialCharacter.id;
+      if (presenceCharacterId) return presenceCharacterId;
+      if (isGM) return 'gm';
+
+      return null;
     },
-    [initialCharacter?.id, selectedCharacter?.id]
+    [initialCharacter?.id, isGM, selectedCharacter?.id]
   );
 
   const ensurePresence = useCallback(async () => {
@@ -303,48 +310,61 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     }
 
     const presenceRef = doc(db, 'sessions', sessionId, 'presence', user.uid);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const presenceSnap = await transaction.get(presenceRef);
+        const presenceData = presenceSnap.exists() ? (presenceSnap.data() as PresenceData) : undefined;
+        const resolvedCharacterId = getResolvedCharacterId(presenceData);
 
-    await runTransaction(db, async (transaction) => {
-      const presenceSnap = await transaction.get(presenceRef);
-      const presenceData = presenceSnap.exists() ? (presenceSnap.data() as PresenceData) : undefined;
-      const resolvedCharacterId = getResolvedCharacterId(presenceData);
+        if (!resolvedCharacterId) {
+          throw new Error(CHARACTER_SELECTION_ERROR);
+        }
 
-      if (!resolvedCharacterId) {
-        throw new Error(CHARACTER_SELECTION_ERROR);
-      }
+        const presencePayload = {
+          ownerId: user.uid,
+          ownerName: user.displayName || user.email || 'Jogador',
+          characterId: resolvedCharacterId,
+          online: true,
+          lastSeen: serverTimestamp(),
+        } as const;
 
-      const presencePayload = {
-        ownerId: user.uid,
-        ownerName: user.displayName || user.email || 'Jogador',
-        characterId: resolvedCharacterId,
-        online: true,
-        lastSeen: serverTimestamp(),
-      };
+        if (!presenceSnap.exists()) {
+          transaction.set(presenceRef, presencePayload, { merge: true });
+          return;
+        }
 
-      if (!presenceSnap.exists()) {
+        const lastSeenMs =
+          presenceData.lastSeen instanceof Timestamp
+            ? presenceData.lastSeen.toMillis()
+            : presenceData.lastSeen instanceof Date
+            ? presenceData.lastSeen.getTime()
+            : typeof presenceData.lastSeen === 'number'
+            ? presenceData.lastSeen
+            : null;
+
+        const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= PRESENCE_STALE_MS;
+
+        if (presenceData.online && isRecent) {
+          transaction.update(presenceRef, presencePayload);
+          return;
+        }
+
         transaction.set(presenceRef, presencePayload, { merge: true });
-        return;
+      });
+    } catch (error) {
+      if (isCharacterSelectionError(error)) {
+        toast({
+          title: 'Personagem necessário',
+          description: isGM
+            ? 'Selecione um personagem ou atue como GM para continuar.'
+            : 'Selecione um personagem para continuar.',
+          variant: 'destructive',
+        });
       }
 
-      const lastSeenMs =
-        presenceData.lastSeen instanceof Timestamp
-          ? presenceData.lastSeen.toMillis()
-          : presenceData.lastSeen instanceof Date
-          ? presenceData.lastSeen.getTime()
-          : typeof presenceData.lastSeen === 'number'
-          ? presenceData.lastSeen
-          : null;
-
-      const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= PRESENCE_STALE_MS;
-
-      if (presenceData.online && isRecent) {
-        transaction.update(presenceRef, presencePayload);
-        return;
-      }
-
-      transaction.set(presenceRef, presencePayload, { merge: true });
-    });
-  }, [getResolvedCharacterId, sessionId, user?.displayName, user?.email, user?.uid]);
+      throw error;
+    }
+  }, [getResolvedCharacterId, isGM, sessionId, user?.displayName, user?.email, user?.uid]);
 
   const appendLog = useCallback(async (logEntry: LogEntry) => {
     try {

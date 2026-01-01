@@ -45,7 +45,7 @@ export function VTTPage() {
     invokeAspect,
     addLog,
     createRollLog,
-  } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined);
+  } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined, isGM);
 
   useEffect(() => {
     if (!activeCharacter || !user) return;
