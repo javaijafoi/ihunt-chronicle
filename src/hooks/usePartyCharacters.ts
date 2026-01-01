@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
+import {
+  collection,
   query,
   where,
   onSnapshot,
   documentId,
-  type FirestoreError
+  type FirestoreError,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './useAuth';
@@ -13,23 +13,7 @@ import { GLOBAL_SESSION_ID, useSession } from './useSession';
 import { Character } from '@/types/game';
 import { PartyCharacter, SessionPresence } from '@/types/session';
 import { toast } from '@/hooks/use-toast';
-
-type PossibleTimestamp = { toDate: () => Date };
-
-function normalizeToDate(value: unknown): Date | null {
-  if (!value) return null;
-
-  if (value instanceof Date) return value;
-  if (typeof value === 'string') {
-    const parsed = new Date(value);
-    return isNaN(parsed.getTime()) ? null : parsed;
-  }
-  if (typeof value === 'object' && 'toDate' in value && typeof (value as PossibleTimestamp).toDate === 'function') {
-    return (value as PossibleTimestamp).toDate();
-  }
-
-  return null;
-}
+import { isPresenceRecent, normalizePresenceDate } from '@/utils/presence';
 
 export function usePartyCharacters() {
   const { user } = useAuth();
@@ -53,7 +37,7 @@ export function usePartyCharacters() {
           const data = doc.data();
           presence[doc.id] = {
             ...(data as SessionPresence),
-            lastSeen: normalizeToDate((data as SessionPresence).lastSeen),
+            lastSeen: normalizePresenceDate((data as SessionPresence).lastSeen),
             online: !!(data as SessionPresence).online,
           };
         });
@@ -116,7 +100,7 @@ export function usePartyCharacters() {
               createdBy,
               ownerId: data.ownerId,
               ownerName: ownerPresence?.ownerName || 'Desconhecido',
-              isOnline: !!ownerPresence?.online,
+              isOnline: isPresenceRecent(ownerPresence?.lastSeen),
               lastSeen: ownerPresence?.lastSeen || null,
             };
           });
