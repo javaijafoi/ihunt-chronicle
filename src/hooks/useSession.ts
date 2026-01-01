@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   collection,
   doc,
@@ -33,6 +33,7 @@ export function useSession() {
     characterId: string;
     ownerName: string;
   } | null>(null);
+  const presenceOfflineRef = useRef(false);
 
   useEffect(() => {
     if (!user || !currentSession) {
@@ -78,8 +79,10 @@ export function useSession() {
     let isMounted = true;
     const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
 
+    presenceOfflineRef.current = false;
+
     const updatePresence = async () => {
-      if (!isMounted) return;
+      if (!isMounted || presenceOfflineRef.current) return;
 
       try {
         await runTransaction(db, async (transaction) => {
@@ -333,8 +336,22 @@ export function useSession() {
     if (!user) return;
 
     try {
+      presenceOfflineRef.current = true;
+      setPresenceInfo(null);
+
+      const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
+
+      await setDoc(
+        presenceRef,
+        {
+          online: false,
+          lastSeen: serverTimestamp(),
+        },
+        { merge: true },
+      );
+
       // Remove presence
-      await deleteDoc(doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid));
+      await deleteDoc(presenceRef);
 
       // If GM, don't remove from characterIds (keep session intact)
       // If player, optionally remove character (we'll keep it for now)
