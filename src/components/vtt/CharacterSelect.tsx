@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CharacterCreator } from './CharacterCreator';
 import { db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
+import { PRESENCE_STALE_MS } from '@/constants/presence';
 
 interface CharacterSelectProps {
   onSelectCharacter: (character: Character) => void;
@@ -21,8 +22,6 @@ type CharacterPresence = {
 };
 
 type CharacterOccupancyStatus = 'free' | 'mine' | 'occupied' | 'stale';
-
-const PRESENCE_STALE_MS = 60_000;
 
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();

@@ -21,6 +21,7 @@ import { useAuth } from './useAuth';
 import { GameSession } from '@/types/session';
 import { SceneAspect } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
+import { PRESENCE_HEARTBEAT_MS, PRESENCE_STALE_MS } from '@/constants/presence';
 
 export const GLOBAL_SESSION_ID = 'sessao-principal';
 
@@ -121,7 +122,7 @@ export function useSession() {
       }
     };
 
-    const presenceInterval = setInterval(updatePresence, 60_000);
+    const presenceInterval = setInterval(updatePresence, PRESENCE_HEARTBEAT_MS);
     updatePresence();
 
     return () => {
@@ -219,7 +220,7 @@ export function useSession() {
 
         const ownerId = characterPresenceData?.ownerId ?? null;
         const isPresenceStale =
-          presenceLastSeen === null ? true : Date.now() - presenceLastSeen > 60_000;
+          presenceLastSeen === null ? true : Date.now() - presenceLastSeen > PRESENCE_STALE_MS;
 
         if (ownerId && ownerId !== user.uid && !force && !isPresenceStale) {
           throw new Error('CharacterAlreadyInUse');
