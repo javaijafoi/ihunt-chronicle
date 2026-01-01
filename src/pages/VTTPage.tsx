@@ -17,10 +17,10 @@ import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { ActionType, Character } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { PRESENCE_STALE_MS } from '@/constants/presence';
 
 export function VTTPage() {
   const navigate = useNavigate();
-  const PRESENCE_RECENCY_TOLERANCE_MS = 10_000;
 
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
@@ -56,7 +56,7 @@ export function VTTPage() {
 
     const lastSeenTime = activePresence?.lastSeen?.getTime();
     const hasRecentPresence =
-      typeof lastSeenTime === 'number' && Date.now() - lastSeenTime <= PRESENCE_RECENCY_TOLERANCE_MS;
+      typeof lastSeenTime === 'number' && Date.now() - lastSeenTime <= PRESENCE_STALE_MS;
 
     if (activePresence && activePresence.ownerId !== user.uid && hasRecentPresence) {
       setActiveCharacter(null);

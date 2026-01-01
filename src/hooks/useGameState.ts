@@ -15,6 +15,7 @@ import sceneBackground from '@/assets/scene-default.jpg';
 import { GLOBAL_SESSION_ID } from './useSession';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { PRESENCE_STALE_MS } from '@/constants/presence';
 
 const ACTION_LABELS: Record<ActionType, string> = {
   superar: 'Superar',
@@ -334,7 +335,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
           ? presenceData.lastSeen
           : null;
 
-      const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= 70_000;
+      const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= PRESENCE_STALE_MS;
 
       if (presenceData.online && isRecent) {
         transaction.update(presenceRef, presencePayload);

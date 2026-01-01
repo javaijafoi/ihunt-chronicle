@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, User, Sparkles, ChevronRight, Eye } from 'lucide-react';
 import { PartyCharacter } from '@/types/session';
 import { Character } from '@/types/game';
+import { PRESENCE_STALE_MS } from '@/constants/presence';
 
 interface PartyPanelProps {
   partyCharacters: PartyCharacter[];
@@ -33,8 +34,8 @@ export function PartyPanel({
 
     if (!lastSeenDate || isNaN(lastSeenDate.getTime())) return false;
 
-    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
-    return lastSeenDate.getTime() >= twoMinutesAgo;
+    const presenceThreshold = Date.now() - PRESENCE_STALE_MS;
+    return lastSeenDate.getTime() >= presenceThreshold;
   });
 
   if (freshCharacters.length === 0) {
