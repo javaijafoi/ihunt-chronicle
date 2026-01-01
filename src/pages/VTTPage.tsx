@@ -269,6 +269,37 @@ export function VTTPage() {
           onToggleStress={(track, index) => selectedCharacter && toggleStress(selectedCharacter.id, track, index)}
           onOpenFullSheet={() => setShowSheet(true)}
           onOpenDice={() => openDiceRoller()}
+          // GM props
+          isGM={isGM}
+          scenes={gameState.currentScene ? [gameState.currentScene] : []}
+          currentScene={gameState.currentScene}
+          onCreateScene={(scene) => {
+            const newScene = { ...scene, id: crypto.randomUUID() };
+            // Add scene to game state - for now just log
+            addLog(`Nova cena criada: ${scene.name}`, 'system');
+          }}
+          onUpdateScene={(sceneId, updates) => {
+            addLog(`Cena atualizada`, 'system');
+          }}
+          onDeleteScene={(sceneId) => {
+            addLog(`Cena removida`, 'system');
+          }}
+          onSetActiveScene={(sceneId) => {
+            addLog(`Cena ativa alterada`, 'system');
+          }}
+          monsters={[]}
+          onAddMonsterToScene={(monster) => {
+            addLog(`${monster.name} adicionado à cena`, 'system');
+          }}
+          onCreateMonster={(monster) => {
+            addLog(`Monstro ${monster.name} criado`, 'system');
+          }}
+          onDeleteMonster={(monsterId) => {
+            addLog(`Monstro removido`, 'system');
+          }}
+          onEditCharacter={(character) => {
+            setViewingCharacter(character as PartyCharacter);
+          }}
         />
 
         {/* Center: Game Area or Character Sheet */}
