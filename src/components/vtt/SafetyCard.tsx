@@ -4,9 +4,11 @@ import { Shield, X, AlertTriangle } from 'lucide-react';
 interface SafetyCardProps {
   isOpen: boolean;
   onClose: () => void;
+  isGM: boolean;
+  activatedBy?: string;
 }
 
-export function SafetyCard({ isOpen, onClose }: SafetyCardProps) {
+export function SafetyCard({ isOpen, onClose, isGM, activatedBy }: SafetyCardProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -51,25 +53,35 @@ export function SafetyCard({ isOpen, onClose }: SafetyCardProps) {
               CARTÃO X
             </h1>
             
-            <p className="text-xl text-destructive-foreground/80 font-ui max-w-md mx-auto mb-8">
+            <p className="text-xl text-destructive-foreground/80 font-ui max-w-md mx-auto mb-4">
               A mesa está pausada. Respire. O GM irá retomar quando todos estiverem prontos.
             </p>
 
-            <div className="flex items-center justify-center gap-2 text-destructive-foreground/60 text-sm">
+            {activatedBy && (
+              <p className="text-sm text-destructive-foreground/60 font-ui mb-8">
+                Ativado por: {activatedBy}
+              </p>
+            )}
+
+            <div className="flex items-center justify-center gap-2 text-destructive-foreground/60 text-sm mb-8">
               <Shield className="w-4 h-4" />
-              <span className="font-ui">Apenas o GM pode retomar a sessão</span>
+              <span className="font-ui">
+                {isGM ? 'Você pode retomar a sessão' : 'Apenas o GM pode retomar a sessão'}
+              </span>
             </div>
             
-            <motion.button
-              onClick={onClose}
-              className="mt-8 px-6 py-3 rounded-lg border-2 border-destructive-foreground 
-                       text-destructive-foreground font-display text-lg
-                       hover:bg-destructive-foreground/10 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Retomar Sessão (GM)
-            </motion.button>
+            {isGM && (
+              <motion.button
+                onClick={onClose}
+                className="px-6 py-3 rounded-lg border-2 border-destructive-foreground 
+                         text-destructive-foreground font-display text-lg
+                         hover:bg-destructive-foreground/10 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Retomar Sessão
+              </motion.button>
+            )}
           </motion.div>
         </motion.div>
       )}
