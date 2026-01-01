@@ -8,6 +8,7 @@ import {
   setDoc,
   serverTimestamp,
   arrayUnion,
+  getDoc,
   getDocs,
   query,
   Timestamp,
@@ -27,28 +28,107 @@ export function useSession() {
   const { user, userProfile } = useAuth();
   const [currentSession, setCurrentSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(false);
+  const [presenceInfo, setPresenceInfo] = useState<{
+    characterId: string;
+    ownerName: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!user || !currentSession) return;
+    if (!user || !currentSession) {
+      setPresenceInfo(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    (async () => {
+      try {
+        const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
+        const presenceSnap = await getDoc(presenceRef);
+
+        if (isCancelled) return;
+
+        if (presenceSnap.exists()) {
+          const data = presenceSnap.data() as { characterId?: string; ownerName?: string };
+          if (data?.characterId) {
+            setPresenceInfo({
+              characterId: data.characterId,
+              ownerName: data.ownerName ?? userProfile?.displayName ?? 'Caçador',
+            });
+            return;
+          }
+        }
+
+        setPresenceInfo(null);
+      } catch (error) {
+        console.error('Erro ao carregar presença do usuário:', error);
+        setPresenceInfo(null);
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentSession?.id, user?.uid, userProfile?.displayName]);
+
+  useEffect(() => {
+    if (!user || !currentSession || !presenceInfo) return;
 
     let isMounted = true;
+    const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
 
-    const presenceInterval = setInterval(() => {
+    const updatePresence = async () => {
       if (!isMounted) return;
 
-      updateDoc(doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid), {
-        lastSeen: serverTimestamp(),
-        online: true,
-      }).catch((error) => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const presenceSnap = await transaction.get(presenceRef);
+
+          if (!presenceSnap.exists()) {
+            transaction.set(presenceRef, {
+              ownerId: user.uid,
+              ownerName: presenceInfo.ownerName,
+              characterId: presenceInfo.characterId,
+              lastSeen: serverTimestamp(),
+              online: true,
+            });
+            return;
+          }
+
+          const existingData = presenceSnap.data() as {
+            ownerName?: string;
+            characterId?: string;
+          };
+
+          transaction.set(
+            presenceRef,
+            {
+              ownerId: user.uid,
+              ownerName:
+                presenceInfo.ownerName ||
+                existingData.ownerName ||
+                userProfile?.displayName ||
+                'Caçador',
+              characterId: existingData.characterId ?? presenceInfo.characterId,
+              lastSeen: serverTimestamp(),
+              online: true,
+            },
+            { merge: true },
+          );
+        });
+      } catch (error) {
         console.error('Erro ao atualizar presença do usuário:', error);
-      });
-    }, 60_000);
+      }
+    };
+
+    const presenceInterval = setInterval(updatePresence, 60_000);
+    updatePresence();
 
     return () => {
       isMounted = false;
       clearInterval(presenceInterval);
     };
-  }, [currentSession?.id, user?.uid]);
+  }, [currentSession?.id, presenceInfo, user?.uid, userProfile?.displayName]);
 
   // Listen to current session
   useEffect(() => {
@@ -169,6 +249,11 @@ export function useSession() {
           characterIds: arrayUnion(characterId),
           updatedAt: serverTimestamp(),
         });
+      });
+
+      setPresenceInfo({
+        characterId,
+        ownerName: userProfile?.displayName || 'Caçador',
       });
 
       return true;
@@ -312,6 +397,10 @@ export function useSession() {
           lastSeen: serverTimestamp(),
           online: true,
         }, { merge: true });
+        setPresenceInfo({
+          characterId: 'gm',
+          ownerName: userProfile?.displayName || 'GM',
+        });
       }
       return success;
     } catch (error) {
