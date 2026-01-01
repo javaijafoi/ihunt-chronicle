@@ -9,12 +9,12 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
-  import { db } from '@/lib/firebase';
-  import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
-  import sceneBackground from '@/assets/scene-default.jpg';
-  import { GLOBAL_SESSION_ID } from './useSession';
-  import { useAuth } from './useAuth';
-  import { toast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { GameState, Character, DiceResult, LogEntry, SceneAspect, ActionType } from '@/types/game';
+import sceneBackground from '@/assets/scene-default.jpg';
+import { GLOBAL_SESSION_ID } from './useSession';
+import { useAuth } from './useAuth';
+import { toast } from '@/hooks/use-toast';
 
 const ACTION_LABELS: Record<ActionType, string> = {
   superar: 'Superar',
@@ -53,6 +53,14 @@ type FirestoreSessionData = Partial<GameState> & {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
+
+type PresenceData = {
+  characterId?: string | null;
+  online?: boolean;
+  lastSeen?: Timestamp | Date | number | null;
+};
+
+const CHARACTER_SELECTION_ERROR = 'CharacterSelectionRequired';
 
 const mapLogFromFirestore = (entry: FirestoreLogEntry): LogEntry => ({
   ...entry,
@@ -147,6 +155,9 @@ const normalizeScene = (scene: GameState['currentScene']): GameState['currentSce
     isActive: scene.isActive ?? true,
   };
 };
+
+const isCharacterSelectionError = (error: unknown): error is Error =>
+  error instanceof Error && error.message === CHARACTER_SELECTION_ERROR;
 
 export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialCharacter?: Character) {
   const { user } = useAuth();
@@ -254,6 +265,10 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
 
   const getAppendLogErrorMessage = useCallback((error: unknown, fallback: string) => {
     if (error instanceof Error) {
+      if (isCharacterSelectionError(error)) {
+        return 'Selecione um personagem ou reentre na sessão para registrar ações.';
+      }
+
       if (error.message === 'PresenceMissing' || error.message === 'PresenceInactive') {
         return 'Falha ao reconectar sua presença na sessão. Entre novamente para continuar.';
       }
@@ -268,32 +283,47 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
     return fallback;
   }, []);
 
+  const getResolvedCharacterId = useCallback(
+    (presenceData?: PresenceData | null): string | null => {
+      const presenceCharacterId = typeof presenceData?.characterId === 'string'
+        ? presenceData.characterId.trim()
+        : null;
+
+      return selectedCharacter?.id
+        ?? initialCharacter?.id
+        ?? (presenceCharacterId || null);
+    },
+    [initialCharacter?.id, selectedCharacter?.id]
+  );
+
   const ensurePresence = useCallback(async () => {
     if (!user?.uid) {
       throw new Error('Usuário não autenticado na sessão.');
     }
 
     const presenceRef = doc(db, 'sessions', sessionId, 'presence', user.uid);
-    const presencePayload = {
-      ownerId: user.uid,
-      ownerName: user.displayName || user.email || 'Jogador',
-      characterId: selectedCharacter?.id ?? initialCharacter?.id,
-      online: true,
-      lastSeen: serverTimestamp(),
-    };
 
     await runTransaction(db, async (transaction) => {
       const presenceSnap = await transaction.get(presenceRef);
+      const presenceData = presenceSnap.exists() ? (presenceSnap.data() as PresenceData) : undefined;
+      const resolvedCharacterId = getResolvedCharacterId(presenceData);
+
+      if (!resolvedCharacterId) {
+        throw new Error(CHARACTER_SELECTION_ERROR);
+      }
+
+      const presencePayload = {
+        ownerId: user.uid,
+        ownerName: user.displayName || user.email || 'Jogador',
+        characterId: resolvedCharacterId,
+        online: true,
+        lastSeen: serverTimestamp(),
+      };
 
       if (!presenceSnap.exists()) {
         transaction.set(presenceRef, presencePayload, { merge: true });
         return;
       }
-
-      const presenceData = presenceSnap.data() as {
-        online?: boolean;
-        lastSeen?: Timestamp | Date | number | null;
-      };
 
       const lastSeenMs =
         presenceData.lastSeen instanceof Timestamp
@@ -313,7 +343,7 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
 
       transaction.set(presenceRef, presencePayload, { merge: true });
     });
-  }, [initialCharacter?.id, selectedCharacter?.id, sessionId, user?.displayName, user?.email, user?.uid]);
+  }, [getResolvedCharacterId, sessionId, user?.displayName, user?.email, user?.uid]);
 
   const appendLog = useCallback(async (logEntry: LogEntry) => {
     try {
@@ -329,7 +359,11 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       addLocalLogEntry(logEntry);
     } catch (error) {
       console.error('Erro ao registrar log da sessão:', error);
-      addLocalLogEntry(logEntry);
+
+      if (!isCharacterSelectionError(error)) {
+        addLocalLogEntry(logEntry);
+      }
+
       throw error;
     }
   }, [addLocalLogEntry, ensurePresence, sessionRef]);
@@ -542,7 +576,9 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
       await appendLog(logEntry);
     } catch (error) {
       console.error('Erro ao publicar log de rolagem:', error);
-      addLocalLogEntry(logEntry);
+      if (!isCharacterSelectionError(error)) {
+        addLocalLogEntry(logEntry);
+      }
       toast({
         title: 'Rolagem não publicada',
         description: getAppendLogErrorMessage(
@@ -787,7 +823,9 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
           await appendLog(logEntry);
         } catch (error) {
           console.error('Erro ao publicar invocação de aspecto:', error);
-          addLocalLogEntry(logEntry);
+          if (!isCharacterSelectionError(error)) {
+            addLocalLogEntry(logEntry);
+          }
           toast({
             title: 'Invocação não publicada',
             description: getAppendLogErrorMessage(
@@ -816,7 +854,9 @@ export function useGameState(sessionId: string = GLOBAL_SESSION_ID, initialChara
         await appendLog(logEntry);
       } catch (error) {
         console.error('Erro ao publicar log da sessão:', error);
-        addLocalLogEntry(logEntry);
+        if (!isCharacterSelectionError(error)) {
+          addLocalLogEntry(logEntry);
+        }
         toast({
           title: 'Mensagem não publicada',
           description: getAppendLogErrorMessage(
