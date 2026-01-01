@@ -287,12 +287,20 @@ export function useSession() {
   const ensureGmPresence = useCallback(async () => {
     if (!user) return;
 
+    const gmOwnerName = userProfile?.displayName || 'GM';
     const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
+    const gmPresenceInfo = {
+      characterId: 'gm',
+      ownerName: gmOwnerName,
+    } as const;
+
+    setPresenceInfo(gmPresenceInfo);
+
     await setDoc(
       presenceRef,
       {
         ownerId: user.uid,
-        ownerName: userProfile?.displayName || 'GM',
+        ownerName: gmOwnerName,
         characterId: 'gm', // Special marker for GM
         lastSeen: serverTimestamp(),
         online: true,
@@ -300,16 +308,13 @@ export function useSession() {
       { merge: true },
     );
 
-    setPresenceInfo({
-      characterId: 'gm',
-      ownerName: userProfile?.displayName || 'GM',
-    });
   }, [user, userProfile]);
 
   const claimGmRole = useCallback(async () => {
     if (!user) return false;
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
+    let hasGmOwnership = false;
 
     try {
       await runTransaction(db, async (transaction) => {
@@ -325,6 +330,8 @@ export function useSession() {
           throw new Error('GMAlreadyAssigned');
         }
 
+        hasGmOwnership = true;
+
         if (!sessionData.gmId) {
           transaction.update(sessionRef, {
             gmId: user.uid,
@@ -333,7 +340,9 @@ export function useSession() {
         }
       });
 
-      await ensureGmPresence();
+      if (hasGmOwnership) {
+        await ensureGmPresence();
+      }
 
       return true;
     } catch (error) {
