@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, User, Sparkles, ChevronRight, Eye } from 'lucide-react';
 import { PartyCharacter } from '@/types/session';
 import { Character } from '@/types/game';
-import { PRESENCE_STALE_MS } from '@/constants/presence';
+import { isPresenceRecent } from '@/utils/presence';
 
 interface PartyPanelProps {
   partyCharacters: PartyCharacter[];
@@ -21,21 +21,7 @@ export function PartyPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const freshCharacters = partyCharacters.filter((character) => {
-    const rawLastSeen = character.lastSeen as Date | string | { toDate(): Date } | null | undefined;
-    if (!rawLastSeen) return false;
-
-    const lastSeenDate = rawLastSeen instanceof Date 
-      ? rawLastSeen 
-      : typeof rawLastSeen === 'string'
-        ? new Date(rawLastSeen)
-        : typeof rawLastSeen === 'object' && 'toDate' in rawLastSeen && typeof rawLastSeen.toDate === 'function'
-          ? rawLastSeen.toDate()
-          : null;
-
-    if (!lastSeenDate || isNaN(lastSeenDate.getTime())) return false;
-
-    const presenceThreshold = Date.now() - PRESENCE_STALE_MS;
-    return lastSeenDate.getTime() >= presenceThreshold;
+    return isPresenceRecent(character.lastSeen);
   });
 
   if (freshCharacters.length === 0) {
@@ -91,9 +77,9 @@ export function PartyPanel({
                   {/* Online Indicator */}
                   <div 
                     className={`w-2 h-2 rounded-full ${
-                      character.isOnline ? 'bg-green-500' : 'bg-muted-foreground'
+                      isPresenceRecent(character.lastSeen) ? 'bg-green-500' : 'bg-muted-foreground'
                     }`} 
-                    title={character.isOnline ? 'Online' : 'Offline'}
+                    title={isPresenceRecent(character.lastSeen) ? 'Online' : 'Offline'}
                   />
                   
                   {/* Avatar */}
