@@ -74,8 +74,8 @@ export function VTTPage() {
     return null;
   }
 
-  // Show character select if no active character
-  if (!activeCharacter) {
+  // Show character select if no active character and not GM
+  if (!activeCharacter && !isGM) {
     return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
   }
 
@@ -108,8 +108,8 @@ export function VTTPage() {
   const isSessionGM = user?.uid === currentSession?.gmId;
   const canManageCharacter = (character?: { id?: string } | null) =>
     isGM || (!!character?.id && character.id === activeCharacter?.id);
-  const canManageViewingState = canManageCharacter(viewingCharacter);
-  const canManageActiveState = canManageCharacter(selectedCharacter);
+  const canManageViewingState = isGM || canManageCharacter(viewingCharacter);
+  const canManageActiveState = isGM || canManageCharacter(selectedCharacter);
 
   const sceneAspects = currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
 
@@ -378,9 +378,10 @@ export function VTTPage() {
                       if (useFreeInvoke) {
                         invokeAspect(aspectName, true);
                       } else {
-                        addLog(`${activeCharacter?.name} invocou "${aspectName}" de ${source}`, 'aspect');
+                        addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${source}`, 'aspect');
                       }
                     }}
+                    isGM={isGM}
                   />
                 </div>
               </motion.div>
@@ -435,7 +436,7 @@ export function VTTPage() {
         )}
       </AnimatePresence>
 
-      <SafetyCard isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} />
+      <SafetyCard isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} isGM={isGM} />
     </div>
   );
 }

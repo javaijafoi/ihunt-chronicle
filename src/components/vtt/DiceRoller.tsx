@@ -17,7 +17,8 @@ interface DiceRollerProps {
     skill: string | undefined,
     action: ActionType | undefined,
     type?: 'normal' | 'advantage',
-    opposition?: number
+    opposition?: number,
+    isHidden?: boolean
   ) => Promise<DiceResult> | DiceResult;
   skills?: Record<string, number>;
   isOpen: boolean;
@@ -31,6 +32,7 @@ interface DiceRollerProps {
   partyCharacters?: Array<{ name: string; aspects: Character['aspects'] }>;
   onInvokeAspect?: (aspectName: string, source: string, useFreeInvoke: boolean) => void;
   variant?: 'modal' | 'window';
+  isGM?: boolean;
 }
 
 const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: number }) => {
@@ -72,6 +74,7 @@ export function DiceRoller({
   partyCharacters = [],
   onInvokeAspect,
   variant = 'modal',
+  isGM = false,
 }: DiceRollerProps) {
   const [result, setResult] = useState<DiceResult | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
@@ -85,6 +88,7 @@ export function DiceRoller({
   const [hasUsedReroll, setHasUsedReroll] = useState(false);
   const [showAspectPanel, setShowAspectPanel] = useState(false);
   const [invokedAspects, setInvokedAspects] = useState<string[]>([]);
+  const [isHiddenRoll, setIsHiddenRoll] = useState(false);
 
   const formatNumber = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 

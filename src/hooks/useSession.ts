@@ -286,14 +286,50 @@ export function useSession() {
     });
   }, [currentSession, updateSession]);
 
+  const updateCurrentScene = useCallback(async (scene: { name: string; background?: string; aspects?: SceneAspect[] }) => {
+    if (!currentSession) return;
+    await updateSession({
+      currentScene: {
+        name: scene.name,
+        background: scene.background,
+        aspects: scene.aspects || currentSession.currentScene?.aspects || [],
+      }
+    });
+  }, [currentSession, updateSession]);
+
+  const joinAsGM = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const success = await claimGmRole();
+      if (success) {
+        // Create presence for GM without character
+        const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
+        await setDoc(presenceRef, {
+          ownerId: user.uid,
+          ownerName: userProfile?.displayName || 'GM',
+          characterId: 'gm', // Special marker for GM
+          lastSeen: serverTimestamp(),
+          online: true,
+        }, { merge: true });
+      }
+      return success;
+    } catch (error) {
+      console.error('Erro ao entrar como GM:', error);
+      return false;
+    }
+  }, [user, userProfile, claimGmRole]);
+
   return {
     currentSession,
     loading,
     joinAsPlayer,
+    joinAsGM,
     leaveSession,
     updateSession,
     updateGmFatePool,
     updateSceneAspects,
+    updateCurrentScene,
     claimGmRole,
     isGM: currentSession?.gmId === user?.uid,
   };
