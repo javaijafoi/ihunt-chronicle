@@ -284,13 +284,35 @@ export function useSession() {
     }
   }, [user, userProfile]);
 
+  const ensureGmPresence = useCallback(async () => {
+    if (!user) return;
+
+    const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
+    await setDoc(
+      presenceRef,
+      {
+        ownerId: user.uid,
+        ownerName: userProfile?.displayName || 'GM',
+        characterId: 'gm', // Special marker for GM
+        lastSeen: serverTimestamp(),
+        online: true,
+      },
+      { merge: true },
+    );
+
+    setPresenceInfo({
+      characterId: 'gm',
+      ownerName: userProfile?.displayName || 'GM',
+    });
+  }, [user, userProfile]);
+
   const claimGmRole = useCallback(async () => {
     if (!user) return false;
 
     const sessionRef = doc(db, 'sessions', GLOBAL_SESSION_ID);
 
     try {
-      const wasClaimed = await runTransaction(db, async (transaction) => {
+      await runTransaction(db, async (transaction) => {
         const sessionSnap = await transaction.get(sessionRef);
 
         if (!sessionSnap.exists()) {
@@ -299,19 +321,21 @@ export function useSession() {
 
         const sessionData = sessionSnap.data() as Partial<GameSession>;
 
-        if (sessionData.gmId) {
+        if (sessionData.gmId && sessionData.gmId !== user.uid) {
           throw new Error('GMAlreadyAssigned');
         }
 
-        transaction.update(sessionRef, {
-          gmId: user.uid,
-          updatedAt: serverTimestamp(),
-        });
-
-        return true;
+        if (!sessionData.gmId) {
+          transaction.update(sessionRef, {
+            gmId: user.uid,
+            updatedAt: serverTimestamp(),
+          });
+        }
       });
 
-      return wasClaimed;
+      await ensureGmPresence();
+
+      return true;
     } catch (error) {
       if (error instanceof Error && error.message === 'GMAlreadyAssigned') {
         toast({
@@ -330,7 +354,7 @@ export function useSession() {
 
       return false;
     }
-  }, [user]);
+  }, [user, ensureGmPresence]);
 
   const leaveSession = useCallback(async () => {
     if (!user) return;
@@ -405,27 +429,12 @@ export function useSession() {
     
     try {
       const success = await claimGmRole();
-      if (success) {
-        // Create presence for GM without character
-        const presenceRef = doc(db, 'sessions', GLOBAL_SESSION_ID, 'presence', user.uid);
-        await setDoc(presenceRef, {
-          ownerId: user.uid,
-          ownerName: userProfile?.displayName || 'GM',
-          characterId: 'gm', // Special marker for GM
-          lastSeen: serverTimestamp(),
-          online: true,
-        }, { merge: true });
-        setPresenceInfo({
-          characterId: 'gm',
-          ownerName: userProfile?.displayName || 'GM',
-        });
-      }
       return success;
     } catch (error) {
       console.error('Erro ao entrar como GM:', error);
       return false;
     }
-  }, [user, userProfile, claimGmRole]);
+  }, [user, claimGmRole]);
 
   return {
     currentSession,
