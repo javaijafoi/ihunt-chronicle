@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Bookmark, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Bookmark, User, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
 import { PartyPanel } from './PartyPanel';
 import { SceneAspects } from './SceneAspects';
 import { CharacterHUD } from './CharacterHUD';
-import { Character, SceneAspect } from '@/types/game';
+import { GMPanel } from './GMPanel';
+import { Character, Scene, SceneAspect } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
+import { Monster } from './MonsterDatabase';
 
 interface LeftSidebarProps {
   // Party
@@ -25,17 +27,32 @@ interface LeftSidebarProps {
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
   onOpenFullSheet: () => void;
   onOpenDice: () => void;
+  // GM props
+  isGM?: boolean;
+  scenes?: Scene[];
+  currentScene?: Scene | null;
+  onCreateScene?: (scene: Omit<Scene, 'id'>) => void;
+  onUpdateScene?: (sceneId: string, updates: Partial<Scene>) => void;
+  onDeleteScene?: (sceneId: string) => void;
+  onSetActiveScene?: (sceneId: string) => void;
+  monsters?: Monster[];
+  onAddMonsterToScene?: (monster: Monster) => void;
+  onCreateMonster?: (monster: Omit<Monster, 'id'>) => void;
+  onDeleteMonster?: (monsterId: string) => void;
+  onEditCharacter?: (character: Character) => void;
 }
 
-type WidgetId = 'party' | 'aspects' | 'hud';
+type WidgetId = 'gm' | 'party' | 'aspects' | 'hud';
 
 interface WidgetConfig {
   id: WidgetId;
   icon: typeof Users;
   label: string;
+  gmOnly?: boolean;
 }
 
-const widgets: WidgetConfig[] = [
+const baseWidgets: WidgetConfig[] = [
+  { id: 'gm', icon: Crown, label: 'Painel do GM', gmOnly: true },
   { id: 'party', icon: Users, label: 'Grupo' },
   { id: 'aspects', icon: Bookmark, label: 'Aspectos' },
   { id: 'hud', icon: User, label: 'Personagem' },
@@ -43,10 +60,14 @@ const widgets: WidgetConfig[] = [
 
 export function LeftSidebar(props: LeftSidebarProps) {
   const [openWidgets, setOpenWidgets] = useState<Record<WidgetId, boolean>>({
+    gm: true,
     party: true,
     aspects: true,
     hud: true,
   });
+
+  // Filter widgets based on GM status
+  const widgets = baseWidgets.filter(w => !w.gmOnly || props.isGM);
   const [collapsed, setCollapsed] = useState(false);
 
   const toggleWidget = (id: WidgetId) => {
@@ -55,6 +76,23 @@ export function LeftSidebar(props: LeftSidebarProps) {
 
   const renderWidgetContent = (id: WidgetId) => {
     switch (id) {
+      case 'gm':
+        return props.isGM && props.scenes && props.monsters ? (
+          <GMPanel
+            scenes={props.scenes}
+            currentScene={props.currentScene || null}
+            onCreateScene={props.onCreateScene || (() => {})}
+            onUpdateScene={props.onUpdateScene || (() => {})}
+            onDeleteScene={props.onDeleteScene || (() => {})}
+            onSetActiveScene={props.onSetActiveScene || (() => {})}
+            monsters={props.monsters}
+            onAddMonsterToScene={props.onAddMonsterToScene || (() => {})}
+            onCreateMonster={props.onCreateMonster || (() => {})}
+            onDeleteMonster={props.onDeleteMonster || (() => {})}
+            partyCharacters={props.partyCharacters}
+            onEditCharacter={props.onEditCharacter || (() => {})}
+          />
+        ) : null;
       case 'party':
         return props.partyCharacters.length > 0 ? (
           <PartyPanel
