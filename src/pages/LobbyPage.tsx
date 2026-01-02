@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -8,20 +8,49 @@ import {
   LogOut,
   AlertCircle,
   Crown,
-  Sword
+  Sword,
+  Users,
+  MapPin,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useSession } from '@/hooks/useSession';
+import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
+import { usePartyCharacters } from '@/hooks/usePartyCharacters';
+import { useScenes } from '@/hooks/useScenes';
 import { CharacterSeeder } from '@/components/vtt/CharacterSeeder';
 
 export function LobbyPage() {
   const navigate = useNavigate();
   const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
-  const { claimGmRole, currentSession } = useSession();
+  const { claimGmRole, currentSession, joinAsGM } = useSession();
+  const { partyCharacters } = usePartyCharacters();
+  const { scenes, createScene } = useScenes(GLOBAL_SESSION_ID);
   
   const [authError, setAuthError] = useState('');
   const [actionError, setActionError] = useState('');
   const [gmActionLoading, setGmActionLoading] = useState(false);
+
+  // Create default scene if none exists (GM action)
+  useEffect(() => {
+    const createDefaultScene = async () => {
+      if (currentSession && scenes.length === 0 && currentSession.gmId === userProfile?.uid) {
+        await createScene({
+          name: 'Beco Escuro',
+          background: '',
+          aspects: [
+            { id: crypto.randomUUID(), name: 'Sombras Densas', freeInvokes: 1, createdBy: 'gm', isTemporary: false },
+            { id: crypto.randomUUID(), name: 'Lixo e Entulho', freeInvokes: 0, createdBy: 'gm', isTemporary: false },
+          ],
+          isActive: true,
+        });
+      }
+    };
+    createDefaultScene();
+  }, [currentSession?.gmId, scenes.length, userProfile?.uid, createScene]);
+
+  // Get current scene info
+  const activeScene = scenes.find(s => s.isActive) || currentSession?.currentScene;
+  const onlineCount = partyCharacters.filter(p => p.isOnline).length;
 
   // Show login if not authenticated
   if (!userProfile) {
@@ -182,6 +211,76 @@ export function LobbyPage() {
             <span className="text-muted-foreground text-2xl ml-3">VTT</span>
           </h1>
         </div>
+
+        {/* Session Status Card */}
+        {currentSession && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="glass-panel p-4 mb-6"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-secondary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-sm">{currentSession.name}</h3>
+                <p className="text-xs text-muted-foreground">Sessão Ativa</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-fate-plus animate-pulse" />
+                <span className="text-xs text-muted-foreground">Online</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Current Scene */}
+              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-secondary" />
+                  <span className="text-[10px] uppercase text-muted-foreground font-ui tracking-wider">Cena Atual</span>
+                </div>
+                <p className="font-display text-sm truncate">
+                  {activeScene?.name || 'Nenhuma cena'}
+                </p>
+              </div>
+
+              {/* Players Online */}
+              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] uppercase text-muted-foreground font-ui tracking-wider">Jogadores</span>
+                </div>
+                <p className="font-display text-sm">
+                  {onlineCount} online
+                </p>
+              </div>
+            </div>
+
+            {/* Scene Aspects Preview */}
+            {activeScene?.aspects && activeScene.aspects.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[10px] uppercase text-muted-foreground font-ui tracking-wider mb-2">Aspectos da Cena</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeScene.aspects.slice(0, 3).map((aspect, i) => (
+                    <span 
+                      key={aspect.id || i} 
+                      className="px-2 py-0.5 rounded text-xs bg-secondary/20 text-secondary border border-secondary/30"
+                    >
+                      {aspect.name}
+                    </span>
+                  ))}
+                  {activeScene.aspects.length > 3 && (
+                    <span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">
+                      +{activeScene.aspects.length - 3}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* User Info */}
         <div className="glass-panel p-4 mb-6 flex items-center justify-between">
