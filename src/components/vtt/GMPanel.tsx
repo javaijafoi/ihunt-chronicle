@@ -8,15 +8,21 @@ import { PartyCharacter } from '@/types/session';
 
 interface GMPanelProps {
   scenes: Scene[];
+  archivedScenes?: Scene[];
   currentScene: Scene | null;
-  onCreateScene: (scene: Omit<Scene, 'id'>) => void;
-  onUpdateScene: (sceneId: string, updates: Partial<Scene>) => void;
-  onDeleteScene: (sceneId: string) => void;
-  onSetActiveScene: (sceneId: string) => void;
+  sceneSearchQuery?: string;
+  onSceneSearchChange?: (query: string) => void;
+  onCreateScene: (scene: Omit<Scene, 'id'>) => void | Promise<string | null>;
+  onUpdateScene: (sceneId: string, updates: Partial<Scene>) => void | Promise<void>;
+  onDeleteScene: (sceneId: string) => void | Promise<void>;
+  onSetActiveScene: (sceneId: string) => void | Promise<void>;
+  onArchiveScene?: (sceneId: string) => void | Promise<void>;
+  onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
+  minAspects?: number;
   monsters: Monster[];
-  onAddMonsterToScene: (monster: Monster) => void;
-  onCreateMonster: (monster: Omit<Monster, 'id'>) => void;
-  onDeleteMonster: (monsterId: string) => void;
+  onAddMonsterToScene: (monster: Monster) => void | Promise<void>;
+  onCreateMonster: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
+  onDeleteMonster: (monsterId: string) => void | Promise<void>;
   partyCharacters: PartyCharacter[];
   onEditCharacter: (character: Character) => void;
 }
@@ -25,11 +31,17 @@ type PanelSection = 'scenes' | 'monsters' | 'characters';
 
 export function GMPanel({
   scenes,
+  archivedScenes = [],
   currentScene,
+  sceneSearchQuery = '',
+  onSceneSearchChange,
   onCreateScene,
   onUpdateScene,
   onDeleteScene,
   onSetActiveScene,
+  onArchiveScene,
+  onUnarchiveScene,
+  minAspects = 3,
   monsters,
   onAddMonsterToScene,
   onCreateMonster,
@@ -92,11 +104,17 @@ export function GMPanel({
           >
             <SceneManager
               scenes={scenes}
+              archivedScenes={archivedScenes}
               currentScene={currentScene}
+              searchQuery={sceneSearchQuery}
+              onSearchChange={onSceneSearchChange}
               onCreateScene={onCreateScene}
               onUpdateScene={onUpdateScene}
               onDeleteScene={onDeleteScene}
               onSetActiveScene={onSetActiveScene}
+              onArchiveScene={onArchiveScene}
+              onUnarchiveScene={onUnarchiveScene}
+              minAspects={minAspects}
             />
           </motion.div>
         )}
