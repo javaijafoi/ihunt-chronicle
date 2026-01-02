@@ -30,11 +30,17 @@ interface LeftSidebarProps {
   // GM props
   isGM?: boolean;
   scenes?: Scene[];
+  archivedScenes?: Scene[];
   currentScene?: Scene | null;
+  sceneSearchQuery?: string;
+  onSceneSearchChange?: (query: string) => void;
   onCreateScene?: (scene: Omit<Scene, 'id'>) => void | Promise<string | null>;
   onUpdateScene?: (sceneId: string, updates: Partial<Scene>) => void | Promise<void>;
   onDeleteScene?: (sceneId: string) => void | Promise<void>;
   onSetActiveScene?: (sceneId: string) => void | Promise<void>;
+  onArchiveScene?: (sceneId: string) => void | Promise<void>;
+  onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
+  minAspects?: number;
   monsters?: Monster[];
   onAddMonsterToScene?: (monster: Monster) => void | Promise<void>;
   onCreateMonster?: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
@@ -80,11 +86,17 @@ export function LeftSidebar(props: LeftSidebarProps) {
         return props.isGM && props.scenes && props.monsters ? (
           <GMPanel
             scenes={props.scenes}
+            archivedScenes={props.archivedScenes}
             currentScene={props.currentScene || null}
+            sceneSearchQuery={props.sceneSearchQuery}
+            onSceneSearchChange={props.onSceneSearchChange}
             onCreateScene={props.onCreateScene || (() => {})}
             onUpdateScene={props.onUpdateScene || (() => {})}
             onDeleteScene={props.onDeleteScene || (() => {})}
             onSetActiveScene={props.onSetActiveScene || (() => {})}
+            onArchiveScene={props.onArchiveScene}
+            onUnarchiveScene={props.onUnarchiveScene}
+            minAspects={props.minAspects}
             monsters={props.monsters}
             onAddMonsterToScene={props.onAddMonsterToScene || (() => {})}
             onCreateMonster={props.onCreateMonster || (() => {})}

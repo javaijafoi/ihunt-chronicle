@@ -24,7 +24,10 @@ export function LobbyPage() {
   const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
   const { claimGmRole, currentSession, joinAsGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
-  const { scenes, createScene } = useScenes(GLOBAL_SESSION_ID);
+  
+  // Check if user is GM to show all scenes or just active
+  const isGM = currentSession?.gmId === userProfile?.uid;
+  const { scenes, activeScene, createScene } = useScenes(GLOBAL_SESSION_ID, isGM);
   
   const [authError, setAuthError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -33,23 +36,24 @@ export function LobbyPage() {
   // Create default scene if none exists (GM action)
   useEffect(() => {
     const createDefaultScene = async () => {
-      if (currentSession && scenes.length === 0 && currentSession.gmId === userProfile?.uid) {
+      if (currentSession && scenes.length === 0 && isGM && !activeScene) {
         await createScene({
           name: 'Beco Escuro',
           background: '',
           aspects: [
             { id: crypto.randomUUID(), name: 'Sombras Densas', freeInvokes: 1, createdBy: 'gm', isTemporary: false },
             { id: crypto.randomUUID(), name: 'Lixo e Entulho', freeInvokes: 0, createdBy: 'gm', isTemporary: false },
+            { id: crypto.randomUUID(), name: 'Silêncio Opressivo', freeInvokes: 0, createdBy: 'gm', isTemporary: false },
           ],
           isActive: true,
         });
       }
     };
     createDefaultScene();
-  }, [currentSession?.gmId, scenes.length, userProfile?.uid, createScene]);
+  }, [isGM, scenes.length, activeScene, createScene, currentSession]);
 
-  // Get current scene info
-  const activeScene = scenes.find(s => s.isActive) || currentSession?.currentScene;
+  // Get current scene info - use activeScene from hook or fallback
+  const currentActiveScene = activeScene || currentSession?.currentScene;
   const onlineCount = partyCharacters.filter(p => p.isOnline).length;
 
   // Show login if not authenticated
@@ -242,7 +246,7 @@ export function LobbyPage() {
                   <span className="text-[10px] uppercase text-muted-foreground font-ui tracking-wider">Cena Atual</span>
                 </div>
                 <p className="font-display text-sm truncate">
-                  {activeScene?.name || 'Nenhuma cena'}
+                  {currentActiveScene?.name || 'Nenhuma cena'}
                 </p>
               </div>
 
@@ -259,11 +263,11 @@ export function LobbyPage() {
             </div>
 
             {/* Scene Aspects Preview */}
-            {activeScene?.aspects && activeScene.aspects.length > 0 && (
+            {currentActiveScene?.aspects && currentActiveScene.aspects.length > 0 && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-[10px] uppercase text-muted-foreground font-ui tracking-wider mb-2">Aspectos da Cena</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {activeScene.aspects.slice(0, 3).map((aspect, i) => (
+                  {currentActiveScene.aspects.slice(0, 3).map((aspect, i) => (
                     <span 
                       key={aspect.id || i} 
                       className="px-2 py-0.5 rounded text-xs bg-secondary/20 text-secondary border border-secondary/30"
@@ -271,9 +275,9 @@ export function LobbyPage() {
                       {aspect.name}
                     </span>
                   ))}
-                  {activeScene.aspects.length > 3 && (
+                  {currentActiveScene.aspects.length > 3 && (
                     <span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">
-                      +{activeScene.aspects.length - 3}
+                      +{currentActiveScene.aspects.length - 3}
                     </span>
                   )}
                 </div>

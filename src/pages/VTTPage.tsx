@@ -29,8 +29,21 @@ export function VTTPage() {
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
 
-  // New hooks for Firebase persistence
-  const { scenes, createScene, updateScene, deleteScene, setActiveScene } = useScenes(GLOBAL_SESSION_ID);
+  // New hooks for Firebase persistence - pass isGM to filter scenes
+  const { 
+    scenes, 
+    archivedScenes,
+    activeScene: sceneFromHook,
+    createScene, 
+    updateScene, 
+    deleteScene, 
+    setActiveScene,
+    archiveScene,
+    unarchiveScene,
+    searchQuery: sceneSearchQuery,
+    setSearchQuery: setSceneSearchQuery,
+    MIN_ASPECTS,
+  } = useScenes(GLOBAL_SESSION_ID, isGM);
   const { monsters, createMonster, deleteMonster } = useMonsters(GLOBAL_SESSION_ID);
   const { tokens, createToken, updateTokenPosition, deleteToken } = useTokens(GLOBAL_SESSION_ID);
 
@@ -120,10 +133,10 @@ export function VTTPage() {
   const canManageViewingState = isGM || canManageCharacter(viewingCharacter);
   const canManageActiveState = isGM || canManageCharacter(selectedCharacter);
 
-  const sceneAspects = currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
+  const sceneAspects = sceneFromHook?.aspects || currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
   
   // Get active scene from Firebase scenes or fallback to gameState
-  const activeScene = scenes.find(s => s.isActive) || gameState.currentScene;
+  const activeScene = sceneFromHook || gameState.currentScene;
 
   // Handler for adding monster to scene as token
   const handleAddMonsterToScene = async (monster: { id: string; name: string; avatar?: string }) => {
@@ -301,11 +314,17 @@ export function VTTPage() {
           // GM props
           isGM={isGM}
           scenes={scenes}
+          archivedScenes={archivedScenes}
           currentScene={activeScene || null}
+          sceneSearchQuery={sceneSearchQuery}
+          onSceneSearchChange={setSceneSearchQuery}
           onCreateScene={createScene}
           onUpdateScene={updateScene}
           onDeleteScene={deleteScene}
           onSetActiveScene={setActiveScene}
+          onArchiveScene={archiveScene}
+          onUnarchiveScene={unarchiveScene}
+          minAspects={MIN_ASPECTS}
           monsters={monsters}
           onAddMonsterToScene={handleAddMonsterToScene}
           onCreateMonster={createMonster}
