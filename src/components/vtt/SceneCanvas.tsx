@@ -1,10 +1,25 @@
-import { Scene } from '@/types/game';
+import { Scene, Token } from '@/types/game';
+import { TokenLayer } from './TokenLayer';
 
 interface SceneCanvasProps {
   scene: Scene | null;
+  tokens?: Token[];
+  isGM?: boolean;
+  onMoveToken?: (tokenId: string, x: number, y: number) => void;
+  onDeleteToken?: (tokenId: string) => void;
+  onSelectToken?: (token: Token) => void;
+  selectedTokenId?: string | null;
 }
 
-export function SceneCanvas({ scene }: SceneCanvasProps) {
+export function SceneCanvas({ 
+  scene,
+  tokens = [],
+  isGM = false,
+  onMoveToken,
+  onDeleteToken,
+  onSelectToken,
+  selectedTokenId,
+}: SceneCanvasProps) {
   return (
     <div 
       className="canvas-layer scanlines"
@@ -17,7 +32,7 @@ export function SceneCanvas({ scene }: SceneCanvasProps) {
       
       {/* Scene name */}
       {scene && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
           <div className="glass-panel px-6 py-2">
             <h2 className="font-display text-xl text-secondary text-glow-secondary">
               {scene.name}
@@ -36,6 +51,16 @@ export function SceneCanvas({ scene }: SceneCanvasProps) {
           `,
           backgroundSize: '50px 50px',
         }}
+      />
+
+      {/* Token Layer */}
+      <TokenLayer
+        tokens={tokens}
+        isGM={isGM}
+        onMoveToken={onMoveToken}
+        onDeleteToken={onDeleteToken}
+        onSelectToken={onSelectToken}
+        selectedTokenId={selectedTokenId}
       />
     </div>
   );

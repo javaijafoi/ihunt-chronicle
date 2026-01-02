@@ -270,19 +270,21 @@ export function useGameState(
 
   const getAppendLogErrorMessage = useCallback((error: unknown, fallback: string) => {
     if (error instanceof Error) {
+      const errorMessage = error.message;
+      
       if (isCharacterSelectionError(error)) {
         return 'Selecione um personagem ou reentre na sessão para registrar ações.';
       }
 
-      if (error.message === 'PresenceMissing' || error.message === 'PresenceInactive') {
+      if (errorMessage === 'PresenceMissing' || errorMessage === 'PresenceInactive') {
         return 'Falha ao reconectar sua presença na sessão. Entre novamente para continuar.';
       }
 
-      if (error.message === 'Usuário não autenticado na sessão.') {
+      if (errorMessage === 'Usuário não autenticado na sessão.') {
         return 'Faça login e entre novamente na sessão para reconectar sua presença e registrar ações.';
       }
 
-      return error.message || fallback;
+      return errorMessage || fallback;
     }
 
     return fallback;
