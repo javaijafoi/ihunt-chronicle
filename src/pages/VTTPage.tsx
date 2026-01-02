@@ -6,6 +6,9 @@ import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
+import { useScenes } from '@/hooks/useScenes';
+import { useMonsters } from '@/hooks/useMonsters';
+import { useTokens } from '@/hooks/useTokens';
 import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
@@ -14,7 +17,7 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
-import { ActionType, Character } from '@/types/game';
+import { ActionType, Character, Token } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
@@ -26,12 +29,18 @@ export function VTTPage() {
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
 
+  // New hooks for Firebase persistence
+  const { scenes, createScene, updateScene, deleteScene, setActiveScene } = useScenes(GLOBAL_SESSION_ID);
+  const { monsters, createMonster, deleteMonster } = useMonsters(GLOBAL_SESSION_ID);
+  const { tokens, createToken, updateTokenPosition, deleteToken } = useTokens(GLOBAL_SESSION_ID);
+
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
   const {
     gameState,
@@ -112,6 +121,26 @@ export function VTTPage() {
   const canManageActiveState = isGM || canManageCharacter(selectedCharacter);
 
   const sceneAspects = currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
+  
+  // Get active scene from Firebase scenes or fallback to gameState
+  const activeScene = scenes.find(s => s.isActive) || gameState.currentScene;
+
+  // Handler for adding monster to scene as token
+  const handleAddMonsterToScene = async (monster: { id: string; name: string; avatar?: string }) => {
+    await createToken({
+      characterId: '', // Empty for monsters
+      name: monster.name,
+      avatar: monster.avatar,
+      x: 50, // Center of canvas
+      y: 50,
+    });
+    addLog(`${monster.name} adicionado à cena`, 'system');
+  };
+
+  // Handler for selecting a token
+  const handleSelectToken = (token: Token) => {
+    setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
@@ -271,32 +300,16 @@ export function VTTPage() {
           onOpenDice={() => openDiceRoller()}
           // GM props
           isGM={isGM}
-          scenes={gameState.currentScene ? [gameState.currentScene] : []}
-          currentScene={gameState.currentScene}
-          onCreateScene={(scene) => {
-            const newScene = { ...scene, id: crypto.randomUUID() };
-            // Add scene to game state - for now just log
-            addLog(`Nova cena criada: ${scene.name}`, 'system');
-          }}
-          onUpdateScene={(sceneId, updates) => {
-            addLog(`Cena atualizada`, 'system');
-          }}
-          onDeleteScene={(sceneId) => {
-            addLog(`Cena removida`, 'system');
-          }}
-          onSetActiveScene={(sceneId) => {
-            addLog(`Cena ativa alterada`, 'system');
-          }}
-          monsters={[]}
-          onAddMonsterToScene={(monster) => {
-            addLog(`${monster.name} adicionado à cena`, 'system');
-          }}
-          onCreateMonster={(monster) => {
-            addLog(`Monstro ${monster.name} criado`, 'system');
-          }}
-          onDeleteMonster={(monsterId) => {
-            addLog(`Monstro removido`, 'system');
-          }}
+          scenes={scenes}
+          currentScene={activeScene || null}
+          onCreateScene={createScene}
+          onUpdateScene={updateScene}
+          onDeleteScene={deleteScene}
+          onSetActiveScene={setActiveScene}
+          monsters={monsters}
+          onAddMonsterToScene={handleAddMonsterToScene}
+          onCreateMonster={createMonster}
+          onDeleteMonster={deleteMonster}
           onEditCharacter={(character) => {
             setViewingCharacter(character as PartyCharacter);
           }}
@@ -353,7 +366,15 @@ export function VTTPage() {
                 exit={{ opacity: 0 }}
                 className="absolute inset-0"
               >
-                <SceneCanvas scene={gameState.currentScene} />
+                <SceneCanvas
+                  scene={activeScene || null}
+                  tokens={tokens}
+                  isGM={isGM}
+                  onMoveToken={updateTokenPosition}
+                  onDeleteToken={deleteToken}
+                  onSelectToken={handleSelectToken}
+                  selectedTokenId={selectedTokenId}
+                />
               </motion.div>
             )}
           </AnimatePresence>

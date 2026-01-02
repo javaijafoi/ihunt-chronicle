@@ -31,14 +31,14 @@ interface LeftSidebarProps {
   isGM?: boolean;
   scenes?: Scene[];
   currentScene?: Scene | null;
-  onCreateScene?: (scene: Omit<Scene, 'id'>) => void;
-  onUpdateScene?: (sceneId: string, updates: Partial<Scene>) => void;
-  onDeleteScene?: (sceneId: string) => void;
-  onSetActiveScene?: (sceneId: string) => void;
+  onCreateScene?: (scene: Omit<Scene, 'id'>) => void | Promise<string | null>;
+  onUpdateScene?: (sceneId: string, updates: Partial<Scene>) => void | Promise<void>;
+  onDeleteScene?: (sceneId: string) => void | Promise<void>;
+  onSetActiveScene?: (sceneId: string) => void | Promise<void>;
   monsters?: Monster[];
-  onAddMonsterToScene?: (monster: Monster) => void;
-  onCreateMonster?: (monster: Omit<Monster, 'id'>) => void;
-  onDeleteMonster?: (monsterId: string) => void;
+  onAddMonsterToScene?: (monster: Monster) => void | Promise<void>;
+  onCreateMonster?: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
+  onDeleteMonster?: (monsterId: string) => void | Promise<void>;
   onEditCharacter?: (character: Character) => void;
 }
 

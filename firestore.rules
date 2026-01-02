@@ -82,6 +82,24 @@ service cloud.firestore {
           && ((request.auth.uid == userId && isInvitedToSession(sessionId) && hasSessionPresence(sessionId))
             || isSessionGm(sessionId));
       }
+
+      // Scenes subcollection - only GM can write
+      match /scenes/{sceneId} {
+        allow read: if canAccessSession(sessionId);
+        allow create, update, delete: if isSessionGm(sessionId);
+      }
+
+      // Monsters subcollection - only GM can write
+      match /monsters/{monsterId} {
+        allow read: if canAccessSession(sessionId);
+        allow create, update, delete: if isSessionGm(sessionId);
+      }
+
+      // Tokens subcollection - only GM can write
+      match /tokens/{tokenId} {
+        allow read: if canAccessSession(sessionId);
+        allow create, update, delete: if isSessionGm(sessionId);
+      }
     }
   }
 }
