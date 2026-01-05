@@ -14,6 +14,14 @@ import { toast } from '@/hooks/use-toast';
 
 const POSITION_UPDATE_DEBOUNCE = 100; // ms
 
+function removeUndefinedFields<T extends Record<string, unknown>>(data: T): T {
+  const cleaned = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  ) as T;
+
+  return cleaned;
+}
+
 export function useTokens(sessionId: string) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +64,10 @@ export function useTokens(sessionId: string) {
       try {
         const tokenId = crypto.randomUUID();
         const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
+        const payload = removeUndefinedFields(tokenData);
 
         await setDoc(tokenRef, {
-          ...tokenData,
+          ...payload,
           createdAt: serverTimestamp(),
         });
 
@@ -121,8 +130,11 @@ export function useTokens(sessionId: string) {
       if (!sessionId) return;
 
       try {
+        const cleanedUpdates = removeUndefinedFields(updates);
+        if (Object.keys(cleanedUpdates).length === 0) return;
+
         const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
-        await updateDoc(tokenRef, updates);
+        await updateDoc(tokenRef, cleanedUpdates);
       } catch (error) {
         console.error('Erro ao atualizar token:', error);
       }
