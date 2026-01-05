@@ -85,41 +85,19 @@ export function useSession() {
       if (!isMounted || presenceOfflineRef.current) return;
 
       try {
-        await runTransaction(db, async (transaction) => {
-          const presenceSnap = await transaction.get(presenceRef);
+        if (presenceOfflineRef.current) return;
 
-          if (!presenceSnap.exists()) {
-            transaction.set(presenceRef, {
-              ownerId: user.uid,
-              ownerName: presenceInfo.ownerName,
-              characterId: presenceInfo.characterId,
-              lastSeen: serverTimestamp(),
-              online: true,
-            });
-            return;
-          }
-
-          const existingData = presenceSnap.data() as {
-            ownerName?: string;
-            characterId?: string;
-          };
-
-          transaction.set(
-            presenceRef,
-            {
-              ownerId: user.uid,
-              ownerName:
-                presenceInfo.ownerName ||
-                existingData.ownerName ||
-                userProfile?.displayName ||
-                'Caçador',
-              characterId: existingData.characterId ?? presenceInfo.characterId,
-              lastSeen: serverTimestamp(),
-              online: true,
-            },
-            { merge: true },
-          );
-        });
+        await setDoc(
+          presenceRef,
+          {
+            ownerId: user.uid,
+            ownerName: presenceInfo.ownerName || userProfile?.displayName || 'Caçador',
+            characterId: presenceInfo.characterId,
+            lastSeen: serverTimestamp(),
+            online: true,
+          },
+          { merge: true },
+        );
       } catch (error) {
         console.error('Erro ao atualizar presença do usuário:', error);
       }
