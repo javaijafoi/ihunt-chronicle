@@ -81,7 +81,7 @@ export function useSession() {
 
     presenceOfflineRef.current = false;
 
-    const updatePresence = async () => {
+    const updatePresence = async (attempt = 0) => {
       if (!isMounted || presenceOfflineRef.current) return;
 
       try {
@@ -99,6 +99,19 @@ export function useSession() {
           { merge: true },
         );
       } catch (error) {
+        const firestoreError = error as FirestoreError;
+        const shouldRetry =
+          isMounted &&
+          !presenceOfflineRef.current &&
+          ['failed-precondition', 'aborted'].includes(firestoreError?.code) &&
+          attempt < 3;
+
+        if (shouldRetry) {
+          const backoff = Math.pow(2, attempt) * 100;
+          await new Promise((resolve) => setTimeout(resolve, backoff));
+          return updatePresence(attempt + 1);
+        }
+
         console.error('Erro ao atualizar presença do usuário:', error);
       }
     };
