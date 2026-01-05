@@ -15,18 +15,20 @@ import { toast } from '@/hooks/use-toast';
 const POSITION_UPDATE_DEBOUNCE = 100; // ms
 
 const removeUndefinedDeep = <T>(value: T): T => {
-  if (value === undefined || value === null) return value;
+  if (value === undefined || value === null) return undefined as T;
 
   if (Array.isArray(value)) {
-    return value
-      .filter((item) => item !== undefined)
-      .map((item) => removeUndefinedDeep(item)) as T;
+    const sanitizedArray = value
+      .map((item) => removeUndefinedDeep(item))
+      .filter((item) => item !== undefined);
+
+    return sanitizedArray as T;
   }
 
   if (typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => [k, removeUndefinedDeep(v)]);
+      .map(([k, v]) => [k, removeUndefinedDeep(v)])
+      .filter(([, v]) => v !== undefined);
 
     return Object.fromEntries(entries) as T;
   }
@@ -36,9 +38,13 @@ const removeUndefinedDeep = <T>(value: T): T => {
 
 const sanitizeTokenPayload = <T extends Record<string, unknown>>(data: T): T => {
   const cleaned = removeUndefinedDeep(data) as Record<string, unknown>;
+  const normalizedAvatar =
+    typeof cleaned.avatar === 'string' && cleaned.avatar.trim().length > 0
+      ? cleaned.avatar.trim()
+      : undefined;
   const { avatar, ...rest } = cleaned;
 
-  return (avatar ? { ...rest, avatar } : rest) as T;
+  return (normalizedAvatar ? { ...rest, avatar: normalizedAvatar } : rest) as T;
 };
 
 export function useTokens(sessionId: string) {

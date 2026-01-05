@@ -141,12 +141,17 @@ export function VTTPage() {
   // Get active scene from Firebase scenes or fallback to gameState
   const activeScene = sceneFromHook || gameState.currentScene;
 
+  const buildAvatarPayload = (avatar?: string | null) => {
+    const normalized = avatar?.trim();
+    return normalized ? { avatar: normalized } : {};
+  };
+
   // Handler for adding monster to scene as token
   const handleAddMonsterToScene = async (monster: Monster) => {
     await createToken({
       type: 'monster',
       name: monster.name,
-      ...(monster.avatar ? { avatar: monster.avatar } : {}),
+      ...buildAvatarPayload(monster.avatar),
       x: 50 + Math.random() * 10 - 5, // Slight offset to avoid stacking
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -162,7 +167,7 @@ export function VTTPage() {
       type: 'npc',
       characterId: npc.id,
       name: npc.name,
-      ...(npc.avatar ? { avatar: npc.avatar } : {}),
+      ...buildAvatarPayload(npc.avatar),
       x: 50 + Math.random() * 10 - 5,
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -201,7 +206,7 @@ export function VTTPage() {
       type: 'character',
       characterId: selectedCharacter.id,
       name: selectedCharacter.name,
-      ...(selectedCharacter.avatar ? { avatar: selectedCharacter.avatar } : {}),
+      ...buildAvatarPayload(selectedCharacter.avatar),
       x: 30 + Math.random() * 40, // Random position in center area
       y: 50 + Math.random() * 20,
       ownerId: user.uid,
