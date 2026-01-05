@@ -10,6 +10,7 @@ export interface Monster {
   skills: Record<string, number>;
   stress: number;
   stunts?: string[];
+  avatar?: string;
   isTemplate?: boolean;
 }
 

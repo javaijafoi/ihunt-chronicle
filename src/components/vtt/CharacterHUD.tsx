@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { User, Heart, Brain, ChevronRight, Dices } from 'lucide-react';
+import { User, Heart, Brain, ChevronRight, Dices, MapPin } from 'lucide-react';
 import { Character } from '@/types/game';
 import { calculateStressTracks } from '@/utils/gameRules';
 import { FatePointDisplay } from './FatePointDisplay';
@@ -11,6 +11,8 @@ interface CharacterHUDProps {
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
   onOpenFullSheet: () => void;
   onOpenDice?: () => void;
+  onAddToScene?: () => void;
+  isInScene?: boolean;
 }
 
 export function CharacterHUD({ 
@@ -19,7 +21,9 @@ export function CharacterHUD({
   onGainFate, 
   onToggleStress,
   onOpenFullSheet,
-  onOpenDice
+  onOpenDice,
+  onAddToScene,
+  isInScene = false,
 }: CharacterHUDProps) {
   const calculatedTracks = calculateStressTracks(character);
   const physicalStress = calculatedTracks.physical.map(
@@ -61,6 +65,20 @@ export function CharacterHUD({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {onAddToScene && !isInScene && (
+            <button
+              onClick={onAddToScene}
+              className="p-2 rounded-lg hover:bg-primary/20 text-primary transition-colors"
+              title="Entrar na cena"
+            >
+              <MapPin className="w-5 h-5" />
+            </button>
+          )}
+          {isInScene && (
+            <div className="p-2 text-primary/50" title="Você está na cena">
+              <MapPin className="w-5 h-5" />
+            </div>
+          )}
           {onOpenDice && (
             <button
               onClick={onOpenDice}

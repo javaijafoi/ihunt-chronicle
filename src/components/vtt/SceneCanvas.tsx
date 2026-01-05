@@ -5,9 +5,11 @@ interface SceneCanvasProps {
   scene: Scene | null;
   tokens?: Token[];
   isGM?: boolean;
+  currentUserId?: string;
   onMoveToken?: (tokenId: string, x: number, y: number) => void;
   onDeleteToken?: (tokenId: string) => void;
   onSelectToken?: (token: Token) => void;
+  onToggleVisibility?: (tokenId: string) => void;
   selectedTokenId?: string | null;
 }
 
@@ -15,9 +17,11 @@ export function SceneCanvas({
   scene,
   tokens = [],
   isGM = false,
+  currentUserId,
   onMoveToken,
   onDeleteToken,
   onSelectToken,
+  onToggleVisibility,
   selectedTokenId,
 }: SceneCanvasProps) {
   return (
@@ -57,9 +61,11 @@ export function SceneCanvas({
       <TokenLayer
         tokens={tokens}
         isGM={isGM}
+        currentUserId={currentUserId}
         onMoveToken={onMoveToken}
         onDeleteToken={onDeleteToken}
         onSelectToken={onSelectToken}
+        onToggleVisibility={onToggleVisibility}
         selectedTokenId={selectedTokenId}
       />
     </div>

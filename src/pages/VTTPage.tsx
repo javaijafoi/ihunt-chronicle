@@ -8,6 +8,7 @@ import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useScenes } from '@/hooks/useScenes';
 import { useMonsters } from '@/hooks/useMonsters';
+import { useNPCs } from '@/hooks/useNPCs';
 import { useTokens } from '@/hooks/useTokens';
 import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
@@ -17,7 +18,8 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
-import { ActionType, Character, Token } from '@/types/game';
+import { ActionType, Character, Token, NPC } from '@/types/game';
+import { Monster } from '@/components/vtt/MonsterDatabase';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
@@ -45,7 +47,8 @@ export function VTTPage() {
     MIN_ASPECTS,
   } = useScenes(GLOBAL_SESSION_ID, isGM);
   const { monsters, createMonster, deleteMonster } = useMonsters(GLOBAL_SESSION_ID);
-  const { tokens, createToken, updateTokenPosition, deleteToken } = useTokens(GLOBAL_SESSION_ID);
+  const { npcs, allNPCs, createNPC, deleteNPC, duplicateNPC } = useNPCs(GLOBAL_SESSION_ID);
+  const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(GLOBAL_SESSION_ID);
 
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
@@ -139,20 +142,72 @@ export function VTTPage() {
   const activeScene = sceneFromHook || gameState.currentScene;
 
   // Handler for adding monster to scene as token
-  const handleAddMonsterToScene = async (monster: { id: string; name: string; avatar?: string }) => {
+  const handleAddMonsterToScene = async (monster: Monster) => {
     await createToken({
-      characterId: '', // Empty for monsters
+      type: 'monster',
       name: monster.name,
       avatar: monster.avatar,
-      x: 50, // Center of canvas
-      y: 50,
+      x: 50 + Math.random() * 10 - 5, // Slight offset to avoid stacking
+      y: 50 + Math.random() * 10 - 5,
+      currentStress: 0,
+      maxStress: monster.stress,
+      isVisible: true,
     });
     addLog(`${monster.name} adicionado à cena`, 'system');
+  };
+
+  // Handler for adding NPC to scene as token
+  const handleAddNPCToScene = async (npc: NPC) => {
+    await createToken({
+      type: 'npc',
+      characterId: npc.id,
+      name: npc.name,
+      avatar: npc.avatar,
+      x: 50 + Math.random() * 10 - 5,
+      y: 50 + Math.random() * 10 - 5,
+      currentStress: 0,
+      maxStress: npc.stress,
+      isVisible: true,
+    });
+    addLog(`${npc.name} adicionado à cena`, 'system');
   };
 
   // Handler for selecting a token
   const handleSelectToken = (token: Token) => {
     setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
+  };
+
+  // Handler for toggling token visibility
+  const handleToggleTokenVisibility = async (tokenId: string) => {
+    const token = tokens.find(t => t.id === tokenId);
+    if (token) {
+      await updateToken(tokenId, { isVisible: !token.isVisible });
+    }
+  };
+
+  // Check if current character is already in scene
+  const isCharacterInScene = selectedCharacter 
+    ? tokens.some(t => t.type === 'character' && t.characterId === selectedCharacter.id)
+    : false;
+
+  // Handler for adding player character to scene
+  const handleAddCharacterToScene = async () => {
+    if (!selectedCharacter || !user) return;
+    
+    // Check if already in scene
+    if (isCharacterInScene) return;
+
+    await createToken({
+      type: 'character',
+      characterId: selectedCharacter.id,
+      name: selectedCharacter.name,
+      avatar: selectedCharacter.avatar,
+      x: 30 + Math.random() * 40, // Random position in center area
+      y: 50 + Math.random() * 20,
+      ownerId: user.uid,
+      isVisible: true,
+    });
+    addLog(`${selectedCharacter.name} entrou na cena`, 'system');
   };
 
   return (
@@ -311,6 +366,8 @@ export function VTTPage() {
           onToggleStress={(track, index) => selectedCharacter && toggleStress(selectedCharacter.id, track, index)}
           onOpenFullSheet={() => setShowSheet(true)}
           onOpenDice={() => openDiceRoller()}
+          onAddCharacterToScene={handleAddCharacterToScene}
+          isCharacterInScene={isCharacterInScene}
           // GM props
           isGM={isGM}
           scenes={scenes}
@@ -329,6 +386,12 @@ export function VTTPage() {
           onAddMonsterToScene={handleAddMonsterToScene}
           onCreateMonster={createMonster}
           onDeleteMonster={deleteMonster}
+          // NPC props
+          npcs={allNPCs}
+          onAddNPCToScene={handleAddNPCToScene}
+          onCreateNPC={createNPC}
+          onDeleteNPC={deleteNPC}
+          onDuplicateNPC={duplicateNPC}
           onEditCharacter={(character) => {
             setViewingCharacter(character as PartyCharacter);
           }}
@@ -389,9 +452,11 @@ export function VTTPage() {
                   scene={activeScene || null}
                   tokens={tokens}
                   isGM={isGM}
+                  currentUserId={user?.uid}
                   onMoveToken={updateTokenPosition}
                   onDeleteToken={deleteToken}
                   onSelectToken={handleSelectToken}
+                  onToggleVisibility={handleToggleTokenVisibility}
                   selectedTokenId={selectedTokenId}
                 />
               </motion.div>

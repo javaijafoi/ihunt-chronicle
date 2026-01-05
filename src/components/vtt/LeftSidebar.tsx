@@ -5,7 +5,7 @@ import { PartyPanel } from './PartyPanel';
 import { SceneAspects } from './SceneAspects';
 import { CharacterHUD } from './CharacterHUD';
 import { GMPanel } from './GMPanel';
-import { Character, Scene, SceneAspect } from '@/types/game';
+import { Character, Scene, SceneAspect, NPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Monster } from './MonsterDatabase';
 
@@ -27,6 +27,8 @@ interface LeftSidebarProps {
   onToggleStress: (track: 'physical' | 'mental', index: number) => void;
   onOpenFullSheet: () => void;
   onOpenDice: () => void;
+  onAddCharacterToScene?: () => void;
+  isCharacterInScene?: boolean;
   // GM props
   isGM?: boolean;
   scenes?: Scene[];
@@ -45,6 +47,12 @@ interface LeftSidebarProps {
   onAddMonsterToScene?: (monster: Monster) => void | Promise<void>;
   onCreateMonster?: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
   onDeleteMonster?: (monsterId: string) => void | Promise<void>;
+  // NPC props
+  npcs?: NPC[];
+  onAddNPCToScene?: (npc: NPC) => void | Promise<void>;
+  onCreateNPC?: (npc: Omit<NPC, 'id'>) => void | Promise<string | null>;
+  onDeleteNPC?: (npcId: string) => void | Promise<void>;
+  onDuplicateNPC?: (npcId: string) => void | Promise<string | null>;
   onEditCharacter?: (character: Character) => void;
 }
 
@@ -83,7 +91,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
   const renderWidgetContent = (id: WidgetId) => {
     switch (id) {
       case 'gm':
-        return props.isGM && props.scenes && props.monsters ? (
+        return props.isGM && props.scenes && props.monsters && props.npcs ? (
           <GMPanel
             scenes={props.scenes}
             archivedScenes={props.archivedScenes}
@@ -101,6 +109,11 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onAddMonsterToScene={props.onAddMonsterToScene || (() => {})}
             onCreateMonster={props.onCreateMonster || (() => {})}
             onDeleteMonster={props.onDeleteMonster || (() => {})}
+            npcs={props.npcs}
+            onAddNPCToScene={props.onAddNPCToScene || (() => {})}
+            onCreateNPC={props.onCreateNPC || (() => {})}
+            onDeleteNPC={props.onDeleteNPC || (() => {})}
+            onDuplicateNPC={props.onDuplicateNPC}
             partyCharacters={props.partyCharacters}
             onEditCharacter={props.onEditCharacter || (() => {})}
           />
@@ -134,6 +147,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onToggleStress={props.onToggleStress}
             onOpenFullSheet={props.onOpenFullSheet}
             onOpenDice={props.onOpenDice}
+            onAddToScene={props.onAddCharacterToScene}
+            isInScene={props.isCharacterInScene}
           />
         ) : (
           <p className="text-sm text-muted-foreground p-2">Selecione um personagem.</p>
