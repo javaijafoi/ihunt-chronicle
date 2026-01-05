@@ -14,13 +14,32 @@ import { toast } from '@/hooks/use-toast';
 
 const POSITION_UPDATE_DEBOUNCE = 100; // ms
 
-function removeUndefinedFields<T extends Record<string, unknown>>(data: T): T {
-  const cleaned = Object.fromEntries(
-    Object.entries(data).filter(([, value]) => value !== undefined)
-  ) as T;
+const removeUndefinedDeep = <T>(value: T): T => {
+  if (value === undefined || value === null) return value;
 
-  return cleaned;
-}
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedDeep(item)) as T;
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, removeUndefinedDeep(v)]);
+
+    return Object.fromEntries(entries) as T;
+  }
+
+  return value;
+};
+
+const sanitizeTokenPayload = <T extends Record<string, unknown>>(data: T): T => {
+  const cleaned = removeUndefinedDeep(data) as Record<string, unknown>;
+  const { avatar, ...rest } = cleaned;
+
+  return (avatar ? { ...rest, avatar } : rest) as T;
+};
 
 export function useTokens(sessionId: string) {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -64,7 +83,7 @@ export function useTokens(sessionId: string) {
       try {
         const tokenId = crypto.randomUUID();
         const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
-        const payload = removeUndefinedFields(tokenData);
+        const payload = sanitizeTokenPayload(tokenData);
 
         await setDoc(tokenRef, {
           ...payload,
@@ -130,7 +149,7 @@ export function useTokens(sessionId: string) {
       if (!sessionId) return;
 
       try {
-        const cleanedUpdates = removeUndefinedFields(updates);
+        const cleanedUpdates = sanitizeTokenPayload(updates as Record<string, unknown>);
         if (Object.keys(cleanedUpdates).length === 0) return;
 
         const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);

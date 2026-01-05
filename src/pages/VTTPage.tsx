@@ -146,7 +146,7 @@ export function VTTPage() {
     await createToken({
       type: 'monster',
       name: monster.name,
-      avatar: monster.avatar,
+      ...(monster.avatar ? { avatar: monster.avatar } : {}),
       x: 50 + Math.random() * 10 - 5, // Slight offset to avoid stacking
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -162,7 +162,7 @@ export function VTTPage() {
       type: 'npc',
       characterId: npc.id,
       name: npc.name,
-      avatar: npc.avatar,
+      ...(npc.avatar ? { avatar: npc.avatar } : {}),
       x: 50 + Math.random() * 10 - 5,
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -201,7 +201,7 @@ export function VTTPage() {
       type: 'character',
       characterId: selectedCharacter.id,
       name: selectedCharacter.name,
-      avatar: selectedCharacter.avatar,
+      ...(selectedCharacter.avatar ? { avatar: selectedCharacter.avatar } : {}),
       x: 30 + Math.random() * 40, // Random position in center area
       y: 50 + Math.random() * 20,
       ownerId: user.uid,
