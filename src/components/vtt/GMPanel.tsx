@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Skull, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Crown, MapPin, Skull, Users, User2, ChevronDown, ChevronRight } from 'lucide-react';
 import { SceneManager } from './SceneManager';
 import { MonsterDatabase, Monster } from './MonsterDatabase';
-import { Scene, Character } from '@/types/game';
+import { NPCDatabase } from './NPCDatabase';
+import { Scene, Character, NPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 
 interface GMPanelProps {
@@ -19,15 +20,23 @@ interface GMPanelProps {
   onArchiveScene?: (sceneId: string) => void | Promise<void>;
   onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
   minAspects?: number;
+  // Monsters
   monsters: Monster[];
   onAddMonsterToScene: (monster: Monster) => void | Promise<void>;
   onCreateMonster: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
   onDeleteMonster: (monsterId: string) => void | Promise<void>;
+  // NPCs
+  npcs: NPC[];
+  onAddNPCToScene: (npc: NPC) => void | Promise<void>;
+  onCreateNPC: (npc: Omit<NPC, 'id'>) => void | Promise<string | null>;
+  onDeleteNPC: (npcId: string) => void | Promise<void>;
+  onDuplicateNPC?: (npcId: string) => void | Promise<string | null>;
+  // Characters
   partyCharacters: PartyCharacter[];
   onEditCharacter: (character: Character) => void;
 }
 
-type PanelSection = 'scenes' | 'monsters' | 'characters';
+type PanelSection = 'scenes' | 'monsters' | 'npcs' | 'characters';
 
 export function GMPanel({
   scenes,
@@ -46,6 +55,11 @@ export function GMPanel({
   onAddMonsterToScene,
   onCreateMonster,
   onDeleteMonster,
+  npcs,
+  onAddNPCToScene,
+  onCreateNPC,
+  onDeleteNPC,
+  onDuplicateNPC,
   partyCharacters,
   onEditCharacter,
 }: GMPanelProps) {
@@ -134,6 +148,26 @@ export function GMPanel({
               onAddToScene={onAddMonsterToScene}
               onCreateMonster={onCreateMonster}
               onDeleteMonster={onDeleteMonster}
+            />
+          </motion.div>
+        )}
+      </div>
+
+      {/* NPCs Section */}
+      <div className="bg-muted/30 rounded-lg overflow-hidden">
+        <SectionHeader section="npcs" icon={User2} label="NPCs" count={npcs.length} />
+        {expandedSection === 'npcs' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="px-3 pb-3"
+          >
+            <NPCDatabase
+              npcs={npcs}
+              onAddToScene={onAddNPCToScene}
+              onCreateNPC={onCreateNPC}
+              onDeleteNPC={onDeleteNPC}
+              onDuplicateNPC={onDuplicateNPC}
             />
           </motion.div>
         )}

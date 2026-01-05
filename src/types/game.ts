@@ -120,13 +120,34 @@ export interface Scene {
   isActive: boolean;
 }
 
+export type TokenType = 'character' | 'monster' | 'npc';
+
 export interface Token {
   id: string;
-  characterId: string;
+  characterId?: string; // Reference to character/monster/NPC
+  type: TokenType;
   x: number;
   y: number;
   avatar?: string;
   name: string;
+  ownerId?: string; // User who controls this token
+  currentStress?: number; // Current stress for display
+  maxStress?: number;
+  isVisible?: boolean; // GM can hide tokens from players
+  size?: 'small' | 'medium' | 'large'; // Token size
+  color?: string; // Custom border color
+}
+
+export interface NPC {
+  id: string;
+  name: string;
+  description?: string;
+  aspects: string[];
+  skills: Record<string, number>;
+  stress: number;
+  notes?: string;
+  avatar?: string;
+  isTemplate?: boolean;
 }
 
 export interface GameState {
