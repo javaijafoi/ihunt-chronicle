@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X, User, Skull, User2, Eye, EyeOff, Heart } from 'lucide-react';
 import { Token } from '@/types/game';
 
@@ -26,8 +26,24 @@ export function TokenLayer({
 }: TokenLayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredTokenId, setHoveredTokenId] = useState<string | null>(null);
+  const [draggedTokenPosition, setDraggedTokenPosition] = useState<{ x: number; y: number } | null>(null);
+  const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
 
-  const handleDragEnd = (tokenId: string, info: { point: { x: number; y: number } }) => {
+  const handleDragStart = (tokenId: string) => {
+    setDraggedTokenId(tokenId);
+  };
+  
+  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (!containerRef.current) return;
+  
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((info.point.x - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((info.point.y - rect.top) / rect.height) * 100));
+  
+    setDraggedTokenPosition({ x, y });
+  };
+
+  const handleDragEnd = (tokenId: string, info: PanInfo) => {
     if (!containerRef.current || !onMoveToken) return;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -35,6 +51,8 @@ export function TokenLayer({
     const y = Math.max(0, Math.min(100, ((info.point.y - rect.top) / rect.height) * 100));
 
     onMoveToken(tokenId, x, y);
+    setDraggedTokenPosition(null);
+    setDraggedTokenId(null);
   };
 
   const getTokenStyles = (token: Token) => {
@@ -82,11 +100,9 @@ export function TokenLayer({
 
   const canDrag = (token: Token) => {
     if (isGM) return true;
-    // Players can drag their own character tokens
     return token.type === 'character' && token.ownerId === currentUserId;
   };
 
-  // Filter tokens for visibility (players can't see hidden tokens)
   const visibleTokens = tokens.filter(token => {
     if (isGM) return true;
     return token.isVisible !== false;
@@ -97,25 +113,32 @@ export function TokenLayer({
       {visibleTokens.map((token) => {
         const isSelected = selectedTokenId === token.id;
         const isHovered = hoveredTokenId === token.id;
+        const isBeingDragged = draggedTokenId === token.id;
         const { baseSize, borderColor, bgColor } = getTokenStyles(token);
         const isDraggable = canDrag(token);
         const isHidden = token.isVisible === false;
+
+        const position = isBeingDragged && draggedTokenPosition 
+          ? draggedTokenPosition 
+          : { x: token.x, y: token.y };
 
         return (
           <motion.div
             key={token.id}
             className="absolute pointer-events-auto"
             style={{
-              left: `${token.x}%`,
-              top: `${token.y}%`,
+              left: `${position.x}%`,
+              top: `${position.y}%`,
               transform: 'translate(-50%, -50%)',
-              zIndex: isSelected ? 40 : isHovered ? 30 : 20,
+              zIndex: isBeingDragged ? 50 : isSelected ? 40 : isHovered ? 30 : 20,
             }}
             drag={isDraggable}
             dragMomentum={false}
             dragElastic={0}
+            onDragStart={() => handleDragStart(token.id)}
+            onDrag={handleDrag}
             onDragEnd={(_, info) => handleDragEnd(token.id, info)}
-            whileDrag={{ scale: 1.15, zIndex: 50 }}
+            whileDrag={{ scale: 1.15 }}
             onClick={() => onSelectToken?.(token)}
             onMouseEnter={() => setHoveredTokenId(token.id)}
             onMouseLeave={() => setHoveredTokenId(null)}
@@ -137,7 +160,6 @@ export function TokenLayer({
                 borderColor: token.color || undefined,
               }}
             >
-              {/* Avatar */}
               {token.avatar ? (
                 <img
                   src={token.avatar}
@@ -155,8 +177,6 @@ export function TokenLayer({
                   {getTokenIcon(token)}
                 </div>
               )}
-
-              {/* Stress indicator (for monsters/NPCs) */}
               {token.maxStress && token.currentStress !== undefined && (
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                   {Array.from({ length: token.maxStress }).map((_, i) => (
@@ -171,8 +191,6 @@ export function TokenLayer({
                   ))}
                 </div>
               )}
-
-              {/* Name label */}
               <div
                 className={`
                   absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap
@@ -182,15 +200,11 @@ export function TokenLayer({
               >
                 {token.name}
               </div>
-
-              {/* Hidden indicator (GM only) */}
               {isGM && isHidden && (
                 <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-muted flex items-center justify-center">
                   <EyeOff className="w-2.5 h-2.5 text-muted-foreground" />
                 </div>
               )}
-
-              {/* GM Controls - shown when selected */}
               {isGM && isSelected && (
                 <div className="absolute -top-2 -right-2 flex gap-1">
                   {onToggleVisibility && (
@@ -218,8 +232,6 @@ export function TokenLayer({
                 </div>
               )}
             </div>
-
-            {/* Hover tooltip with details */}
             <AnimatePresence>
               {isHovered && !isSelected && (
                 <motion.div
