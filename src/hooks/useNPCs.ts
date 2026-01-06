@@ -11,6 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { NPC } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
+import { removeUndefinedDeep, sanitizeOptionalString } from '@/utils/removeUndefinedDeep';
 
 // Default NPCs for iHunt
 export const DEFAULT_NPCS: NPC[] = [
@@ -55,6 +56,22 @@ export const DEFAULT_NPCS: NPC[] = [
   },
 ];
 
+const sanitizeNPCData = <T extends object>(data: T): T => {
+  const cleaned = removeUndefinedDeep(data) as Record<string, unknown>;
+  const avatar = sanitizeOptionalString(cleaned.avatar as string | null | undefined);
+  const notes = sanitizeOptionalString(cleaned.notes as string | null | undefined);
+  const description = sanitizeOptionalString(cleaned.description as string | null | undefined);
+
+  const { avatar: _avatar, notes: _notes, description: _description, ...rest } = cleaned;
+
+  return {
+    ...rest,
+    ...(avatar !== undefined ? { avatar } : {}),
+    ...(notes !== undefined ? { notes } : {}),
+    ...(description !== undefined ? { description } : {}),
+  } as T;
+};
+
 export function useNPCs(sessionId: string) {
   const [npcs, setNPCs] = useState<NPC[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,9 +112,10 @@ export function useNPCs(sessionId: string) {
       try {
         const npcId = crypto.randomUUID();
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
+        const payload = sanitizeNPCData(npcData);
 
         await setDoc(npcRef, {
-          ...npcData,
+          ...payload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -126,9 +144,10 @@ export function useNPCs(sessionId: string) {
       if (!sessionId) return;
 
       try {
+        const payload = sanitizeNPCData(updates);
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
         await updateDoc(npcRef, {
-          ...updates,
+          ...(Object.keys(payload).length > 0 ? payload : {}),
           updatedAt: serverTimestamp(),
         });
       } catch (error) {

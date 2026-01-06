@@ -17,11 +17,24 @@ import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 import { GLOBAL_SESSION_ID } from './useSession';
+import { removeUndefinedDeep, sanitizeOptionalString } from '@/utils/removeUndefinedDeep';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+const sanitizeCharacterData = <T extends object>(data: T): T => {
+  const cleaned = removeUndefinedDeep(data) as Record<string, unknown>;
+  const avatar = sanitizeOptionalString(cleaned.avatar as string | null | undefined);
+
+  if (avatar !== undefined) {
+    return { ...cleaned, avatar } as T;
+  }
+
+  const { avatar: _avatar, ...rest } = cleaned;
+  return rest as T;
+};
 
 export function useFirebaseCharacters(sessionId: string) {
   const { user } = useAuth();
@@ -82,20 +95,21 @@ export function useFirebaseCharacters(sessionId: string) {
     try {
       const characterSessionId = characterData.sessionId || sessionId || GLOBAL_SESSION_ID;
       const createdBy = user.uid;
-
-      const docRef = await addDoc(collection(db, 'characters'), {
+      const sanitizedData = sanitizeCharacterData<Omit<Character, 'id'>>({
         ...characterData,
         sessionId: characterSessionId,
         createdBy,
+      });
+
+      const docRef = await addDoc(collection(db, 'characters'), {
+        ...sanitizedData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       } as FirebaseCharacter);
 
       return {
         id: docRef.id,
-        ...characterData,
-        sessionId: characterSessionId,
-        createdBy,
+        ...sanitizedData,
       };
     } catch (error) {
       console.error('Error creating character:', error);
@@ -106,8 +120,9 @@ export function useFirebaseCharacters(sessionId: string) {
   const updateCharacter = useCallback(async (id: string, updates: Partial<Character>) => {
     try {
       const docRef = doc(db, 'characters', id);
+      const cleanedUpdates = sanitizeCharacterData(updates);
       await updateDoc(docRef, {
-        ...updates,
+        ...(Object.keys(cleanedUpdates).length > 0 ? cleanedUpdates : {}),
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
