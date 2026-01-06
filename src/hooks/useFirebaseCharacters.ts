@@ -17,7 +17,7 @@ import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 import { GLOBAL_SESSION_ID } from './useSession';
-import { removeUndefinedDeep } from '@/utils/removeUndefinedDeep';
+import { sanitizeFirestoreData } from '@/utils/sanitizeFirestoreData';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
   createdAt: Timestamp;
@@ -84,7 +84,7 @@ export function useFirebaseCharacters(sessionId: string) {
       const characterSessionId = characterData.sessionId || sessionId || GLOBAL_SESSION_ID;
       const createdBy = user.uid;
 
-      const payload = removeUndefinedDeep({
+      const payload = sanitizeFirestoreData({
         ...characterData,
         sessionId: characterSessionId,
         createdBy,
@@ -96,7 +96,7 @@ export function useFirebaseCharacters(sessionId: string) {
 
       return {
         id: docRef.id,
-        ...removeUndefinedDeep({
+        ...sanitizeFirestoreData({
           ...characterData,
           sessionId: characterSessionId,
           createdBy,
@@ -111,7 +111,7 @@ export function useFirebaseCharacters(sessionId: string) {
   const updateCharacter = useCallback(async (id: string, updates: Partial<Character>) => {
     try {
       const docRef = doc(db, 'characters', id);
-      const sanitizedUpdates = removeUndefinedDeep({
+      const sanitizedUpdates = sanitizeFirestoreData({
         ...updates,
         updatedAt: serverTimestamp(),
       });
