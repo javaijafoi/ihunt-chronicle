@@ -15,7 +15,8 @@ import { toast } from '@/hooks/use-toast';
 const POSITION_UPDATE_DEBOUNCE = 100; // ms
 
 const removeUndefinedDeep = <T>(value: T): T => {
-  if (value === undefined || value === null) return undefined as T;
+  if (value === undefined) return undefined as T;
+  if (value === null) return null as T;
 
   if (Array.isArray(value)) {
     const sanitizedArray = value
@@ -36,15 +37,43 @@ const removeUndefinedDeep = <T>(value: T): T => {
   return value;
 };
 
-const sanitizeTokenPayload = <T extends Record<string, unknown>>(data: T): T => {
-  const cleaned = removeUndefinedDeep(data) as Record<string, unknown>;
-  const normalizedAvatar =
-    typeof cleaned.avatar === 'string' && cleaned.avatar.trim().length > 0
-      ? cleaned.avatar.trim()
-      : undefined;
-  const { avatar, ...rest } = cleaned;
+const normalizeOptionalTokenFields = (data: Record<string, unknown>) => {
+  const OPTIONAL_FIELDS: Array<keyof Token> = ['avatar', 'color', 'ownerId', 'characterId'];
+  const normalized = { ...data };
 
-  return (normalizedAvatar ? { ...rest, avatar: normalizedAvatar } : rest) as T;
+  for (const field of OPTIONAL_FIELDS) {
+    if (!(field in normalized)) continue;
+
+    const value = normalized[field];
+    if (value === undefined) {
+      delete normalized[field];
+      continue;
+    }
+
+    if (value === null) {
+      normalized[field] = null;
+      continue;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      normalized[field] = trimmed.length > 0 ? trimmed : null;
+    }
+  }
+
+  return normalized;
+};
+
+const sanitizeTokenPayload = <T extends Record<string, unknown>>(data: T): T => {
+  const cleanedValue = removeUndefinedDeep(data);
+  if (!cleanedValue || typeof cleanedValue !== 'object') {
+    return cleanedValue as T;
+  }
+
+  const cleaned = cleanedValue as Record<string, unknown>;
+  const normalized = normalizeOptionalTokenFields(cleaned);
+
+  return normalized as T;
 };
 
 export function useTokens(sessionId: string) {

@@ -143,7 +143,7 @@ export function VTTPage() {
 
   const buildAvatarPayload = (avatar?: string | null) => {
     const normalized = avatar?.trim();
-    return normalized ? { avatar: normalized } : {};
+    return normalized ? { avatar: normalized } : undefined;
   };
 
   // Handler for adding monster to scene as token
@@ -151,7 +151,7 @@ export function VTTPage() {
     await createToken({
       type: 'monster',
       name: monster.name,
-      ...buildAvatarPayload(monster.avatar),
+      ...(buildAvatarPayload(monster.avatar) ?? {}),
       x: 50 + Math.random() * 10 - 5, // Slight offset to avoid stacking
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -167,7 +167,7 @@ export function VTTPage() {
       type: 'npc',
       characterId: npc.id,
       name: npc.name,
-      ...buildAvatarPayload(npc.avatar),
+      ...(buildAvatarPayload(npc.avatar) ?? {}),
       x: 50 + Math.random() * 10 - 5,
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
@@ -206,7 +206,7 @@ export function VTTPage() {
       type: 'character',
       characterId: selectedCharacter.id,
       name: selectedCharacter.name,
-      ...buildAvatarPayload(selectedCharacter.avatar),
+      ...(buildAvatarPayload(selectedCharacter.avatar) ?? {}),
       x: 30 + Math.random() * 40, // Random position in center area
       y: 50 + Math.random() * 20,
       ownerId: user.uid,
