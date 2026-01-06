@@ -11,6 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { NPC } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
+import { removeUndefinedDeep } from '@/utils/removeUndefinedDeep';
 
 // Default NPCs for iHunt
 export const DEFAULT_NPCS: NPC[] = [
@@ -96,11 +97,13 @@ export function useNPCs(sessionId: string) {
         const npcId = crypto.randomUUID();
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
 
-        await setDoc(npcRef, {
+        const payload = removeUndefinedDeep({
           ...npcData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+
+        await setDoc(npcRef, payload);
 
         toast({
           title: 'NPC criado',
@@ -127,10 +130,11 @@ export function useNPCs(sessionId: string) {
 
       try {
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
-        await updateDoc(npcRef, {
+        const sanitizedUpdates = removeUndefinedDeep({
           ...updates,
           updatedAt: serverTimestamp(),
         });
+        await updateDoc(npcRef, sanitizedUpdates);
       } catch (error) {
         console.error('Erro ao atualizar NPC:', error);
         toast({
