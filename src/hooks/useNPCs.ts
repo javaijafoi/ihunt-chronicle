@@ -13,7 +13,7 @@ import { NPC } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeFirestoreData } from '@/utils/sanitizeFirestoreData';
 
-// Default NPCs for iHunt
+// Default NPCs for iHUNT
 export const DEFAULT_NPCS: NPC[] = [
   {
     id: 'fixer-maria',

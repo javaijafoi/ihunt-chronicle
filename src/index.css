@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* iHunt VTT Design System - Cyberpunk Low-Fi / Gig Economy Aesthetic */
+/* iHUNT VTT Design System - Cyberpunk Low-Fi / Gig Economy Aesthetic */
 
 @layer base {
   :root {
@@ -89,9 +89,8 @@
 
   /* Typography classes */
   .font-display {
-    font-family: 'Anton', sans-serif;
+    font-family: 'Rajdhani', sans-serif;
     letter-spacing: 0.02em;
-    text-transform: uppercase;
   }
 
   .font-mono {

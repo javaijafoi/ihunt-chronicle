@@ -1,4 +1,4 @@
-// iHunt VTT Core Types
+// iHUNT VTT Core Types
 
 export type DriveName = 'malina' | 'cavalo' | 'fui' | 'os66';
 
