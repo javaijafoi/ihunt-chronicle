@@ -35,12 +35,11 @@ export function TokenLayer({
     if (!containerRef.current || !onMoveToken) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const newX = token.x + (info.offset.x / rect.width) * 100;
-    const newY = token.y + (info.offset.y / rect.height) * 100;
+    const dropXPercent = ((info.point.x - rect.left) / rect.width) * 100;
+    const dropYPercent = ((info.point.y - rect.top) / rect.height) * 100;
 
-    // Clamp values to stay within the canvas (0-100%)
-    const clampedX = Math.max(0, Math.min(100, newX));
-    const clampedY = Math.max(0, Math.min(100, newY));
+    const clampedX = Math.max(0, Math.min(100, dropXPercent));
+    const clampedY = Math.max(0, Math.min(100, dropYPercent));
 
     onMoveToken(token.id, clampedX, clampedY);
   };
@@ -118,8 +117,7 @@ export function TokenLayer({
             style={{
               left: `${token.x}%`,
               top: `${token.y}%`,
-              x: '-50%',
-              y: '-50%',
+              transform: 'translate(-50%, -50%)',
               zIndex: isSelected ? 40 : isHovered ? 30 : 20,
             }}
             onClick={() => onSelectToken?.(token)}
