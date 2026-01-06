@@ -125,6 +125,7 @@ export type TokenType = 'character' | 'monster' | 'npc';
 export interface Token {
   id: string;
   characterId?: string; // Reference to character/monster/NPC
+  npcId?: string; // Reference to ActiveNPC
   type: TokenType;
   x: number;
   y: number;
@@ -138,6 +139,64 @@ export interface Token {
   color?: string; // Custom border color
 }
 
+// ========== ARCHETYPE SYSTEM ==========
+
+export type ArchetypeKind = 'pessoa' | 'monstro';
+
+export interface Archetype {
+  id: string;
+  name: string;
+  kind: ArchetypeKind;
+  description?: string;
+  aspects: string[];
+  skills: Record<string, number>;
+  stress: number;
+  consequences?: {
+    mild: string | null;
+    moderate: string | null;
+    severe: string | null;
+  };
+  stunts?: string[];
+  avatar?: string;
+  isGlobal: boolean; // true = template do sistema
+  isArchived?: boolean; // true = NPC arquivado que virou template
+  archivedFromName?: string; // Nome original quando era NPC ativo
+  createdAt?: import('firebase/firestore').Timestamp;
+}
+
+export interface ActiveNPC {
+  id: string;
+  name: string; // Nome único (ex: "Vlad")
+  archetypeId: string; // Referência ao arquétipo base
+  archetypeName: string; // Cache do nome (ex: "Vampiro Comum")
+  kind: ArchetypeKind; // "pessoa" ou "monstro"
+
+  // Ficha completa (copiada do arquétipo, editável)
+  aspects: string[];
+  skills: Record<string, number>;
+  stress: number;
+  currentStress: number; // Stress atual (dano recebido)
+  consequences: {
+    mild: string | null;
+    moderate: string | null;
+    severe: string | null;
+  };
+  stunts: string[];
+  avatar?: string;
+
+  // Estado
+  sceneId: string | null; // null = "guardado" (não está em nenhuma cena)
+  hasToken: boolean; // Se tem token visível na cena
+
+  // Anotações
+  notes: string;
+  sceneTags: string[]; // Ex: ["Beco Escuro", "Clube Noturno"]
+
+  createdAt?: import('firebase/firestore').Timestamp;
+  updatedAt?: import('firebase/firestore').Timestamp;
+}
+
+// Legacy NPC type for backwards compatibility - will be migrated
 export interface NPC {
   id: string;
   name: string;
