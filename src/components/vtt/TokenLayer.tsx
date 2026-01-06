@@ -3,6 +3,38 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X, User, Skull, User2, Eye, EyeOff, Heart } from 'lucide-react';
 import { Token } from '@/types/game';
 
+interface PointerCoordinates {
+  x: number;
+  y: number;
+}
+
+interface ContainerRect {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+export function calculateTokenPercentPosition(
+  point: PointerCoordinates,
+  rect: ContainerRect,
+) {
+  const { width, height, left, top } = rect;
+
+  if (width === 0 || height === 0) return null;
+
+  const localX = point.x - left;
+  const localY = point.y - top;
+
+  const dropXPercent = (localX / width) * 100;
+  const dropYPercent = (localY / height) * 100;
+
+  const clampedX = Math.max(0, Math.min(100, dropXPercent));
+  const clampedY = Math.max(0, Math.min(100, dropYPercent));
+
+  return { x: clampedX, y: clampedY };
+}
+
 interface TokenLayerProps {
   tokens: Token[];
   isGM?: boolean;
@@ -28,27 +60,21 @@ export function TokenLayer({
   const [hoveredTokenId, setHoveredTokenId] = useState<string | null>(null);
 
   const handleDragEnd = (
-    event: MouseEvent | TouchEvent | PointerEvent, 
-    info: PanInfo, 
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
     token: Token
   ) => {
     if (!containerRef.current || !onMoveToken) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const { width, height, left, top } = rect;
+    const nextPosition = calculateTokenPercentPosition(
+      { x: info.point.x, y: info.point.y },
+      rect,
+    );
 
-    if (width === 0 || height === 0) return;
+    if (!nextPosition) return;
 
-    const localX = info.point.x - left;
-    const localY = info.point.y - top;
-
-    const dropXPercent = (localX / width) * 100;
-    const dropYPercent = (localY / height) * 100;
-
-    const clampedX = Math.max(0, Math.min(100, dropXPercent));
-    const clampedY = Math.max(0, Math.min(100, dropYPercent));
-
-    onMoveToken(token.id, clampedX, clampedY);
+    onMoveToken(token.id, nextPosition.x, nextPosition.y);
   };
 
   const getTokenStyles = (token: Token) => {
@@ -117,9 +143,11 @@ export function TokenLayer({
           <motion.div
             key={token.id}
             drag={isDraggable}
+            dragConstraints={isDraggable ? containerRef : undefined}
             dragMomentum={false}
             onDragEnd={(event, info) => handleDragEnd(event, info, token)}
             whileDrag={{ scale: 1.1, zIndex: 50 }}
+            initial={{ x: 0, y: 0 }}
             animate={{ x: 0, y: 0 }}
             className="absolute pointer-events-auto"
             style={{
