@@ -85,8 +85,6 @@ export function useSession() {
       if (!isMounted || presenceOfflineRef.current) return;
 
       try {
-        if (presenceOfflineRef.current) return;
-
         await setDoc(
           presenceRef,
           {
@@ -104,7 +102,7 @@ export function useSession() {
           isMounted &&
           !presenceOfflineRef.current &&
           ['failed-precondition', 'aborted'].includes(firestoreError?.code) &&
-          attempt < 3;
+          attempt < 5;
 
         if (shouldRetry) {
           const backoff = Math.pow(2, attempt) * 100;
@@ -116,11 +114,12 @@ export function useSession() {
       }
     };
 
-    const presenceInterval = setInterval(updatePresence, PRESENCE_HEARTBEAT_MS);
+    const presenceInterval = setInterval(() => updatePresence(), PRESENCE_HEARTBEAT_MS);
     updatePresence();
 
     return () => {
       isMounted = false;
+      presenceOfflineRef.current = true;
       clearInterval(presenceInterval);
     };
   }, [currentSession?.id, presenceInfo, user?.uid, userProfile?.displayName]);
