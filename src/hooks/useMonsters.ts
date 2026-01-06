@@ -11,6 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { Monster } from '@/components/vtt/MonsterDatabase';
 import { toast } from '@/hooks/use-toast';
+import { sanitizeFirestoreData } from '@/utils/sanitizeFirestoreData';
 
 export function useMonsters(sessionId: string) {
   const [monsters, setMonsters] = useState<Monster[]>([]);
@@ -53,11 +54,13 @@ export function useMonsters(sessionId: string) {
         const monsterId = crypto.randomUUID();
         const monsterRef = doc(db, 'sessions', sessionId, 'monsters', monsterId);
 
-        await setDoc(monsterRef, {
+        const payload = sanitizeFirestoreData({
           ...monsterData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+
+        await setDoc(monsterRef, payload);
 
         toast({
           title: 'Monstro criado',
@@ -84,10 +87,12 @@ export function useMonsters(sessionId: string) {
 
       try {
         const monsterRef = doc(db, 'sessions', sessionId, 'monsters', monsterId);
-        await updateDoc(monsterRef, {
+        const sanitizedUpdates = sanitizeFirestoreData({
           ...updates,
           updatedAt: serverTimestamp(),
         });
+
+        await updateDoc(monsterRef, sanitizedUpdates);
       } catch (error) {
         console.error('Erro ao atualizar monstro:', error);
         toast({

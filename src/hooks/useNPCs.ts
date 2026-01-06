@@ -11,7 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { NPC } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
-import { removeUndefinedDeep } from '@/utils/removeUndefinedDeep';
+import { sanitizeFirestoreData } from '@/utils/sanitizeFirestoreData';
 
 // Default NPCs for iHunt
 export const DEFAULT_NPCS: NPC[] = [
@@ -97,7 +97,7 @@ export function useNPCs(sessionId: string) {
         const npcId = crypto.randomUUID();
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
 
-        const payload = removeUndefinedDeep({
+        const payload = sanitizeFirestoreData({
           ...npcData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -130,7 +130,7 @@ export function useNPCs(sessionId: string) {
 
       try {
         const npcRef = doc(db, 'sessions', sessionId, 'npcs', npcId);
-        const sanitizedUpdates = removeUndefinedDeep({
+        const sanitizedUpdates = sanitizeFirestoreData({
           ...updates,
           updatedAt: serverTimestamp(),
         });
