@@ -98,19 +98,22 @@ export function useSession() {
         );
       } catch (error) {
         const firestoreError = error as FirestoreError;
-        const shouldRetry =
+        const retryableErrors = ['failed-precondition', 'aborted'];
+        const canRetry =
           isMounted &&
           !presenceOfflineRef.current &&
-          ['failed-precondition', 'aborted'].includes(firestoreError?.code) &&
+          retryableErrors.includes(firestoreError?.code) &&
           attempt < 5;
 
-        if (shouldRetry) {
+        if (canRetry) {
           const backoff = Math.pow(2, attempt) * 100;
           await new Promise((resolve) => setTimeout(resolve, backoff));
           return updatePresence(attempt + 1);
         }
 
-        console.error('Erro ao atualizar presença do usuário:', error);
+        if (isMounted && !presenceOfflineRef.current) {
+          console.error('Erro ao atualizar presença do usuário:', error);
+        }
       }
     };
 
