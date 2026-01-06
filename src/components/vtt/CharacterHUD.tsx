@@ -33,7 +33,7 @@ export function CharacterHUD({
     (_filled, index) => character.stress.mental?.[index] ?? false
   );
   const stressTooltip =
-    'No Fate, as caixas são valores de absorção. Você pode riscar a caixa 3 para absorver 3 de dano, deixando as menores livres.';
+    'No Fate, as caixas são valores de absorção. Você pode riscar la caixa 3 para absorver 3 de dano, deixando as menores livres.';
 
   return (
     <motion.div
@@ -65,20 +65,6 @@ export function CharacterHUD({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {onAddToScene && !isInScene && (
-            <button
-              onClick={onAddToScene}
-              className="p-2 rounded-lg hover:bg-primary/20 text-primary transition-colors"
-              title="Entrar na cena"
-            >
-              <MapPin className="w-5 h-5" />
-            </button>
-          )}
-          {isInScene && (
-            <div className="p-2 text-primary/50" title="Você está na cena">
-              <MapPin className="w-5 h-5" />
-            </div>
-          )}
           {onOpenDice && (
             <button
               onClick={onOpenDice}
@@ -97,6 +83,26 @@ export function CharacterHUD({
           </button>
         </div>
       </div>
+
+      {/* Scene Action Button */}
+      {onAddToScene && (
+        <div className="mb-4">
+          {!isInScene ? (
+            <button
+              onClick={onAddToScene}
+              className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-ui text-sm"
+            >
+              <MapPin className="w-4 h-4" />
+              Entrar na Cena
+            </button>
+          ) : (
+            <div className="w-full text-center p-2 rounded-lg bg-muted text-muted-foreground font-ui text-sm flex items-center justify-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Já está em cena
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fate Points */}
       <div className="mb-4">

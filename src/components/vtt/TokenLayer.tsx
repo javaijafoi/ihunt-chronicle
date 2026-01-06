@@ -26,33 +26,23 @@ export function TokenLayer({
 }: TokenLayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredTokenId, setHoveredTokenId] = useState<string | null>(null);
-  const [draggedTokenPosition, setDraggedTokenPosition] = useState<{ x: number; y: number } | null>(null);
-  const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
 
-  const handleDragStart = (tokenId: string) => {
-    setDraggedTokenId(tokenId);
-  };
-  
-  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (!containerRef.current) return;
-  
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((info.point.x - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((info.point.y - rect.top) / rect.height) * 100));
-  
-    setDraggedTokenPosition({ x, y });
-  };
-
-  const handleDragEnd = (tokenId: string, info: PanInfo) => {
+  const handleDragEnd = (
+    event: MouseEvent | TouchEvent | PointerEvent, 
+    info: PanInfo, 
+    token: Token
+  ) => {
     if (!containerRef.current || !onMoveToken) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((info.point.x - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((info.point.y - rect.top) / rect.height) * 100));
+    const newX = token.x + (info.offset.x / rect.width) * 100;
+    const newY = token.y + (info.offset.y / rect.height) * 100;
 
-    onMoveToken(tokenId, x, y);
-    setDraggedTokenPosition(null);
-    setDraggedTokenId(null);
+    // Clamp values to stay within the canvas (0-100%)
+    const clampedX = Math.max(0, Math.min(100, newX));
+    const clampedY = Math.max(0, Math.min(100, newY));
+
+    onMoveToken(token.id, clampedX, clampedY);
   };
 
   const getTokenStyles = (token: Token) => {
@@ -109,43 +99,36 @@ export function TokenLayer({
   });
 
   return (
-    <div ref={containerRef} className="absolute inset-0 pointer-events-none">
+    <div ref={containerRef} className="absolute inset-0">
       {visibleTokens.map((token) => {
         const isSelected = selectedTokenId === token.id;
         const isHovered = hoveredTokenId === token.id;
-        const isBeingDragged = draggedTokenId === token.id;
         const { baseSize, borderColor, bgColor } = getTokenStyles(token);
         const isDraggable = canDrag(token);
         const isHidden = token.isVisible === false;
 
-        const position = isBeingDragged && draggedTokenPosition 
-          ? draggedTokenPosition 
-          : { x: token.x, y: token.y };
-
         return (
           <motion.div
             key={token.id}
-            className="absolute pointer-events-auto"
-            style={{
-              left: `${position.x}%`,
-              top: `${position.y}%`,
-              transform: 'translate(-50%, -50%)',
-              zIndex: isBeingDragged ? 50 : isSelected ? 40 : isHovered ? 30 : 20,
-            }}
             drag={isDraggable}
             dragMomentum={false}
-            dragElastic={0}
-            onDragStart={() => handleDragStart(token.id)}
-            onDrag={handleDrag}
-            onDragEnd={(_, info) => handleDragEnd(token.id, info)}
-            whileDrag={{ scale: 1.15 }}
+            onDragEnd={(event, info) => handleDragEnd(event, info, token)}
+            whileDrag={{ scale: 1.1, zIndex: 50 }}
+            className="absolute pointer-events-auto"
+            style={{
+              left: `${token.x}%`,
+              top: `${token.y}%`,
+              x: '-50%',
+              y: '-50%',
+              zIndex: isSelected ? 40 : isHovered ? 30 : 20,
+            }}
             onClick={() => onSelectToken?.(token)}
             onMouseEnter={() => setHoveredTokenId(token.id)}
             onMouseLeave={() => setHoveredTokenId(null)}
           >
             <div
               className={`
-                relative rounded-full border-2 cursor-pointer
+                relative rounded-full border-2
                 transition-all duration-200 shadow-lg
                 ${isSelected 
                   ? 'border-primary ring-2 ring-primary/50 scale-110' 

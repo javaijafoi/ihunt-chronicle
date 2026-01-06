@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, ArrowLeft } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -24,6 +24,8 @@ import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
 
+const appVersion = import.meta.env.APP_VERSION;
+
 export function VTTPage() {
   const navigate = useNavigate();
 
@@ -31,7 +33,6 @@ export function VTTPage() {
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
 
-  // New hooks for Firebase persistence - pass isGM to filter scenes
   const { 
     scenes, 
     archivedScenes,
@@ -93,13 +94,11 @@ export function VTTPage() {
     }
   }, [activeCharacter, presenceMap, user]);
 
-  // Redirect to login if not authenticated
   if (!authLoading && !userProfile) {
     navigate('/');
     return null;
   }
 
-  // Show character select if no active character and not GM
   if (!activeCharacter && !isGM) {
     return <CharacterSelect onSelectCharacter={setActiveCharacter} />;
   }
@@ -137,8 +136,6 @@ export function VTTPage() {
   const canManageActiveState = isGM || canManageCharacter(selectedCharacter);
 
   const sceneAspects = sceneFromHook?.aspects || currentSession?.currentScene?.aspects || gameState.currentScene?.aspects || [];
-  
-  // Get active scene from Firebase scenes or fallback to gameState
   const activeScene = sceneFromHook || gameState.currentScene;
 
   const buildAvatarPayload = (avatar?: string | null) => {
@@ -146,13 +143,12 @@ export function VTTPage() {
     return normalized ? { avatar: normalized } : undefined;
   };
 
-  // Handler for adding monster to scene as token
   const handleAddMonsterToScene = async (monster: Monster) => {
     await createToken({
       type: 'monster',
       name: monster.name,
       ...(buildAvatarPayload(monster.avatar) ?? {}),
-      x: 50 + Math.random() * 10 - 5, // Slight offset to avoid stacking
+      x: 50 + Math.random() * 10 - 5,
       y: 50 + Math.random() * 10 - 5,
       currentStress: 0,
       maxStress: monster.stress,
@@ -161,7 +157,6 @@ export function VTTPage() {
     addLog(`${monster.name} adicionado à cena`, 'system');
   };
 
-  // Handler for adding NPC to scene as token
   const handleAddNPCToScene = async (npc: NPC) => {
     await createToken({
       type: 'npc',
@@ -177,12 +172,10 @@ export function VTTPage() {
     addLog(`${npc.name} adicionado à cena`, 'system');
   };
 
-  // Handler for selecting a token
   const handleSelectToken = (token: Token) => {
     setSelectedTokenId(token.id === selectedTokenId ? null : token.id);
   };
 
-  // Handler for toggling token visibility
   const handleToggleTokenVisibility = async (tokenId: string) => {
     const token = tokens.find(t => t.id === tokenId);
     if (token) {
@@ -190,16 +183,12 @@ export function VTTPage() {
     }
   };
 
-  // Check if current character is already in scene
   const isCharacterInScene = selectedCharacter 
     ? tokens.some(t => t.type === 'character' && t.characterId === selectedCharacter.id)
     : false;
 
-  // Handler for adding player character to scene
   const handleAddCharacterToScene = async () => {
     if (!selectedCharacter || !user) return;
-    
-    // Check if already in scene
     if (isCharacterInScene) return;
 
     await createToken({
@@ -207,7 +196,7 @@ export function VTTPage() {
       characterId: selectedCharacter.id,
       name: selectedCharacter.name,
       ...(buildAvatarPayload(selectedCharacter.avatar) ?? {}),
-      x: 30 + Math.random() * 40, // Random position in center area
+      x: 30 + Math.random() * 40,
       y: 50 + Math.random() * 20,
       ownerId: user.uid,
       isVisible: true,
@@ -217,13 +206,11 @@ export function VTTPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
-      {/* Top Bar */}
       <motion.header
         className="h-14 px-4 flex items-center justify-between shrink-0 border-b border-border bg-background/90 backdrop-blur-sm z-10"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Left: Navigation & Logo */}
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -237,11 +224,14 @@ export function VTTPage() {
             <TooltipContent>Página Inicial</TooltipContent>
           </Tooltip>
 
-          <div className="glass-panel px-3 py-1.5">
+          <div className="glass-panel px-3 py-1.5 flex items-baseline gap-2">
             <h1 className="font-display text-xl">
               <span className="text-primary text-glow-primary">#i</span>
               <span className="text-foreground">HUNT</span>
             </h1>
+            <span className="text-xs text-muted-foreground font-mono">
+              v{appVersion}
+            </span>
           </div>
 
           {currentSession && (
@@ -301,7 +291,6 @@ export function VTTPage() {
           )}
         </div>
 
-        {/* Center: Action Buttons */}
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -344,7 +333,6 @@ export function VTTPage() {
           </Tooltip>
         </div>
 
-        {/* Right: GM Fate Pool */}
         <div className="glass-panel px-3 py-1.5 flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">GM Pool</span>
           <span className="font-display text-xl text-accent text-glow-accent">
@@ -353,9 +341,7 @@ export function VTTPage() {
         </div>
       </motion.header>
 
-      {/* Main 3-column layout */}
       <div className="flex-1 flex min-h-0">
-        {/* Left Sidebar: Widgets */}
         <LeftSidebar
           partyCharacters={partyCharacters}
           myCharacterId={activeCharacter?.id}
@@ -373,7 +359,6 @@ export function VTTPage() {
           onOpenDice={() => openDiceRoller()}
           onAddCharacterToScene={handleAddCharacterToScene}
           isCharacterInScene={isCharacterInScene}
-          // GM props
           isGM={isGM}
           scenes={scenes}
           archivedScenes={archivedScenes}
@@ -391,7 +376,6 @@ export function VTTPage() {
           onAddMonsterToScene={handleAddMonsterToScene}
           onCreateMonster={createMonster}
           onDeleteMonster={deleteMonster}
-          // NPC props
           npcs={allNPCs}
           onAddNPCToScene={handleAddNPCToScene}
           onCreateNPC={createNPC}
@@ -402,7 +386,6 @@ export function VTTPage() {
           }}
         />
 
-        {/* Center: Game Area or Character Sheet */}
         <main className="flex-1 relative min-h-0">
           <AnimatePresence mode="wait">
             {showSheet && selectedCharacter ? (
@@ -468,7 +451,6 @@ export function VTTPage() {
             )}
           </AnimatePresence>
 
-          {/* Dice Roller Panel - Bottom center */}
           <AnimatePresence>
             {showDice && (
               <motion.div
@@ -530,11 +512,9 @@ export function VTTPage() {
           </AnimatePresence>
         </main>
 
-        {/* Right Sidebar: Chat */}
         <RightSidebar logs={gameState.logs} onSendMessage={(msg) => addLog(msg, 'chat')} />
       </div>
 
-      {/* Viewing another character's sheet */}
       <AnimatePresence>
         {viewingCharacter && (
           <motion.div
