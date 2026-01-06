@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  collection, 
-  query, 
-  where, 
+import {
+  collection,
+  query,
+  where,
   onSnapshot,
   doc,
   addDoc,
@@ -17,6 +17,7 @@ import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 import { GLOBAL_SESSION_ID } from './useSession';
+import { removeUndefinedDeep } from '@/utils/removeUndefinedDeep';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
   createdAt: Timestamp;
@@ -83,19 +84,23 @@ export function useFirebaseCharacters(sessionId: string) {
       const characterSessionId = characterData.sessionId || sessionId || GLOBAL_SESSION_ID;
       const createdBy = user.uid;
 
-      const docRef = await addDoc(collection(db, 'characters'), {
+      const payload = removeUndefinedDeep({
         ...characterData,
         sessionId: characterSessionId,
         createdBy,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      } as FirebaseCharacter);
+      }) as FirebaseCharacter;
+
+      const docRef = await addDoc(collection(db, 'characters'), payload);
 
       return {
         id: docRef.id,
-        ...characterData,
-        sessionId: characterSessionId,
-        createdBy,
+        ...removeUndefinedDeep({
+          ...characterData,
+          sessionId: characterSessionId,
+          createdBy,
+        }),
       };
     } catch (error) {
       console.error('Error creating character:', error);
@@ -106,10 +111,11 @@ export function useFirebaseCharacters(sessionId: string) {
   const updateCharacter = useCallback(async (id: string, updates: Partial<Character>) => {
     try {
       const docRef = doc(db, 'characters', id);
-      await updateDoc(docRef, {
+      const sanitizedUpdates = removeUndefinedDeep({
         ...updates,
         updatedAt: serverTimestamp(),
       });
+      await updateDoc(docRef, sanitizedUpdates);
     } catch (error) {
       console.error('Error updating character:', error);
     }
