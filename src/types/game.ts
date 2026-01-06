@@ -151,7 +151,7 @@ export interface Archetype {
   aspects: string[];
   skills: Record<string, number>;
   stress: number;
-  consequences?: {
+  consequences: {
     mild: string | null;
     moderate: string | null;
     severe: string | null;
@@ -204,6 +204,11 @@ export interface NPC {
   aspects: string[];
   skills: Record<string, number>;
   stress: number;
+  consequences: {
+    mild: string | null;
+    moderate: string | null;
+    severe: string | null;
+  };
   notes?: string;
   avatar?: string;
   isTemplate?: boolean;

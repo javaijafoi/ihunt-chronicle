@@ -23,6 +23,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Pânico Total', 'Por que eu?!'],
     skills: { Atletismo: 1 },
     stress: 2,
+    consequences: { mild: null, moderate: null, severe: null },
     isGlobal: true,
   },
   {
@@ -32,6 +33,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Cumpro Ordens', 'Algo não está certo aqui'],
     skills: { Atirar: 2, Percepção: 2, Vigor: 1 },
     stress: 3,
+    consequences: { mild: null, moderate: null, severe: null },
     stunts: ['Backup: +2 para criar vantagem chamando reforços'],
     isGlobal: true,
   },
@@ -42,6 +44,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Sempre Tenho Um Preço', 'Ouvidos Por Toda Parte'],
     skills: { Contatos: 3, Enganar: 2, Furtividade: 1 },
     stress: 2,
+    consequences: { mild: null, moderate: null, severe: null },
     isGlobal: true,
   },
   {
@@ -51,6 +54,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Devoção Inabalável', 'A Revelação Está Próxima'],
     skills: { Vontade: 3, Provocar: 2, Lutar: 1 },
     stress: 3,
+    consequences: { mild: null, moderate: null, severe: null },
     stunts: ['Fé Inabalável: +2 para defender com Vontade contra intimidação'],
     isGlobal: true,
   },
@@ -90,6 +94,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Preso Entre Mundos', 'Dor Que Transcende a Morte', 'Vulnerável a Sal e Ferro'],
     skills: { Provocar: 4, Vontade: 3, Furtividade: 3 },
     stress: 3,
+    consequences: { mild: null, moderate: null, severe: null },
     stunts: [
       'Incorpóreo: Imune a dano físico normal',
       'Possessão: Uma vez por cena, tente possuir um alvo (superar com Vontade vs Vontade)',
@@ -117,6 +122,7 @@ const DEFAULT_ARCHETYPES: Omit<Archetype, 'id'>[] = [
     aspects: ['Fome Insaciável', 'Sem Dor', 'Lento Mas Implacável'],
     skills: { Lutar: 2, Vigor: 3 },
     stress: 2,
+    consequences: { mild: null, moderate: null, severe: null },
     stunts: ['Mordida Infecciosa: Feridas podem infectar a vítima'],
     isGlobal: true,
   },

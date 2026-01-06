@@ -1,9 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* iHunt VTT Design System - Cyberpunk Low-Fi / Gig Economy Aesthetic */
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
