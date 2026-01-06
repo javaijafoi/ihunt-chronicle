@@ -35,8 +35,15 @@ export function TokenLayer({
     if (!containerRef.current || !onMoveToken) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const dropXPercent = ((info.point.x - rect.left) / rect.width) * 100;
-    const dropYPercent = ((info.point.y - rect.top) / rect.height) * 100;
+    const { width, height, left, top } = rect;
+
+    if (width === 0 || height === 0) return;
+
+    const localX = info.point.x - left;
+    const localY = info.point.y - top;
+
+    const dropXPercent = (localX / width) * 100;
+    const dropYPercent = (localY / height) * 100;
 
     const clampedX = Math.max(0, Math.min(100, dropXPercent));
     const clampedY = Math.max(0, Math.min(100, dropYPercent));
@@ -113,6 +120,7 @@ export function TokenLayer({
             dragMomentum={false}
             onDragEnd={(event, info) => handleDragEnd(event, info, token)}
             whileDrag={{ scale: 1.1, zIndex: 50 }}
+            animate={{ x: 0, y: 0 }}
             className="absolute pointer-events-auto"
             style={{
               left: `${token.x}%`,
