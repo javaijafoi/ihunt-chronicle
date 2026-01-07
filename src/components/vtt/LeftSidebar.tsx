@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Bookmark, User, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
 import { PartyPanel } from './PartyPanel';
-import { SceneAspects } from './SceneAspects';
 import { CharacterHUD } from './CharacterHUD';
 import { GMPanel } from './GMPanel';
 import { Character, Scene, SceneAspect, NPC } from '@/types/game';
@@ -15,11 +14,6 @@ interface LeftSidebarProps {
   myCharacterId?: string;
   onViewCharacter: (char: PartyCharacter) => void;
   onInvokeAspect: (characterName: string, aspect: string) => void;
-  // Scene Aspects
-  sceneAspects: SceneAspect[];
-  onAddAspect: (name: string) => void;
-  onInvokeSceneAspect: (aspectName: string, useFree?: boolean) => void;
-  canEditAspects: boolean;
   // Character HUD
   selectedCharacter: Character | null;
   onSpendFate: () => void;
@@ -56,7 +50,7 @@ interface LeftSidebarProps {
   onEditCharacter?: (character: Character) => void;
 }
 
-type WidgetId = 'gm' | 'party' | 'aspects' | 'hud';
+type WidgetId = 'gm' | 'party' | 'hud';
 
 interface WidgetConfig {
   id: WidgetId;
@@ -68,7 +62,6 @@ interface WidgetConfig {
 const baseWidgets: WidgetConfig[] = [
   { id: 'gm', icon: Crown, label: 'Painel do GM', gmOnly: true },
   { id: 'party', icon: Users, label: 'Grupo' },
-  { id: 'aspects', icon: Bookmark, label: 'Aspectos' },
   { id: 'hud', icon: User, label: 'Personagem' },
 ];
 
@@ -76,7 +69,6 @@ export function LeftSidebar(props: LeftSidebarProps) {
   const [openWidgets, setOpenWidgets] = useState<Record<WidgetId, boolean>>({
     gm: true,
     party: true,
-    aspects: true,
     hud: true,
   });
 
@@ -98,24 +90,24 @@ export function LeftSidebar(props: LeftSidebarProps) {
             currentScene={props.currentScene || null}
             sceneSearchQuery={props.sceneSearchQuery}
             onSceneSearchChange={props.onSceneSearchChange}
-            onCreateScene={props.onCreateScene || (() => {})}
-            onUpdateScene={props.onUpdateScene || (() => {})}
-            onDeleteScene={props.onDeleteScene || (() => {})}
-            onSetActiveScene={props.onSetActiveScene || (() => {})}
+            onCreateScene={props.onCreateScene || (() => { })}
+            onUpdateScene={props.onUpdateScene || (() => { })}
+            onDeleteScene={props.onDeleteScene || (() => { })}
+            onSetActiveScene={props.onSetActiveScene || (() => { })}
             onArchiveScene={props.onArchiveScene}
             onUnarchiveScene={props.onUnarchiveScene}
             minAspects={props.minAspects}
             monsters={props.monsters}
-            onAddMonsterToScene={props.onAddMonsterToScene || (() => {})}
-            onCreateMonster={props.onCreateMonster || (() => {})}
-            onDeleteMonster={props.onDeleteMonster || (() => {})}
+            onAddMonsterToScene={props.onAddMonsterToScene || (() => { })}
+            onCreateMonster={props.onCreateMonster || (() => { })}
+            onDeleteMonster={props.onDeleteMonster || (() => { })}
             npcs={props.npcs}
-            onAddNPCToScene={props.onAddNPCToScene || (() => {})}
-            onCreateNPC={props.onCreateNPC || (() => {})}
-            onDeleteNPC={props.onDeleteNPC || (() => {})}
+            onAddNPCToScene={props.onAddNPCToScene || (() => { })}
+            onCreateNPC={props.onCreateNPC || (() => { })}
+            onDeleteNPC={props.onDeleteNPC || (() => { })}
             onDuplicateNPC={props.onDuplicateNPC}
             partyCharacters={props.partyCharacters}
-            onEditCharacter={props.onEditCharacter || (() => {})}
+            onEditCharacter={props.onEditCharacter || (() => { })}
           />
         ) : null;
       case 'party':
@@ -128,15 +120,6 @@ export function LeftSidebar(props: LeftSidebarProps) {
           />
         ) : (
           <p className="text-sm text-muted-foreground p-2">Nenhum jogador online.</p>
-        );
-      case 'aspects':
-        return (
-          <SceneAspects
-            aspects={props.sceneAspects}
-            onAddAspect={props.onAddAspect}
-            onInvokeAspect={props.onInvokeSceneAspect}
-            canEdit={props.canEditAspects}
-          />
         );
       case 'hud':
         return props.selectedCharacter ? (
@@ -195,9 +178,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
                     setCollapsed(false);
                     setOpenWidgets((prev) => ({ ...prev, [widget.id]: true }));
                   }}
-                  className={`p-2 rounded transition-colors ${
-                    isOpen ? 'bg-primary/20 text-primary' : 'hover:bg-muted text-muted-foreground'
-                  }`}
+                  className={`p-2 rounded transition-colors ${isOpen ? 'bg-primary/20 text-primary' : 'hover:bg-muted text-muted-foreground'
+                    }`}
                   title={widget.label}
                 >
                   <Icon className="w-5 h-5" />

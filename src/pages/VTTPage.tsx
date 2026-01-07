@@ -33,13 +33,13 @@ export function VTTPage() {
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
 
-  const { 
-    scenes, 
+  const {
+    scenes,
     archivedScenes,
     activeScene: sceneFromHook,
-    createScene, 
-    updateScene, 
-    deleteScene, 
+    createScene,
+    updateScene,
+    deleteScene,
     setActiveScene,
     archiveScene,
     unarchiveScene,
@@ -183,7 +183,7 @@ export function VTTPage() {
     }
   };
 
-  const isCharacterInScene = selectedCharacter 
+  const isCharacterInScene = selectedCharacter
     ? tokens.some(t => t.type === 'character' && t.characterId === selectedCharacter.id)
     : false;
 
@@ -296,9 +296,8 @@ export function VTTPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => openDiceRoller()}
-                className={`p-2.5 rounded-lg transition-colors ${
-                  showDice ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
-                }`}
+                className={`p-2.5 rounded-lg transition-colors ${showDice ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
+                  }`}
               >
                 <Dices className="w-5 h-5" />
               </button>
@@ -310,9 +309,8 @@ export function VTTPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setShowSheet(!showSheet)}
-                className={`p-2.5 rounded-lg transition-colors ${
-                  showSheet ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
-                }`}
+                className={`p-2.5 rounded-lg transition-colors ${showSheet ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
+                  }`}
               >
                 <BookOpen className="w-5 h-5" />
               </button>
@@ -347,9 +345,6 @@ export function VTTPage() {
           myCharacterId={activeCharacter?.id}
           onViewCharacter={setViewingCharacter}
           onInvokeAspect={handleInvokeAspect}
-          sceneAspects={sceneAspects}
-          onAddAspect={addSceneAspect}
-          onInvokeSceneAspect={invokeAspect}
           canEditAspects={isGM}
           selectedCharacter={selectedCharacter}
           onSpendFate={() => selectedCharacter && spendFatePoint(selectedCharacter.id)}
@@ -439,6 +434,8 @@ export function VTTPage() {
                 <SceneCanvas
                   scene={activeScene || null}
                   tokens={tokens}
+                  aspects={sceneAspects}
+                  onInvokeAspect={invokeAspect}
                   isGM={isGM}
                   currentUserId={user?.uid}
                   onMoveToken={updateTokenPosition}
