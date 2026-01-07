@@ -112,8 +112,8 @@ const DraggableToken = ({
 
   const getTokenStyles = () => {
     const baseSize = token.size === 'large' ? 64 : token.size === 'small' ? 32 : 48;
-    let borderColor = 'border-secondary/70 hover:border-secondary';
-    let bgColor = 'bg-secondary/20';
+    let borderColor = 'border-green-500/70 hover:border-green-500';
+    let bgColor = 'bg-green-500/20';
 
     if (token.type === 'monster') {
       borderColor = 'border-destructive/70 hover:border-destructive';
@@ -131,7 +131,7 @@ const DraggableToken = ({
     switch (token.type) {
       case 'monster': return <Skull className="w-6 h-6 text-destructive" />;
       case 'npc': return <User2 className="w-6 h-6 text-accent" />;
-      default: return <User className="w-6 h-6 text-secondary" />;
+      default: return <User className="w-6 h-6 text-green-500" />;
     }
   };
 
@@ -139,7 +139,7 @@ const DraggableToken = ({
     switch (token.type) {
       case 'monster': return 'bg-destructive/90 text-destructive-foreground';
       case 'npc': return 'bg-accent/90 text-accent-foreground';
-      default: return 'bg-secondary/90 text-secondary-foreground';
+      default: return 'bg-green-500/90 text-white';
     }
   };
 
