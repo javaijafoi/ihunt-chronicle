@@ -69,10 +69,10 @@ export function GMPanel({
       onClick={() => toggleSection(section)}
       className="w-full flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors rounded-lg"
     >
-      <Icon className="w-4 h-4 text-secondary" />
-      <span className="font-display text-sm flex-1 text-left">{label}</span>
+      <Icon className="w-5 h-5 text-secondary" />
+      <span className="font-display text-base flex-1 text-left">{label}</span>
       {typeof count === 'number' && (
-        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+        <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded font-medium">
           {count}
         </span>
       )}
@@ -87,9 +87,9 @@ export function GMPanel({
   return (
     <div className="space-y-1 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/10 rounded-lg border border-secondary/20 mb-3 flex-shrink-0">
-        <Crown className="w-4 h-4 text-secondary" />
-        <span className="font-display text-sm text-secondary">Painel do GM</span>
+      <div className="flex items-center gap-2 px-4 py-3 bg-secondary/10 rounded-lg border border-secondary/20 mb-3 flex-shrink-0">
+        <Crown className="w-5 h-5 text-secondary" />
+        <span className="font-display text-base text-secondary">Painel do GM</span>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-1">
@@ -127,7 +127,7 @@ export function GMPanel({
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3 h-[400px]" // Fixed height for internal scroll
+              className="px-3 pb-3"
             >
               <ActiveNPCsPanel
                 sessionId={sessionId}
@@ -145,7 +145,7 @@ export function GMPanel({
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3 h-[400px]" // Fixed height for internal scroll
+              className="px-3 pb-3"
             >
               <ArchetypeDatabase sessionId={sessionId} />
             </motion.div>
@@ -172,7 +172,7 @@ export function GMPanel({
                     key={character.id}
                     className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border"
                   >
-                    <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
                       {character.avatar ? (
                         <img
                           src={character.avatar}
@@ -180,12 +180,12 @@ export function GMPanel({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <Users className="w-4 h-4 text-primary" />
+                        <Users className="w-5 h-5 text-primary" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-display text-xs truncate">{character.name}</div>
-                      <div className="text-[10px] text-muted-foreground truncate">
+                      <div className="font-display text-sm truncate">{character.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
                         {character.ownerName || 'Sem jogador'}
                       </div>
                     </div>
@@ -194,7 +194,7 @@ export function GMPanel({
                         }`} />
                       <button
                         onClick={() => onEditCharacter(character)}
-                        className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                        className="px-3 py-1.5 rounded text-xs font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
                       >
                         Editar
                       </button>

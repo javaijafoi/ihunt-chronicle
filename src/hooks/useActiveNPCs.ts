@@ -47,7 +47,7 @@ export function useActiveNPCs(sessionId: string) {
   const createFromArchetype = async (archetype: Archetype, customName: string) => {
     if (!sessionId) return;
     try {
-      const newNPC: Omit<ActiveNPC, 'id'> = {
+      const newNPC = {
         name: customName || archetype.name,
         archetypeId: archetype.id,
         archetypeName: archetype.name,

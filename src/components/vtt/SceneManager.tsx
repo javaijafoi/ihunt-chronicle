@@ -255,13 +255,13 @@ export function SceneManager({
           <>
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <MapPin className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className="font-display font-medium text-base truncate" title={scene.name}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <MapPin className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="font-display font-medium text-lg truncate" title={scene.name}>
                     {scene.name}
                   </span>
                   {isActive && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold uppercase tracking-wider">
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary font-bold uppercase tracking-wider">
                       Ativa
                     </span>
                   )}
@@ -274,11 +274,11 @@ export function SceneManager({
                 )}
               </div>
 
-              <div className="flex items-center gap-1 shrink-0 bg-background/50 rounded-lg p-1 border border-border/50">
+              <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1.5 border border-border/50">
                 {!isActive && !isArchived && (
                   <button
                     onClick={() => onSetActiveScene(scene.id)}
-                    className="p-1.5 rounded hover:bg-primary/20 text-primary transition-colors text-xs font-bold uppercase tracking-wide px-2"
+                    className="py-1.5 px-3 rounded hover:bg-primary/20 text-primary transition-colors text-sm font-bold uppercase tracking-wide"
                     title="Ativar cena"
                   >
                     Ativar
@@ -334,17 +334,17 @@ export function SceneManager({
 
             {/* Scene Aspects Preview */}
             {scene.aspects && scene.aspects.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-border/50">
+              <div className="mt-4 pt-3 border-t border-border/50">
                 <div className="flex flex-wrap gap-2">
                   {scene.aspects.map((aspect) => (
                     <span
                       key={aspect.id}
-                      className="px-2 py-1 rounded text-xs bg-secondary/10 text-secondary-foreground border border-secondary/30 flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded text-sm bg-secondary/10 text-secondary-foreground border border-secondary/30 flex items-center gap-1.5"
                       title={aspect.freeInvokes > 0 ? `${aspect.freeInvokes} invocações gratuitas` : undefined}
                     >
                       {aspect.name}
                       {aspect.freeInvokes > 0 && (
-                        <span className="flex items-center justify-center bg-fate-plus text-fate-plus-foreground w-4 h-4 rounded-full text-[9px] font-bold">
+                        <span className="flex items-center justify-center bg-fate-plus text-fate-plus-foreground w-5 h-5 rounded-full text-xs font-bold">
                           {aspect.freeInvokes}
                         </span>
                       )}

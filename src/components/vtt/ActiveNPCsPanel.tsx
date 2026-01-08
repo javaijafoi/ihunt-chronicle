@@ -88,64 +88,64 @@ export function ActiveNPCsPanel({ sessionId, currentSceneId, onSelectNPC }: Acti
   };
 
   const renderNPCItem = (npc: ActiveNPC, context: 'scene' | 'other' | 'guarded') => (
-    <div key={npc.id} className="flex items-center gap-2 p-2 rounded bg-card/50 border border-border/50 hover:bg-accent/10 transition-colors group">
+    <div key={npc.id} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:bg-accent/10 transition-colors group">
       {/* Avatar/Icon */}
       <div
-        className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 cursor-pointer"
+        className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer"
         onClick={() => onSelectNPC(npc)}
       >
         {npc.avatar ? (
           <img src={npc.avatar} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center">
-            <Users className="w-5 h-5 text-muted-foreground" />
+            <Users className="w-6 h-6 text-muted-foreground" />
           </div>
         )}
         {/* Type indicator dot */}
-        <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-background ${npc.kind === 'monstro' ? 'bg-destructive' : 'bg-primary'
+        <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-background ${npc.kind === 'monstro' ? 'bg-destructive' : 'bg-primary'
           }`} />
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0 cursor-pointer py-1" onClick={() => onSelectNPC(npc)}>
         <h4 className="font-semibold text-base truncate leading-tight">{npc.name}</h4>
-        <div className="flex flex-col gap-1 mt-1">
-          <span className="text-xs text-muted-foreground truncate">{npc.archetypeName}</span>
+        <div className="flex flex-col gap-1.5 mt-1.5">
+          <span className="text-sm text-muted-foreground truncate">{npc.archetypeName}</span>
           {/* Stress track viz - larger */}
-          <div className="flex gap-1 items-center">
+          <div className="flex gap-1.5 items-center">
             {Array.from({ length: Math.min(npc.stress, 6) }).map((_, i) => (
               <div
                 key={i}
-                className={`w-2.5 h-2.5 rounded sm:rounded-sm border border-border ${i < npc.currentStress
-                  ? 'bg-destructive border-destructive shadow-[0_0_4px] shadow-destructive/50'
+                className={`w-3.5 h-3.5 rounded border border-border ${i < npc.currentStress
+                  ? 'bg-destructive border-destructive shadow-[0_0_6px] shadow-destructive/50'
                   : 'bg-muted/50'
                   }`}
               />
             ))}
-            {npc.stress > 6 && <span className="text-[10px] text-muted-foreground">+</span>}
+            {npc.stress > 6 && <span className="text-xs text-muted-foreground ml-1">+{npc.stress - 6}</span>}
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             handleToggleToken(npc);
           }}
           title={npc.hasToken ? "Remover Token" : "Colocar Token (Moverá para Cena)"}
         >
-          {npc.hasToken ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {npc.hasToken ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-              <MoreVertical className="w-4 h-4" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+              <MoreVertical className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -180,46 +180,46 @@ export function ActiveNPCsPanel({ sessionId, currentSceneId, onSelectNPC }: Acti
 
   return (
     <ScrollArea className="flex-1 h-full pr-4">
-      <div className="space-y-6">
+      <div className="space-y-6 py-2">
         {/* Current Scene */}
         {currentSceneId && (
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-              <MapPin className="w-3 h-3 text-primary" /> Na Cena Atual
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" /> Na Cena Atual
             </h3>
             {inScene.length > 0 ? (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {inScene.map(npc => renderNPCItem(npc, 'scene'))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground italic px-2">Nenhum NPC nesta cena.</p>
+              <p className="text-sm text-muted-foreground italic px-2">Nenhum NPC nesta cena.</p>
             )}
           </div>
         )}
 
         {/* Other Scenes */}
         {otherScenes.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-              <Map className="w-3 h-3" /> Em Outras Cenas
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+              <Map className="w-4 h-4" /> Em Outras Cenas
             </h3>
-            <div className="space-y-1">
+            <div className="space-y-2">
               {otherScenes.map(npc => renderNPCItem(npc, 'other'))}
             </div>
           </div>
         )}
 
         {/* Guarded */}
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-            <Shield className="w-3 h-3" /> Guardados
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+            <Shield className="w-4 h-4" /> Guardados
           </h3>
           {guarded.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-2">
               {guarded.map(npc => renderNPCItem(npc, 'guarded'))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground italic px-2">Nenhum NPC guardado.</p>
+            <p className="text-sm text-muted-foreground italic px-2">Nenhum NPC guardado.</p>
           )}
         </div>
       </div>
