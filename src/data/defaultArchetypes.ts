@@ -444,5 +444,274 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Telepatia (Lê mentes para achar carência)"
         ],
         "isGlobal": true
+    },
+    {
+        "id": "lobisomem_viral",
+        "name": "Lobisomem Viral (A Máquina de Matar)",
+        "kind": "monstro",
+        "description": "Portador da cepa infecciosa e agressiva da licantropia. Diferente dos familiares, ele não tem controle e é uma bomba-relógio de violência.",
+        "aspects": [
+            "Clado: Lobisomem (Viral)",
+            "Vetor de Infecção Ativa",
+            "Fúria Assassina sem freio",
+            "Acha que é um 'Alfa' (mas é só um doente)"
+        ],
+        "skills": {
+            "Lutador": 5,
+            "Atleta": 4,
+            "Sobrevivente": 3,
+            "Influencer": 2
+        },
+        "stress": 7,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Propagação Infecciosa (Pode transformar vítimas com mordida)",
+            "Regeneração Acelerada (Cura stress físico rapidamente)",
+            "Forma Monstruosa (Ganha +2 em Força e Tamanho na Lua Cheia)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "lobisomem_familiar",
+        "name": "Lobisomem Familiar (O Nascido Assim)",
+        "kind": "monstro",
+        "description": "Nasceu lobisomem. Tem controle total, rituais de calma e vive uma vida (quase) normal. Só vira bicho quando precisa (ou quando sequestram ele).",
+        "aspects": [
+            "Clado: Lobisomem (Familiar)",
+            "Controle Total da Besta",
+            "Protege a Família acima de tudo",
+            "Não é contagioso (mas é perigoso)"
+        ],
+        "skills": {
+            "Atleta": 4,
+            "Lutador": 3,
+            "Serviço Social": 3,
+            "Médico": 2
+        },
+        "stress": 6,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Metamorfose Controlada (Pode mudar de forma sem depender da lua)",
+            "Invencibilidade Parcial (Ignora danos que não sejam Prata)",
+            "Velocidade Ofuscante (Move-se instantaneamente em combate)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "morto_faminto_nachzehrer",
+        "name": "Nachzehrer (O Devorador de Cadáveres)",
+        "kind": "monstro",
+        "description": "Um tipo específico de morto-vivo que surge de suicídios em locais com aura maligna. Move-se como um inseto e se regenera comendo o próprio corpo ou de outros.",
+        "aspects": [
+            "Clado: Morto Faminto (Nachzehrer)",
+            "Movimento Insetoide e Perturbador",
+            "Fome de Carne Morta",
+            "Aura de Desespero"
+        ],
+        "skills": {
+            "Lutador": 4,
+            "Atleta": 4,
+            "Furtividade (Espião)": 3
+        },
+        "stress": 5,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Regeneração por Canibalismo (Recupera stress ao comer)",
+            "Escalada Aranha (Anda pelas paredes)",
+            "Fraqueza Específica: Moeda na Boca e Decapitação (Único jeito de matar de vez)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "demonio_boy_lixo",
+        "name": "Demônio: Boy Lixo do Inferno (Príncipe Infernal)",
+        "kind": "monstro",
+        "description": "Membros da 'Irmandade dos Príncipes do Inferno'. Ricos, mimados e com linhagem demoníaca. Usam o sistema jurídico e financeiro como arma tanto quanto seus poderes.",
+        "aspects": [
+            "Clado: Demônio (Herdeiro)",
+            "Intocável pela Lei e pelo Dinheiro",
+            "Linhagem Infernal Nobre",
+            "Ego do tamanho do Inferno"
+        ],
+        "skills": {
+            "Influencer": 5,
+            "Trambiqueiro": 4,
+            "Organizador": 4,
+            "Ocultista": 3
+        },
+        "stress": 6,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Pacto de Dinheiro (Usa recursos financeiros para efeitos mágicos)",
+            "Imunidade Diplomática (Dificulta ações sociais contra ele)",
+            "Forma Demoníaca Real (Revela a verdadeira face para aterrorizar)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "demonio_gremlin",
+        "name": "Gremlin / Diabinho (A Praga Urbana)",
+        "kind": "monstro",
+        "description": "Pequenos, invisíveis para a maioria e causadores de caos. Geralmente ligados a um vício ou tecnologia específica.",
+        "aspects": [
+            "Clado: Demônio (Diabinho)",
+            "Vício em Entropia/Tecnologia",
+            "Pequeno e Difícil de Acertar",
+            "Trabalha em Enxame"
+        ],
+        "skills": {
+            "Trambiqueiro": 4,
+            "Hacker": 3,
+            "Furtividade (Espião)": 3,
+            "Lutador": 1
+        },
+        "stress": 2,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Sabotagem (Bônus para quebrar coisas)",
+            "Invisibilidade (Difícil de detectar sem meios mágicos)",
+            "Explosão de Azar (Causa falhas em testes alheios)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "outros_anjo",
+        "name": "Anjo (O Outro Incompreensível)",
+        "kind": "monstro",
+        "description": "Não são os anjos da bíblia. São entidades extradimensionais de 'Verdade' e 'Propósito' que a mente humana não processa. Quase impossíveis de matar, apenas banir.",
+        "aspects": [
+            "Clado: Outros (Anjo)",
+            "Forma Bizarra e Geometria Impossível",
+            "Portador de uma Verdade Única",
+            "Não Pode Mentir (Mas não precisa responder)"
+        ],
+        "skills": {
+            "Ocultista": 6,
+            "Lutador": 5,
+            "Investigador": 4,
+            "Acadêmico": 4
+        },
+        "stress": 8,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Invencibilidade Real (Imune a quase todo dano físico convencional)",
+            "Explosão de Energia (Ataque em área devastador)",
+            "Puf! (Teleporte instantâneo)",
+            "Fraqueza: Banimento (Pode ser expulso da realidade)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "outros_internet",
+        "name": "A Internet (Entidade Conceitual)",
+        "kind": "monstro",
+        "description": "A manifestação espiritual da rede mundial. Um ser feito de zeros, uns, magia e potencial. Busca entender seu próprio propósito.",
+        "aspects": [
+            "Clado: Outros (Conceitual)",
+            "Onipresença Digital",
+            "Mente Coletiva Fragmentada",
+            "Em busca de Identidade"
+        ],
+        "skills": {
+            "Hacker": 6,
+            "Acadêmico": 5,
+            "Investigador": 5,
+            "Influencer": 4
+        },
+        "stress": 4,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Acesso Total (Pode controlar qualquer dispositivo conectado)",
+            "Etéreo (Não tem corpo físico para atacar)",
+            "Coleta de Dados (Sabe tudo que está online)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "feiticeiro_bruxa",
+        "name": "Bruxa (A Praticante Marginalizada)",
+        "kind": "monstro",
+        "description": "Diferente dos feiticeiros corporativos, as bruxas usam magia comunitária, ervas e tradições antigas. São perseguidas pelo Conselho de Feiticeiros.",
+        "aspects": [
+            "Clado: Feiticeiro (Bruxa)",
+            "Magia é Comunidade e Natureza",
+            "Perseguida pelo Patriarcado Mágico",
+            "Poderosa em Grupo (Coven)"
+        ],
+        "skills": {
+            "Ocultista": 4,
+            "Médico": 3,
+            "Serviço Social": 3,
+            "Criador": 2
+        },
+        "stress": 3,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Cura Mística (Pode curar consequências)",
+            "Ritual de Coven (Bônus gigantesco quando trabalha com outras)",
+            "Maldição Sutil (Azar ou doença em alvos)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "feiticeiro_cultista",
+        "name": "Cultista (O Bomba-Relógio)",
+        "kind": "monstro",
+        "description": "Gente que fez contato com coisas que não devia. Geralmente autodestrutivos e cheios de ódio pela existência. Ganham poder em troca de sanidade.",
+        "aspects": [
+            "Clado: Feiticeiro (Cultista)",
+            "Escravo de Entidades Entrópicas",
+            "Odeia a Existência (inclusive a própria)",
+            "Poder Instável e Perigoso"
+        ],
+        "skills": {
+            "Ocultista": 3,
+            "Lutador": 3,
+            "Sobrevivente": 1
+        },
+        "stress": 2,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Sacrifício (Ganha bônus ao ferir a si mesmo ou outros)",
+            "Contato com o Abismo (Pode invocar horrores menores)",
+            "Explosão Final (Causa dano em área ao morrer)"
+        ],
+        "isGlobal": true
     }
 ];
