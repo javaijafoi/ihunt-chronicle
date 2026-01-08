@@ -24,3 +24,6 @@ public/assets/**
 *.njsproj
 *.sln
 *.sw?
+
+# PDF Support Files
+Apoio/
