@@ -138,7 +138,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
     <motion.aside
       className="h-full flex flex-col bg-background/80 backdrop-blur-sm border-r border-border"
       initial={false}
-      animate={{ width: collapsed ? 48 : 320 }}
+      animate={{ width: collapsed ? 56 : 380 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
       {/* Collapse toggle */}
@@ -210,7 +210,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="p-2 border-t border-border/50">
+                        <div className="p-3 border-t border-border/50">
                           {renderWidgetContent(widget.id)}
                         </div>
                       </motion.div>

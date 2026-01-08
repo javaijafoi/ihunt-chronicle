@@ -338,7 +338,6 @@ export function VTTPage() {
           myCharacterId={activeCharacter?.id}
           onViewCharacter={setViewingCharacter}
           onInvokeAspect={handleInvokeAspect}
-          canEditAspects={isGM}
           selectedCharacter={selectedCharacter}
           onSpendFate={() => selectedCharacter && spendFatePoint(selectedCharacter.id)}
           onGainFate={() => selectedCharacter && gainFatePoint(selectedCharacter.id)}

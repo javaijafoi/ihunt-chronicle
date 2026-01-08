@@ -103,7 +103,7 @@ export function ArchetypeDatabase({ sessionId }: ArchetypeDatabaseProps) {
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1 p-4 h-full max-h-[500px]">
+      <ScrollArea className="flex-1 p-4 h-full">
         <div className="space-y-3">
           {(!search && filter === 'all') ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -124,20 +124,20 @@ export function ArchetypeDatabase({ sessionId }: ArchetypeDatabaseProps) {
                     onClick={() => setExpandedId(expandedId === archetype.id ? null : archetype.id)}
                   >
                     {archetype.avatar ? (
-                      <img src={archetype.avatar} className="w-12 h-12 rounded-lg object-cover shadow-sm" />
+                      <img src={archetype.avatar} className="w-14 h-14 rounded-lg object-cover shadow-sm" />
                     ) : (
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center bg-muted/80 shadow-inner ${archetype.kind === 'monstro' ? 'text-destructive' : 'text-primary'
+                      <div className={`w-14 h-14 rounded-lg flex items-center justify-center bg-muted/80 shadow-inner ${archetype.kind === 'monstro' ? 'text-destructive' : 'text-primary'
                         }`}>
-                        {archetype.kind === 'monstro' ? <Skull className="w-7 h-7" /> : <Users className="w-7 h-7" />}
+                        {archetype.kind === 'monstro' ? <Skull className="w-8 h-8" /> : <Users className="w-8 h-8" />}
                       </div>
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-display font-medium text-base truncate pr-2">{archetype.name}</h4>
-                        {archetype.isGlobal && <Badge variant="secondary" className="text-[10px] uppercase tracking-wider shrink-0">Global</Badge>}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <h4 className="font-display font-medium text-lg truncate pr-2">{archetype.name}</h4>
+                        {archetype.isGlobal && <Badge variant="secondary" className="text-xs uppercase tracking-wider shrink-0">Global</Badge>}
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1">{archetype.description}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{archetype.description}</p>
                     </div>
 
                     {expandedId === archetype.id ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
@@ -148,22 +148,22 @@ export function ArchetypeDatabase({ sessionId }: ArchetypeDatabaseProps) {
                     <div className="p-4 pt-0 border-t border-border/50 bg-muted/10">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 my-4">
                         <div>
-                          <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground block mb-2">Aspectos</span>
-                          <ul className="space-y-1.5">
+                          <span className="font-bold text-sm uppercase tracking-wider text-muted-foreground block mb-2">Aspectos</span>
+                          <ul className="space-y-2">
                             {archetype.aspects.map((asp, i) => (
                               <li key={i} className="text-sm flex items-start gap-2 text-foreground/90">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-primary/50 shrink-0" />
-                                <span className="italic">{asp}</span>
+                                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-primary/50 shrink-0" />
+                                <span className="italic leading-relaxed">{asp}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
                         <div>
-                          <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground block mb-2">Perícias</span>
+                          <span className="font-bold text-sm uppercase tracking-wider text-muted-foreground block mb-2">Perícias</span>
                           <div className="flex flex-wrap gap-2">
                             {Object.entries(archetype.skills).map(([skill, val]) => (
-                              <Badge key={skill} variant="outline" className="text-sm font-normal px-2 py-0.5 bg-background/50">
-                                {skill} <span className="ml-1 font-bold text-primary">+{val}</span>
+                              <Badge key={skill} variant="outline" className="text-sm font-normal px-2.5 py-1 bg-background/50">
+                                {skill} <span className="ml-1.5 font-bold text-primary">+{val}</span>
                               </Badge>
                             ))}
                           </div>
