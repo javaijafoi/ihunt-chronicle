@@ -116,6 +116,22 @@ export function VTTPage() {
     }
   }, [activeCharacter, presenceMap, user]);
 
+  // GM Kickback Logic
+  useEffect(() => {
+    // If user thinks they are GM (isGM boolean derived from hook)
+    // AND currentSession.gmId exists but is NOT the user
+    // It means someone else claimed the throne.
+    if (isGM && currentSession?.gmId && currentSession.gmId !== user?.uid) {
+      // Force a re-render/return to selection logic implicitly by isGM becoming false.
+      // We just need to notify. The navigation happens automatically because !isGM && !activeCharacter -> CharacterSelect.
+      toast({
+        title: "Acesso de Mestre Revogado",
+        description: "Outro usuário assumiu o controle da mesa.",
+        variant: "destructive"
+      });
+    }
+  }, [isGM, currentSession?.gmId, user?.uid]);
+
   if (!authLoading && !userProfile) {
     navigate('/');
     return null;
