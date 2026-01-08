@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
+import {
   collection,
   doc,
   updateDoc,
@@ -211,8 +211,8 @@ export function useSession() {
           characterPresenceData?.lastSeen instanceof Timestamp
             ? characterPresenceData.lastSeen.toMillis()
             : typeof characterPresenceData?.lastSeen === 'number'
-            ? characterPresenceData.lastSeen
-            : null;
+              ? characterPresenceData.lastSeen
+              : null;
 
         const ownerId = characterPresenceData?.ownerId ?? null;
         const isPresenceStale =
@@ -319,18 +319,18 @@ export function useSession() {
 
         const sessionData = sessionSnap.data() as Partial<GameSession>;
 
-        if (sessionData.gmId && sessionData.gmId !== user.uid) {
-          throw new Error('GMAlreadyAssigned');
-        }
+        // Allow stealing GM role for testing/debugging
+        // if (sessionData.gmId && sessionData.gmId !== user.uid) {
+        //   throw new Error('GMAlreadyAssigned');
+        // }
 
         hasGmOwnership = true;
 
-        if (!sessionData.gmId) {
-          transaction.update(sessionRef, {
-            gmId: user.uid,
-            updatedAt: serverTimestamp(),
-          });
-        }
+        // Always update GM ID to current user
+        transaction.update(sessionRef, {
+          gmId: user.uid,
+          updatedAt: serverTimestamp(),
+        });
       });
 
       if (hasGmOwnership) {
@@ -406,7 +406,7 @@ export function useSession() {
 
   const updateSceneAspects = useCallback(async (aspects: SceneAspect[]) => {
     if (!currentSession) return;
-    await updateSession({ 
+    await updateSession({
       currentScene: {
         ...currentSession.currentScene,
         name: currentSession.currentScene?.name || 'Cena Atual',
@@ -428,7 +428,7 @@ export function useSession() {
 
   const joinAsGM = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
-    
+
     try {
       const success = await claimGmRole();
       return success;

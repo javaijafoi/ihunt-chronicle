@@ -141,6 +141,8 @@ export interface Token {
 
 // ========== ARCHETYPE SYSTEM ==========
 
+// ========== ARCHETYPE SYSTEM ==========
+
 export type ArchetypeKind = 'pessoa' | 'monstro';
 
 export interface Archetype {
@@ -158,24 +160,23 @@ export interface Archetype {
   };
   stunts?: string[];
   avatar?: string;
-  isGlobal: boolean; // true = template do sistema
-  isArchived?: boolean; // true = NPC arquivado que virou template
-  archivedFromName?: string; // Nome original quando era NPC ativo
-  createdAt?: import('firebase/firestore').Timestamp;
+  isGlobal: boolean; // true = template do sistema (apenas leitura para usuários)
+  isArchived?: boolean; // true = NPC arquivado que virou um "template de histórico"
+  createdAt?: import('firebase/firestore').Timestamp | Date;
 }
 
 export interface ActiveNPC {
   id: string;
-  name: string; // Nome único (ex: "Vlad")
-  archetypeId: string; // Referência ao arquétipo base
-  archetypeName: string; // Cache do nome (ex: "Vampiro Comum")
-  kind: ArchetypeKind; // "pessoa" ou "monstro"
+  name: string; // Nome único na sessão (ex: "Vlad")
+  archetypeId: string; // Referência ao arquétipo original
+  archetypeName: string; // Cache do nome do arquétipo (ex: "Vampiro Comum")
+  kind: ArchetypeKind;
 
-  // Ficha completa (copiada do arquétipo, editável)
+  // Ficha completa (clonada do arquétipo, permite divergência)
   aspects: string[];
   skills: Record<string, number>;
-  stress: number;
-  currentStress: number; // Stress atual (dano recebido)
+  stress: number; // Max stress
+  currentStress: number; // Stress atual (boxes marcados)
   consequences: {
     mild: string | null;
     moderate: string | null;
@@ -184,19 +185,19 @@ export interface ActiveNPC {
   stunts: string[];
   avatar?: string;
 
-  // Estado
-  sceneId: string | null; // null = "guardado" (não está em nenhuma cena)
-  hasToken: boolean; // Se tem token visível na cena
+  // Estado na Sessão
+  sceneId: string | null; // null = guardado/fora de cena
+  hasToken: boolean; // Se tem token renderizado
 
-  // Anotações
-  notes: string;
-  sceneTags: string[]; // Ex: ["Beco Escuro", "Clube Noturno"]
+  // Metadados de Sessão
+  notes: string; // Notas do GM
+  sceneTags: string[]; // Histórico de cenas (ex: ["Bar do Joe", "Esgotos"])
 
-  createdAt?: import('firebase/firestore').Timestamp;
-  updatedAt?: import('firebase/firestore').Timestamp;
+  createdAt?: import('firebase/firestore').Timestamp | Date;
+  updatedAt?: import('firebase/firestore').Timestamp | Date;
 }
 
-// Legacy NPC type for backwards compatibility - will be migrated
+// Deprecated types (kept temporarily for reference, but should not be used in new code)
 export interface NPC {
   id: string;
   name: string;

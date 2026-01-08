@@ -1,341 +1,228 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ActiveNPC } from '@/types/game';
+import { useActiveNPCs } from '@/hooks/useActiveNPCs';
+import { useTokens } from '@/hooks/useTokens';
 import {
-  User2,
-  Skull,
+  Users,
   MapPin,
-  Archive,
-  Trash2,
+  Shield,
   Eye,
   EyeOff,
-  ChevronDown,
-  ChevronRight,
-  MoreHorizontal,
-  Package,
-  ArrowRight,
+  MoreVertical,
+  Edit,
+  Archive,
+  Trash2,
+  Map
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ActiveNPC, Scene, Archetype } from '@/types/game';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { ActiveNPCSheet } from './ActiveNPCSheet';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface ActiveNPCsPanelProps {
-  npcsInCurrentScene: ActiveNPC[];
-  npcsInOtherScenes: ActiveNPC[];
-  storedNPCs: ActiveNPC[];
-  scenes: Scene[];
-  currentSceneId?: string | null;
-  onPlaceToken: (npcId: string) => void;
-  onRemoveToken: (npcId: string) => void;
-  onMoveToScene: (npcId: string, sceneId: string | null, sceneName?: string) => void;
-  onUpdateNPC: (npcId: string, updates: Partial<ActiveNPC>) => void;
-  onArchiveNPC: (npcId: string, createArchetype: (data: Omit<Archetype, 'id' | 'isGlobal'>) => Promise<string | null>) => void;
-  onDeleteNPC: (npcId: string) => void;
-  createArchetype: (data: Omit<Archetype, 'id' | 'isGlobal'>) => Promise<string | null>;
+  sessionId: string;
+  currentSceneId: string | null;
+  onSelectNPC: (npc: ActiveNPC) => void;
 }
 
-export function ActiveNPCsPanel({
-  npcsInCurrentScene,
-  npcsInOtherScenes,
-  storedNPCs,
-  scenes,
-  currentSceneId,
-  onPlaceToken,
-  onRemoveToken,
-  onMoveToScene,
-  onUpdateNPC,
-  onArchiveNPC,
-  onDeleteNPC,
-  createArchetype,
-}: ActiveNPCsPanelProps) {
-  const [expandedNpcId, setExpandedNpcId] = useState<string | null>(null);
-  const [editingNpcId, setEditingNpcId] = useState<string | null>(null);
+export function ActiveNPCsPanel({ sessionId, currentSceneId, onSelectNPC }: ActiveNPCsPanelProps) {
+  const { activeNPCs, moveToScene, toggleToken, deleteNPC, updateNPC } = useActiveNPCs(sessionId);
+  const { tokens, createToken, deleteToken } = useTokens(sessionId);
 
-  const totalNPCs = npcsInCurrentScene.length + npcsInOtherScenes.length + storedNPCs.length;
-  const currentScene = scenes.find((s) => s.id === currentSceneId);
+  // Grouping
+  const inScene = activeNPCs.filter(n => n.sceneId === currentSceneId && currentSceneId !== null);
+  const otherScenes = activeNPCs.filter(n => n.sceneId && n.sceneId !== currentSceneId);
+  const guarded = activeNPCs.filter(n => !n.sceneId);
 
-  const renderNPCCard = (npc: ActiveNPC, context: 'current' | 'other' | 'stored') => {
-    const Icon = npc.kind === 'monstro' ? Skull : User2;
-    const isExpanded = expandedNpcId === npc.id;
-    const stressPercent = npc.stress > 0 ? (npc.currentStress / npc.stress) * 100 : 0;
-    const otherScenes = scenes.filter((s) => s.id !== currentSceneId);
-    const npcScene = npc.sceneId ? scenes.find((s) => s.id === npc.sceneId) : null;
+  const handleToggleToken = async (npc: ActiveNPC) => {
+    const willHaveToken = !npc.hasToken;
 
-    return (
-      <div
-        key={npc.id}
-        className="bg-muted/50 rounded-lg border border-border overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center gap-2 p-2">
-          <button
-            onClick={() => setExpandedNpcId(isExpanded ? null : npc.id)}
-            className="flex items-center gap-2 flex-1 min-w-0 text-left"
-          >
-            <Icon className={`w-4 h-4 shrink-0 ${npc.kind === 'monstro' ? 'text-destructive' : 'text-primary'}`} />
-            <div className="flex-1 min-w-0">
-              <div className="font-display text-xs truncate">{npc.name}</div>
-              <div className="text-[10px] text-muted-foreground truncate">
-                NPC - {npc.kind === 'monstro' ? `Monstro (${npc.archetypeName})` : `Pessoa (${npc.archetypeName})`}
-              </div>
-            </div>
-          </button>
+    if (willHaveToken) {
+      if (!currentSceneId) {
+        toast.error("Não há cena ativa para colocar o token.");
+        return;
+      }
 
-          {/* Token toggle for current scene */}
-          {context === 'current' && (
-            <Button
-              size="sm"
-              variant={npc.hasToken ? 'default' : 'outline'}
-              className="h-6 px-2"
-              onClick={() => (npc.hasToken ? onRemoveToken(npc.id) : onPlaceToken(npc.id))}
-            >
-              {npc.hasToken ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            </Button>
-          )}
+      // Create token
+      try {
+        await createToken({
+          type: 'npc',
+          npcId: npc.id,
+          name: npc.name,
+          avatar: npc.avatar,
+          x: 50,
+          y: 50,
+          currentStress: npc.currentStress,
+          maxStress: npc.stress,
+          isVisible: true,
+          // Store kind for styling optimization in TokenLayer (optional but good)
+          // Actually, TokenLayer logic we wrote uses `npcKind` if present on merged object or we can store it.
+          // Let's store it to be safe if we want independent token rendering.
+          // But strict Token type doesn't have npcKind. I'll stick to type conformity.
+          // TokenLayer will need the merged data or I can abuse the Token type if I extended it?
+          // I didn't extend Token type with npcKind. I'll rely on VTTPage merging or just generic styling.
+        });
 
-          {/* Location indicator for other scenes */}
-          {context === 'other' && npcScene && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {npcScene.name}
-            </span>
-          )}
+        // Update NPC
+        await updateNPC(npc.id, { hasToken: true, sceneId: currentSceneId });
+        toast.success("Token colocado na cena.");
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      // Remove token
+      const token = tokens.find(t => t.npcId === npc.id);
+      if (token) {
+        await deleteToken(token.id);
+      }
 
-          {/* Actions menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
-                <MoreHorizontal className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setEditingNpcId(npc.id)}>
-                Editar Ficha
-              </DropdownMenuItem>
-
-              {/* Move to scene submenu */}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <ArrowRight className="w-3 h-3 mr-2" />
-                  Mover para...
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  {currentSceneId && context !== 'current' && (
-                    <DropdownMenuItem
-                      onClick={() => onMoveToScene(npc.id, currentSceneId, currentScene?.name)}
-                    >
-                      <MapPin className="w-3 h-3 mr-2" />
-                      Cena Atual
-                    </DropdownMenuItem>
-                  )}
-                  {otherScenes.map((scene) => (
-                    <DropdownMenuItem
-                      key={scene.id}
-                      onClick={() => onMoveToScene(npc.id, scene.id, scene.name)}
-                      disabled={scene.id === npc.sceneId}
-                    >
-                      {scene.name}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onMoveToScene(npc.id, null)}>
-                    <Package className="w-3 h-3 mr-2" />
-                    Guardar (sem cena)
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem onClick={() => onArchiveNPC(npc.id, createArchetype)}>
-                <Archive className="w-3 h-3 mr-2" />
-                Arquivar
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => onDeleteNPC(npc.id)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-3 h-3 mr-2" />
-                Deletar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {isExpanded ? (
-            <ChevronDown className="w-3 h-3 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="w-3 h-3 text-muted-foreground" />
-          )}
-        </div>
-
-        {/* Stress bar */}
-        <div className="px-2 pb-2">
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-destructive transition-all"
-              style={{ width: `${stressPercent}%` }}
-            />
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            {npc.currentStress}/{npc.stress} stress
-          </div>
-        </div>
-
-        {/* Expanded quick view */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="p-2 pt-0 space-y-2 border-t border-border/50">
-                {/* Aspects */}
-                <div className="flex flex-wrap gap-1">
-                  {npc.aspects.map((asp, i) => (
-                    <span
-                      key={i}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground"
-                    >
-                      {asp}
-                    </span>
-                    )}
-                </div>
-
-                {/* Scene tags */}
-                {npc.sceneTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {npc.sceneTags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground"
-                      >
-                        📍 {tag}
-                      </span>
-                    )))}
-                  </div>
-                )}
-
-                {/* Notes preview */}
-                {npc.notes && (
-                  <p className="text-[10px] text-muted-foreground italic line-clamp-2">
-                    {npc.notes}
-                  </p>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-6 text-[10px]"
-                  onClick={() => setEditingNpcId(npc.id)}
-                >
-                  Abrir Ficha Completa
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
+      await updateNPC(npc.id, { hasToken: false });
+      toast.success("Token removido.");
+    }
   };
 
-  const editingNpc = editingNpcId ? [...npcsInCurrentScene, ...npcsInOtherScenes, ...storedNPCs].find((n) => n.id === editingNpcId) : null;
-
-  return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
-          {totalNPCs} NPC{totalNPCs !== 1 ? 's' : ''} ativo{totalNPCs !== 1 ? 's' : ''}
-        </span>
+  const renderNPCItem = (npc: ActiveNPC, context: 'scene' | 'other' | 'guarded') => (
+    <div key={npc.id} className="flex items-center gap-2 p-2 rounded bg-card/50 border border-border/50 hover:bg-accent/10 transition-colors group">
+      {/* Avatar/Icon */}
+      <div
+        className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 cursor-pointer"
+        onClick={() => onSelectNPC(npc)}
+      >
+        {npc.avatar ? (
+          <img src={npc.avatar} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-muted flex items-center justify-center">
+            <Users className="w-5 h-5 text-muted-foreground" />
+          </div>
+        )}
+        {/* Type indicator dot */}
+        <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-background ${npc.kind === 'monstro' ? 'bg-destructive' : 'bg-primary'
+          }`} />
       </div>
 
-      <ScrollArea className="h-[350px]">
-        <div className="space-y-3 pr-2">
-          {/* Current Scene NPCs */}
-          {currentSceneId && (
-            <div>
-              <div className="flex items-center gap-1 mb-2">
-                <MapPin className="w-3 h-3 text-primary" />
-                <span className="text-[10px] text-primary uppercase font-ui">
-                  Na Cena Atual {currentScene && `(${currentScene.name})`}
-                </span>
-              </div>
-              {npcsInCurrentScene.length > 0 ? (
-                <div className="space-y-2">
-                  {npcsInCurrentScene.map((npc) => renderNPCCard(npc, 'current'))}
-                </div>
-              ) : (
-                <p className="text-[10px] text-muted-foreground italic pl-4">
-                  Nenhum NPC nesta cena
-                </p>
-              )}
-            </div>
-          )}
+      {/* Info */}
+      <div className="flex-1 min-w-0 cursor-pointer py-1" onClick={() => onSelectNPC(npc)}>
+        <h4 className="font-semibold text-base truncate leading-tight">{npc.name}</h4>
+        <div className="flex flex-col gap-1 mt-1">
+          <span className="text-xs text-muted-foreground truncate">{npc.archetypeName}</span>
+          {/* Stress track viz - larger */}
+          <div className="flex gap-1 items-center">
+            {Array.from({ length: Math.min(npc.stress, 6) }).map((_, i) => (
+              <div
+                key={i}
+                className={`w-2.5 h-2.5 rounded sm:rounded-sm border border-border ${i < npc.currentStress
+                  ? 'bg-destructive border-destructive shadow-[0_0_4px] shadow-destructive/50'
+                  : 'bg-muted/50'
+                  }`}
+              />
+            ))}
+            {npc.stress > 6 && <span className="text-[10px] text-muted-foreground">+</span>}
+          </div>
+        </div>
+      </div>
 
-          {/* Other Scenes NPCs */}
-          {npcsInOtherScenes.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1 mb-2">
-                <MapPin className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground uppercase font-ui">
-                  Em Outras Cenas
-                </span>
-              </div>
-              <div className="space-y-2">
-                {npcsInOtherScenes.map((npc) => renderNPCCard(npc, 'other'))}
-              </div>
-            </div>
-          )}
+      {/* Actions */}
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleToken(npc);
+          }}
+          title={npc.hasToken ? "Remover Token" : "Colocar Token (Moverá para Cena)"}
+        >
+          {npc.hasToken ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </Button>
 
-          {/* Stored NPCs */}
-          {storedNPCs.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1 mb-2">
-                <Package className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground uppercase font-ui">
-                  Guardados
-                </span>
-              </div>
-              <div className="space-y-2">
-                {storedNPCs.map((npc) => renderNPCCard(npc, 'stored'))}
-              </div>
-            </div>
-          )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onSelectNPC(npc)}>
+              <Edit className="w-4 h-4 mr-2" /> Editar Ficha
+            </DropdownMenuItem>
 
-          {totalNPCs === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <User2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs">Nenhum NPC ativo</p>
-              <p className="text-[10px] mt-1">
-                Adicione NPCs da Base de Arquétipos
-              </p>
+            <DropdownMenuSeparator />
+
+            {context !== 'scene' && currentSceneId && (
+              <DropdownMenuItem onClick={() => moveToScene(npc.id, currentSceneId)}>
+                <MapPin className="w-4 h-4 mr-2" /> Trazer para Cena Atual
+              </DropdownMenuItem>
+            )}
+
+            {context === 'scene' && (
+              <DropdownMenuItem onClick={() => moveToScene(npc.id, null)}>
+                <Shield className="w-4 h-4 mr-2" /> Guardar (Remover da Cena)
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteNPC(npc.id)}>
+              <Trash2 className="w-4 h-4 mr-2" /> Deletar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+
+  return (
+    <ScrollArea className="flex-1 h-full pr-4">
+      <div className="space-y-6">
+        {/* Current Scene */}
+        {currentSceneId && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+              <MapPin className="w-3 h-3 text-primary" /> Na Cena Atual
+            </h3>
+            {inScene.length > 0 ? (
+              <div className="space-y-1">
+                {inScene.map(npc => renderNPCItem(npc, 'scene'))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic px-2">Nenhum NPC nesta cena.</p>
+            )}
+          </div>
+        )}
+
+        {/* Other Scenes */}
+        {otherScenes.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+              <Map className="w-3 h-3" /> Em Outras Cenas
+            </h3>
+            <div className="space-y-1">
+              {otherScenes.map(npc => renderNPCItem(npc, 'other'))}
             </div>
+          </div>
+        )}
+
+        {/* Guarded */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+            <Shield className="w-3 h-3" /> Guardados
+          </h3>
+          {guarded.length > 0 ? (
+            <div className="space-y-1">
+              {guarded.map(npc => renderNPCItem(npc, 'guarded'))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic px-2">Nenhum NPC guardado.</p>
           )}
         </div>
-      </ScrollArea>
-
-      {/* NPC Sheet Modal */}
-      {editingNpc && (
-        <ActiveNPCSheet
-          npc={editingNpc}
-          isOpen={!!editingNpcId}
-          onClose={() => setEditingNpcId(null)}
-          onUpdate={(updates) => onUpdateNPC(editingNpc.id, updates)}
-        />
-      )}
-    </div>
+      </div>
+    </ScrollArea>
   );
 }

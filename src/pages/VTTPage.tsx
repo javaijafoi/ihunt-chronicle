@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Crown, Shield, Dices, X, BookOpen, Home } from 'lucide-react';
@@ -7,8 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useScenes } from '@/hooks/useScenes';
-import { useMonsters } from '@/hooks/useMonsters';
-import { useNPCs } from '@/hooks/useNPCs';
+import { useActiveNPCs } from '@/hooks/useActiveNPCs'; // Replaces useMonsters/useNPCs
 import { useTokens } from '@/hooks/useTokens';
 import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
@@ -18,8 +17,7 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
-import { ActionType, Character, Token, NPC } from '@/types/game';
-import { Monster } from '@/components/vtt/MonsterDatabase';
+import { ActionType, Character, Token } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
@@ -32,6 +30,8 @@ export function VTTPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, presenceMap } = usePartyCharacters();
+
+  const sessionId = currentSession?.id || GLOBAL_SESSION_ID;
 
   const {
     scenes,
@@ -46,10 +46,12 @@ export function VTTPage() {
     searchQuery: sceneSearchQuery,
     setSearchQuery: setSceneSearchQuery,
     MIN_ASPECTS,
-  } = useScenes(GLOBAL_SESSION_ID, isGM);
-  const { monsters, createMonster, deleteMonster } = useMonsters(GLOBAL_SESSION_ID);
-  const { npcs, allNPCs, createNPC, deleteNPC, duplicateNPC } = useNPCs(GLOBAL_SESSION_ID);
-  const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(GLOBAL_SESSION_ID);
+  } = useScenes(sessionId, isGM);
+
+  // New Hook for NPCs/Monsters
+  const { activeNPCs, updateNPC } = useActiveNPCs(sessionId);
+
+  const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(sessionId);
 
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
@@ -58,6 +60,26 @@ export function VTTPage() {
   const [showDice, setShowDice] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  // Merge Tokens with ActiveNPC data for live updates
+  const mergedTokens = useMemo(() => {
+    return tokens.map(token => {
+      if (token.type === 'npc' && token.npcId) {
+        const npc = activeNPCs.find(n => n.id === token.npcId);
+        if (npc) {
+          return {
+            ...token,
+            name: npc.name,
+            avatar: npc.avatar,
+            currentStress: npc.currentStress,
+            maxStress: npc.stress,
+            npcKind: npc.kind // Helper for styling
+          };
+        }
+      }
+      return token;
+    });
+  }, [tokens, activeNPCs]);
 
   const {
     gameState,
@@ -71,7 +93,7 @@ export function VTTPage() {
     invokeAspect,
     addLog,
     createRollLog,
-  } = useGameState(currentSession?.id || GLOBAL_SESSION_ID, activeCharacter || undefined, isGM);
+  } = useGameState(sessionId, activeCharacter || undefined, isGM);
 
   useEffect(() => {
     if (!activeCharacter || !user) return;
@@ -141,35 +163,6 @@ export function VTTPage() {
   const buildAvatarPayload = (avatar?: string | null) => {
     const normalized = avatar?.trim();
     return normalized ? { avatar: normalized } : undefined;
-  };
-
-  const handleAddMonsterToScene = async (monster: Monster) => {
-    await createToken({
-      type: 'monster',
-      name: monster.name,
-      ...(buildAvatarPayload(monster.avatar) ?? {}),
-      x: 50 + Math.random() * 10 - 5,
-      y: 50 + Math.random() * 10 - 5,
-      currentStress: 0,
-      maxStress: monster.stress,
-      isVisible: true,
-    });
-    addLog(`${monster.name} adicionado à cena`, 'system');
-  };
-
-  const handleAddNPCToScene = async (npc: NPC) => {
-    await createToken({
-      type: 'npc',
-      characterId: npc.id,
-      name: npc.name,
-      ...(buildAvatarPayload(npc.avatar) ?? {}),
-      x: 50 + Math.random() * 10 - 5,
-      y: 50 + Math.random() * 10 - 5,
-      currentStress: 0,
-      maxStress: npc.stress,
-      isVisible: true,
-    });
-    addLog(`${npc.name} adicionado à cena`, 'system');
   };
 
   const handleSelectToken = (token: Token) => {
@@ -367,15 +360,8 @@ export function VTTPage() {
           onArchiveScene={archiveScene}
           onUnarchiveScene={unarchiveScene}
           minAspects={MIN_ASPECTS}
-          monsters={monsters}
-          onAddMonsterToScene={handleAddMonsterToScene}
-          onCreateMonster={createMonster}
-          onDeleteMonster={deleteMonster}
-          npcs={allNPCs}
-          onAddNPCToScene={handleAddNPCToScene}
-          onCreateNPC={createNPC}
-          onDeleteNPC={deleteNPC}
-          onDuplicateNPC={duplicateNPC}
+          // Updated props for GMPanel inside LeftSidebar
+          sessionId={sessionId}
           onEditCharacter={(character) => {
             setViewingCharacter(character as PartyCharacter);
           }}
@@ -433,13 +419,22 @@ export function VTTPage() {
               >
                 <SceneCanvas
                   scene={activeScene || null}
-                  tokens={tokens}
+                  tokens={mergedTokens}
                   aspects={sceneAspects}
                   onInvokeAspect={invokeAspect}
                   isGM={isGM}
                   currentUserId={user?.uid}
                   onMoveToken={updateTokenPosition}
-                  onDeleteToken={deleteToken}
+                  onDeleteToken={async (id) => {
+                    const token = tokens.find(t => t.id === id);
+                    if (token) {
+                      await deleteToken(id);
+                      // Sync NPC state if it's an NPC token
+                      if (token.type === 'npc' && token.npcId) {
+                        updateNPC(token.npcId, { hasToken: false });
+                      }
+                    }
+                  }}
                   onSelectToken={handleSelectToken}
                   onToggleVisibility={handleToggleTokenVisibility}
                   selectedTokenId={selectedTokenId}

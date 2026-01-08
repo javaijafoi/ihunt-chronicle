@@ -4,11 +4,11 @@ import { Users, Bookmark, User, ChevronLeft, ChevronRight, Crown } from 'lucide-
 import { PartyPanel } from './PartyPanel';
 import { CharacterHUD } from './CharacterHUD';
 import { GMPanel } from './GMPanel';
-import { Character, Scene, SceneAspect, NPC } from '@/types/game';
+import { Character, Scene } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
-import { Monster } from './MonsterDatabase';
 
 interface LeftSidebarProps {
+  sessionId: string;
   // Party
   partyCharacters: PartyCharacter[];
   myCharacterId?: string;
@@ -37,16 +37,6 @@ interface LeftSidebarProps {
   onArchiveScene?: (sceneId: string) => void | Promise<void>;
   onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
   minAspects?: number;
-  monsters?: Monster[];
-  onAddMonsterToScene?: (monster: Monster) => void | Promise<void>;
-  onCreateMonster?: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
-  onDeleteMonster?: (monsterId: string) => void | Promise<void>;
-  // NPC props
-  npcs?: NPC[];
-  onAddNPCToScene?: (npc: NPC) => void | Promise<void>;
-  onCreateNPC?: (npc: Omit<NPC, 'id'>) => void | Promise<string | null>;
-  onDeleteNPC?: (npcId: string) => void | Promise<void>;
-  onDuplicateNPC?: (npcId: string) => void | Promise<string | null>;
   onEditCharacter?: (character: Character) => void;
 }
 
@@ -83,8 +73,17 @@ export function LeftSidebar(props: LeftSidebarProps) {
   const renderWidgetContent = (id: WidgetId) => {
     switch (id) {
       case 'gm':
-        return props.isGM && props.scenes && props.monsters && props.npcs ? (
+        // Ensure we pass sessionId, as it's required by the new GMPanel
+        // We might need to add sessionId to LeftSidebar props if it's not strictly available or mock it?
+        // Wait, LeftSidebar props doesn't have sessionId explicitly typed above?
+        // I need to check LeftSidebarProps.
+        // VTTPage passes `sessionId={sessionId}` to LeftSidebar.
+        // But let's check the interface. the interface doesn't have sessionId.
+        // I should update interface first or fix it here.
+        // VTTPage passed `sessionId` in the previous step but I need to accept it here.
+        return props.isGM ? (
           <GMPanel
+            sessionId={props.sessionId}
             scenes={props.scenes}
             archivedScenes={props.archivedScenes}
             currentScene={props.currentScene || null}
@@ -97,15 +96,9 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onArchiveScene={props.onArchiveScene}
             onUnarchiveScene={props.onUnarchiveScene}
             minAspects={props.minAspects}
-            monsters={props.monsters}
-            onAddMonsterToScene={props.onAddMonsterToScene || (() => { })}
-            onCreateMonster={props.onCreateMonster || (() => { })}
-            onDeleteMonster={props.onDeleteMonster || (() => { })}
-            npcs={props.npcs}
-            onAddNPCToScene={props.onAddNPCToScene || (() => { })}
-            onCreateNPC={props.onCreateNPC || (() => { })}
-            onDeleteNPC={props.onDeleteNPC || (() => { })}
-            onDuplicateNPC={props.onDuplicateNPC}
+
+            // Re-added party props that GMPanel seems to take?
+            // GMPanel takes partyCharacters and onEditCharacter.
             partyCharacters={props.partyCharacters}
             onEditCharacter={props.onEditCharacter || (() => { })}
           />

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Skull, Users, User2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Crown, MapPin, Database, Users, Users2, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
 import { SceneManager } from './SceneManager';
-import { MonsterDatabase, Monster } from './MonsterDatabase';
-import { NPCDatabase } from './NPCDatabase';
-import { Scene, Character, NPC } from '@/types/game';
+import { ArchetypeDatabase } from './ArchetypeDatabase';
+import { ActiveNPCsPanel } from './ActiveNPCsPanel';
+import { ActiveNPCSheet } from './ActiveNPCSheet';
+import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface GMPanelProps {
+  sessionId: string;
   scenes: Scene[];
   archivedScenes?: Scene[];
   currentScene: Scene | null;
@@ -20,25 +23,15 @@ interface GMPanelProps {
   onArchiveScene?: (sceneId: string) => void | Promise<void>;
   onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
   minAspects?: number;
-  // Monsters
-  monsters: Monster[];
-  onAddMonsterToScene: (monster: Monster) => void | Promise<void>;
-  onCreateMonster: (monster: Omit<Monster, 'id'>) => void | Promise<string | null>;
-  onDeleteMonster: (monsterId: string) => void | Promise<void>;
-  // NPCs
-  npcs: NPC[];
-  onAddNPCToScene: (npc: NPC) => void | Promise<void>;
-  onCreateNPC: (npc: Omit<NPC, 'id'>) => void | Promise<string | null>;
-  onDeleteNPC: (npcId: string) => void | Promise<void>;
-  onDuplicateNPC?: (npcId: string) => void | Promise<string | null>;
   // Characters
   partyCharacters: PartyCharacter[];
   onEditCharacter: (character: Character) => void;
 }
 
-type PanelSection = 'scenes' | 'monsters' | 'npcs' | 'characters';
+type PanelSection = 'scenes' | 'active_npcs' | 'archetypes' | 'characters';
 
 export function GMPanel({
+  sessionId,
   scenes,
   archivedScenes = [],
   currentScene,
@@ -51,33 +44,25 @@ export function GMPanel({
   onArchiveScene,
   onUnarchiveScene,
   minAspects = 3,
-  monsters,
-  onAddMonsterToScene,
-  onCreateMonster,
-  onDeleteMonster,
-  npcs,
-  onAddNPCToScene,
-  onCreateNPC,
-  onDeleteNPC,
-  onDuplicateNPC,
   partyCharacters,
   onEditCharacter,
 }: GMPanelProps) {
   const [expandedSection, setExpandedSection] = useState<PanelSection | null>('scenes');
+  const [selectedNPC, setSelectedNPC] = useState<ActiveNPC | null>(null);
 
   const toggleSection = (section: PanelSection) => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const SectionHeader = ({ 
-    section, 
-    icon: Icon, 
-    label, 
-    count 
-  }: { 
-    section: PanelSection; 
-    icon: typeof MapPin; 
-    label: string; 
+  const SectionHeader = ({
+    section,
+    icon: Icon,
+    label,
+    count
+  }: {
+    section: PanelSection;
+    icon: any;
+    label: string;
     count?: number;
   }) => (
     <button
@@ -100,140 +85,147 @@ export function GMPanel({
   );
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/10 rounded-lg border border-secondary/20 mb-3">
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/10 rounded-lg border border-secondary/20 mb-3 flex-shrink-0">
         <Crown className="w-4 h-4 text-secondary" />
         <span className="font-display text-sm text-secondary">Painel do GM</span>
       </div>
 
-      {/* Scenes Section */}
-      <div className="bg-muted/30 rounded-lg overflow-hidden">
-        <SectionHeader section="scenes" icon={MapPin} label="Cenas" count={scenes.length} />
-        {expandedSection === 'scenes' && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="px-3 pb-3"
-          >
-            <SceneManager
-              scenes={scenes}
-              archivedScenes={archivedScenes}
-              currentScene={currentScene}
-              searchQuery={sceneSearchQuery}
-              onSearchChange={onSceneSearchChange}
-              onCreateScene={onCreateScene}
-              onUpdateScene={onUpdateScene}
-              onDeleteScene={onDeleteScene}
-              onSetActiveScene={onSetActiveScene}
-              onArchiveScene={onArchiveScene}
-              onUnarchiveScene={onUnarchiveScene}
-              minAspects={minAspects}
-            />
-          </motion.div>
-        )}
-      </div>
+      <div className="flex-1 overflow-y-auto space-y-1">
+        {/* Scenes Section */}
+        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
+          <SectionHeader section="scenes" icon={MapPin} label="Cenas" count={scenes.length} />
+          {expandedSection === 'scenes' && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="px-3 pb-3"
+            >
+              <SceneManager
+                scenes={scenes}
+                archivedScenes={archivedScenes}
+                currentScene={currentScene}
+                searchQuery={sceneSearchQuery}
+                onSearchChange={onSceneSearchChange}
+                onCreateScene={onCreateScene}
+                onUpdateScene={onUpdateScene}
+                onDeleteScene={onDeleteScene}
+                onSetActiveScene={onSetActiveScene}
+                onArchiveScene={onArchiveScene}
+                onUnarchiveScene={onUnarchiveScene}
+                minAspects={minAspects}
+              />
+            </motion.div>
+          )}
+        </div>
 
-      {/* Monsters Section */}
-      <div className="bg-muted/30 rounded-lg overflow-hidden">
-        <SectionHeader section="monsters" icon={Skull} label="Monstros" count={monsters.length} />
-        {expandedSection === 'monsters' && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="px-3 pb-3"
-          >
-            <MonsterDatabase
-              monsters={monsters}
-              onAddToScene={onAddMonsterToScene}
-              onCreateMonster={onCreateMonster}
-              onDeleteMonster={onDeleteMonster}
-            />
-          </motion.div>
-        )}
-      </div>
+        {/* Active NPCs Section */}
+        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
+          <SectionHeader section="active_npcs" icon={Users2} label="NPCs Ativos" />
+          {expandedSection === 'active_npcs' && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="px-3 pb-3 h-[400px]" // Fixed height for internal scroll
+            >
+              <ActiveNPCsPanel
+                sessionId={sessionId}
+                currentSceneId={currentScene?.id || null}
+                onSelectNPC={setSelectedNPC}
+              />
+            </motion.div>
+          )}
+        </div>
 
-      {/* NPCs Section */}
-      <div className="bg-muted/30 rounded-lg overflow-hidden">
-        <SectionHeader section="npcs" icon={User2} label="NPCs" count={npcs.length} />
-        {expandedSection === 'npcs' && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="px-3 pb-3"
-          >
-            <NPCDatabase
-              npcs={npcs}
-              onAddToScene={onAddNPCToScene}
-              onCreateNPC={onCreateNPC}
-              onDeleteNPC={onDeleteNPC}
-              onDuplicateNPC={onDuplicateNPC}
-            />
-          </motion.div>
-        )}
-      </div>
+        {/* Archetypes Section */}
+        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
+          <SectionHeader section="archetypes" icon={Database} label="Base de Arquétipos" />
+          {expandedSection === 'archetypes' && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="px-3 pb-3 h-[400px]" // Fixed height for internal scroll
+            >
+              <ArchetypeDatabase sessionId={sessionId} />
+            </motion.div>
+          )}
+        </div>
 
-      {/* Characters Section */}
-      <div className="bg-muted/30 rounded-lg overflow-hidden">
-        <SectionHeader 
-          section="characters" 
-          icon={Users} 
-          label="Personagens" 
-          count={partyCharacters.length} 
-        />
-        {expandedSection === 'characters' && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="px-3 pb-3"
-          >
-            <div className="space-y-2">
-              {partyCharacters.map((character) => (
-                <div
-                  key={character.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border"
-                >
-                  <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                    {character.avatar ? (
-                      <img 
-                        src={character.avatar} 
-                        alt={character.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Users className="w-4 h-4 text-primary" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-display text-xs truncate">{character.name}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">
-                      {character.ownerName || 'Sem jogador'}
+        {/* Characters Section */}
+        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
+          <SectionHeader
+            section="characters"
+            icon={Users}
+            label="Personagens (Jogadores)"
+            count={partyCharacters.length}
+          />
+          {expandedSection === 'characters' && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="px-3 pb-3"
+            >
+              <div className="space-y-2">
+                {partyCharacters.map((character) => (
+                  <div
+                    key={character.id}
+                    className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                      {character.avatar ? (
+                        <img
+                          src={character.avatar}
+                          alt={character.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Users className="w-4 h-4 text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-display text-xs truncate">{character.name}</div>
+                      <div className="text-[10px] text-muted-foreground truncate">
+                        {character.ownerName || 'Sem jogador'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`w-2 h-2 rounded-full ${character.isOnline ? 'bg-fate-plus' : 'bg-muted-foreground'
+                        }`} />
+                      <button
+                        onClick={() => onEditCharacter(character)}
+                        className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                      >
+                        Editar
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className={`w-2 h-2 rounded-full ${
-                      character.isOnline ? 'bg-fate-plus' : 'bg-muted-foreground'
-                    }`} />
-                    <button
-                      onClick={() => onEditCharacter(character)}
-                      className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
-                    >
-                      Editar
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
 
-              {partyCharacters.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground text-sm">
-                  <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  <p>Nenhum jogador na sessão</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
+                {partyCharacters.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum jogador na sessão</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </div>
       </div>
+
+      {/* NPC Sheet Dialog */}
+      <Dialog open={!!selectedNPC} onOpenChange={(open) => !open && setSelectedNPC(null)}>
+        <DialogContent className="p-0 border-none bg-transparent w-auto h-auto max-w-none shadow-none">
+          {selectedNPC && (
+            <ActiveNPCSheet
+              npc={selectedNPC}
+              sessionId={sessionId}
+              onClose={() => setSelectedNPC(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

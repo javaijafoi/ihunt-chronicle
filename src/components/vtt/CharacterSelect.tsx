@@ -27,15 +27,15 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { joinAsPlayer, claimGmRole, isGM, currentSession } = useSession();
-  const { 
-    characters, 
+  const {
+    characters,
     loading,
-    createCharacter, 
+    createCharacter,
     updateCharacter,
-    deleteCharacter, 
+    deleteCharacter,
     duplicateCharacter,
   } = useFirebaseCharacters(currentSession?.id || GLOBAL_SESSION_ID);
-  
+
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,8 +58,8 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
             lastSeenValue instanceof Timestamp
               ? lastSeenValue.toMillis()
               : typeof lastSeenValue === 'number'
-              ? lastSeenValue
-              : 0;
+                ? lastSeenValue
+                : 0;
           if (characterId) {
             const incomingPresence = { ownerId, lastSeen };
             const existingPresence = presence.get(characterId);
@@ -173,8 +173,8 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     selectedStatus === 'mine'
       ? 'Retomar'
       : selectedStatus === 'occupied'
-      ? 'Forçar Entrada'
-      : 'Entrar';
+        ? 'Forçar Entrada'
+        : 'Entrar';
 
   const joinCtaClasses: Record<CharacterOccupancyStatus, string> = {
     mine: 'bg-blue-600 hover:bg-blue-500 text-white',
@@ -232,7 +232,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
       setIsImporting(false);
     };
     reader.readAsText(file);
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -242,17 +242,17 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     const character = selectedCharacter;
     if (!character || !selectedStatus) return;
     const shouldForceJoin = selectedStatus === 'occupied';
-    
+
     setIsJoining(true);
     const success = await joinAsPlayer(character.id, shouldForceJoin);
     setIsJoining(false);
-    
+
     if (!success) return;
 
     if (wantsGmSeat) {
       await claimGmRole();
     }
-    
+
     onSelectCharacter(character);
   };
 
@@ -268,7 +268,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
       {/* Background Grid */}
-      <div 
+      <div
         className="fixed inset-0 opacity-5"
         style={{
           backgroundImage: `
@@ -291,18 +291,18 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
             <span className="text-foreground">HUNT</span>
             <span className="text-muted-foreground text-2xl ml-3">VTT</span>
           </h1>
-          
+
           <div className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <Users className="w-4 h-4 text-primary" />
             <span className="text-sm text-primary">
               Sessão principal global
             </span>
           </div>
-          
+
           <p className="text-muted-foreground font-ui mt-3">
             Escolha um personagem para entrar na sessão
           </p>
-          
+
           {/* Back button */}
           <button
             onClick={() => navigate('/')}
@@ -371,33 +371,32 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                       whileHover={{ scale: 1.02 }}
                       onClick={() => setSelectedId(character.id === selectedId ? null : character.id)}
                       className={`relative flex flex-col p-4 rounded-lg cursor-pointer
-                               transition-all min-h-[200px] ${
-                                 character.id === selectedId
-                                   ? 'glass-panel border-2 border-primary shadow-lg shadow-primary/20'
-                                   : 'bg-muted/50 border border-border hover:border-primary/50'
-                               }`}
+                               transition-all min-h-[200px] ${character.id === selectedId
+                          ? 'glass-panel border-2 border-primary shadow-lg shadow-primary/20'
+                          : 'bg-muted/50 border border-border hover:border-primary/50'
+                        }`}
                     >
                       {/* Avatar & Name */}
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center border border-border shrink-0">
                           {character.avatar ? (
-                            <img 
-                              src={character.avatar} 
-                              alt={character.name} 
-                              className="w-full h-full rounded-full object-cover" 
+                            <img
+                              src={character.avatar}
+                              alt={character.name}
+                              className="w-full h-full rounded-full object-cover"
                             />
                           ) : (
                             <User className="w-6 h-6 text-primary" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 
+                          <h3
                             className="font-display text-lg text-primary line-clamp-2 leading-tight"
                             title={character.name}
                           >
                             {character.name}
                           </h3>
-                          <p 
+                          <p
                             className="text-xs text-muted-foreground line-clamp-1"
                             title={character.aspects.job || 'Sem emprego'}
                           >
@@ -413,7 +412,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                       )}
 
                       {/* High Concept */}
-                      <p 
+                      <p
                         className="text-sm text-foreground/80 line-clamp-3 flex-1 leading-snug"
                         title={character.aspects.highConcept || 'Sem alto conceito'}
                       >
@@ -523,22 +522,28 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setWantsGmSeat(!wantsGmSeat)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors font-ui text-sm ${
-                wantsGmSeat
-                  ? 'border-accent/40 bg-accent/10 text-accent'
-                  : 'border-border bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Crown className="w-4 h-4" />
-              {wantsGmSeat ? 'Assumir como Mestre' : 'Entrar como jogador'}
-            </button>
+            {/* GM Override Button */}
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => setWantsGmSeat(!wantsGmSeat)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors font-ui text-sm ${wantsGmSeat
+                    ? 'border-accent/40 bg-accent/10 text-accent'
+                    : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                <Crown className="w-4 h-4" />
+                {wantsGmSeat ? (currentSession?.gmId ? 'Roubar GM (Dev)' : 'Será o Mestre') : 'Entrar como Jogador'}
+              </button>
+
+              {currentSession?.gmId && !isGM && (
+                <span className="text-[10px] text-muted-foreground">GM Atual: {currentSession.gmId.slice(0, 6)}...</span>
+              )}
+            </div>
 
             {isGM && (
-              <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-muted text-xs text-secondary">
+              <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-secondary/10 text-xs text-secondary border border-secondary/20">
                 <Crown className="w-3 h-3" />
-                Você é o GM atual
+                Você é o GM
               </span>
             )}
 

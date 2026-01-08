@@ -115,10 +115,14 @@ const DraggableToken = ({
     let borderColor = 'border-green-500/70 hover:border-green-500';
     let bgColor = 'bg-green-500/20';
 
-    if (token.type === 'monster') {
+    // Check for explicit 'monster' type OR 'npc' type with 'monstro' kind
+    const isMonster = token.type === 'monster' || (token.type === 'npc' && (token as any).npcKind === 'monstro');
+    const isNPC = token.type === 'npc' && (token as any).npcKind !== 'monstro';
+
+    if (isMonster) {
       borderColor = 'border-destructive/70 hover:border-destructive';
       bgColor = 'bg-destructive/20';
-    } else if (token.type === 'npc') {
+    } else if (isNPC) {
       borderColor = 'border-accent/70 hover:border-accent';
       bgColor = 'bg-accent/20';
     }
@@ -128,19 +132,19 @@ const DraggableToken = ({
   };
 
   const getTokenIcon = () => {
-    switch (token.type) {
-      case 'monster': return <Skull className="w-6 h-6 text-destructive" />;
-      case 'npc': return <User2 className="w-6 h-6 text-accent" />;
-      default: return <User className="w-6 h-6 text-green-500" />;
-    }
+    const isMonster = token.type === 'monster' || (token.type === 'npc' && (token as any).npcKind === 'monstro');
+
+    if (isMonster) return <Skull className="w-6 h-6 text-destructive" />;
+    if (token.type === 'npc') return <User2 className="w-6 h-6 text-accent" />;
+    return <User className="w-6 h-6 text-green-500" />;
   };
 
   const getLabelStyle = () => {
-    switch (token.type) {
-      case 'monster': return 'bg-destructive/90 text-destructive-foreground';
-      case 'npc': return 'bg-accent/90 text-accent-foreground';
-      default: return 'bg-green-500/90 text-white';
-    }
+    const isMonster = token.type === 'monster' || (token.type === 'npc' && (token as any).npcKind === 'monstro');
+
+    if (isMonster) return 'bg-destructive/90 text-destructive-foreground';
+    if (token.type === 'npc') return 'bg-accent/90 text-accent-foreground';
+    return 'bg-green-500/90 text-white';
   };
 
   const { baseSize, borderColor, bgColor } = getTokenStyles();
