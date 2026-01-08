@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Database, Users, Users2, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import { Crown, MapPin, Database, Users, Users2 } from 'lucide-react';
 import { SceneManager } from './SceneManager';
 import { ArchetypeDatabase } from './ArchetypeDatabase';
 import { ActiveNPCsPanel } from './ActiveNPCsPanel';
@@ -8,6 +8,7 @@ import { ActiveNPCSheet } from './ActiveNPCSheet';
 import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface GMPanelProps {
   sessionId: string;
@@ -47,176 +48,123 @@ export function GMPanel({
   partyCharacters,
   onEditCharacter,
 }: GMPanelProps) {
-  const [expandedSection, setExpandedSection] = useState<PanelSection | null>('scenes');
+  const [activeTab, setActiveTab] = useState('scenes');
   const [selectedNPC, setSelectedNPC] = useState<ActiveNPC | null>(null);
 
-  const toggleSection = (section: PanelSection) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
-
-  const SectionHeader = ({
-    section,
-    icon: Icon,
-    label,
-    count
-  }: {
-    section: PanelSection;
-    icon: any;
-    label: string;
-    count?: number;
-  }) => (
-    <button
-      onClick={() => toggleSection(section)}
-      className="w-full flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors rounded-lg"
-    >
-      <Icon className="w-5 h-5 text-secondary" />
-      <span className="font-display text-base flex-1 text-left">{label}</span>
-      {typeof count === 'number' && (
-        <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded font-medium">
-          {count}
-        </span>
-      )}
-      {expandedSection === section ? (
-        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-      ) : (
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      )}
-    </button>
-  );
+  // Tabs Configuration
+  const tabs = [
+    { id: 'scenes', icon: MapPin, label: '', tooltip: 'Cenas' },
+    { id: 'npcs', icon: Users2, label: '', tooltip: 'NPCs' },
+    { id: 'archetypes', icon: Database, label: '', tooltip: 'Arquétipos' },
+    { id: 'characters', icon: Users, label: '', tooltip: 'Personagens' },
+  ];
 
   return (
-    <div className="space-y-1 h-full flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-secondary/10 rounded-lg border border-secondary/20 mb-3 flex-shrink-0">
-        <Crown className="w-5 h-5 text-secondary" />
-        <span className="font-display text-base text-secondary">Painel do GM</span>
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/10 border-b border-border flex-shrink-0">
+        <Crown className="w-4 h-4 text-secondary" />
+        <span className="font-display text-sm text-secondary">Painel do GM</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-1">
-        {/* Scenes Section */}
-        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
-          <SectionHeader section="scenes" icon={MapPin} label="Cenas" count={scenes.length} />
-          {expandedSection === 'scenes' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3"
-            >
-              <SceneManager
-                scenes={scenes}
-                archivedScenes={archivedScenes}
-                currentScene={currentScene}
-                searchQuery={sceneSearchQuery}
-                onSearchChange={onSceneSearchChange}
-                onCreateScene={onCreateScene}
-                onUpdateScene={onUpdateScene}
-                onDeleteScene={onDeleteScene}
-                onSetActiveScene={onSetActiveScene}
-                onArchiveScene={onArchiveScene}
-                onUnarchiveScene={onUnarchiveScene}
-                minAspects={minAspects}
-              />
-            </motion.div>
-          )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="px-2 pt-2 flex-shrink-0">
+          <TabsList className="w-full grid grid-cols-4 bg-muted/50">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.id} value={tab.id} className="text-xs gap-2">
+                <tab.icon className="w-4 h-4" />
+                <span className="sr-only md:not-sr-only md:inline-block">{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
 
-        {/* Active NPCs Section */}
-        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
-          <SectionHeader section="active_npcs" icon={Users2} label="NPCs Ativos" />
-          {expandedSection === 'active_npcs' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3"
-            >
-              <ActiveNPCsPanel
-                sessionId={sessionId}
-                currentSceneId={currentScene?.id || null}
-                onSelectNPC={setSelectedNPC}
-              />
-            </motion.div>
-          )}
-        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 pt-2 pb-2">
 
-        {/* Archetypes Section */}
-        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
-          <SectionHeader section="archetypes" icon={Database} label="Base de Arquétipos" />
-          {expandedSection === 'archetypes' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3"
-            >
-              <ArchetypeDatabase sessionId={sessionId} />
-            </motion.div>
-          )}
-        </div>
+          <TabsContent value="scenes" className="m-0 h-full mt-0 space-y-2">
+            <SceneManager
+              scenes={scenes}
+              archivedScenes={archivedScenes}
+              currentScene={currentScene}
+              searchQuery={sceneSearchQuery}
+              onSearchChange={onSceneSearchChange}
+              onCreateScene={onCreateScene}
+              onUpdateScene={onUpdateScene}
+              onDeleteScene={onDeleteScene}
+              onSetActiveScene={onSetActiveScene}
+              onArchiveScene={onArchiveScene}
+              onUnarchiveScene={onUnarchiveScene}
+              minAspects={minAspects}
+            />
+          </TabsContent>
 
-        {/* Characters Section */}
-        <div className="bg-muted/30 rounded-lg overflow-hidden flex-shrink-0">
-          <SectionHeader
-            section="characters"
-            icon={Users}
-            label="Personagens (Jogadores)"
-            count={partyCharacters.length}
-          />
-          {expandedSection === 'characters' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="px-3 pb-3"
-            >
-              <div className="space-y-2">
-                {partyCharacters.map((character) => (
-                  <div
-                    key={character.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                      {character.avatar ? (
-                        <img
-                          src={character.avatar}
-                          alt={character.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Users className="w-5 h-5 text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-display text-sm truncate">{character.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {character.ownerName || 'Sem jogador'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${character.isOnline ? 'bg-fate-plus' : 'bg-muted-foreground'
-                        }`} />
-                      <button
-                        onClick={() => onEditCharacter(character)}
-                        className="px-3 py-1.5 rounded text-xs font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  </div>
-                ))}
+          <TabsContent value="npcs" className="m-0 h-full mt-0">
+            <ActiveNPCsPanel
+              sessionId={sessionId}
+              currentSceneId={currentScene?.id || null}
+              onSelectNPC={setSelectedNPC}
+            />
+          </TabsContent>
 
-                {partyCharacters.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground text-sm">
-                    <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                    <p>Nenhum jogador na sessão</p>
-                  </div>
-                )}
+          <TabsContent value="archetypes" className="m-0 h-full mt-0">
+            <ArchetypeDatabase sessionId={sessionId} />
+          </TabsContent>
+
+          <TabsContent value="characters" className="m-0 h-full mt-0">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted text-xs text-muted-foreground mb-2">
+                <Users className="w-3 h-3" />
+                <span>{partyCharacters.length} personagens</span>
               </div>
-            </motion.div>
-          )}
+
+              {partyCharacters.map((character) => (
+                <div
+                  key={character.id}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border"
+                >
+                  <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                    {character.avatar ? (
+                      <img
+                        src={character.avatar}
+                        alt={character.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Users className="w-4 h-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display text-sm truncate">{character.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {character.ownerName || 'Sem jogador'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${character.isOnline ? 'bg-fate-plus' : 'bg-muted-foreground'
+                      }`} />
+                    <button
+                      onClick={() => onEditCharacter(character)}
+                      className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {partyCharacters.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  <p>Nenhum personagem.</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </div>
-      </div>
+      </Tabs>
 
       {/* NPC Sheet Dialog */}
       <Dialog open={!!selectedNPC} onOpenChange={(open) => !open && setSelectedNPC(null)}>
-        <DialogContent className="p-0 border-none bg-transparent w-auto h-auto max-w-none shadow-none">
+        <DialogContent className="p-0 border-none bg-transparent w-auto h-auto max-w-none shadow-none [&>button]:hidden focus:outline-none">
           {selectedNPC && (
             <ActiveNPCSheet
               npc={selectedNPC}

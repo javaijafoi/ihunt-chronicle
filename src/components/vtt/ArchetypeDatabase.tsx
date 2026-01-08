@@ -92,15 +92,17 @@ export function ArchetypeDatabase({ sessionId }: ArchetypeDatabaseProps) {
               className="pl-8"
             />
           </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
-            <TabsList>
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="pessoa"><Users className="w-4 h-4 mr-1" /> Pessoas</TabsTrigger>
-              <TabsTrigger value="monstro"><Skull className="w-4 h-4 mr-1" /> Monstros</TabsTrigger>
+
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-auto">
+            <TabsList className="bg-transparent p-0 gap-1 flex flex-wrap justify-end h-auto">
+              <TabsTrigger value="all" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary h-8 px-3 text-xs border border-transparent data-[state=active]:border-primary/20 bg-muted/50">Todos</TabsTrigger>
+              <TabsTrigger value="pessoa" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary h-8 px-3 text-xs border border-transparent data-[state=active]:border-primary/20 bg-muted/50"><Users className="w-3.5 h-3.5 mr-1.5" /> Pessoas</TabsTrigger>
+              <TabsTrigger value="monstro" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary h-8 px-3 text-xs border border-transparent data-[state=active]:border-primary/20 bg-muted/50"><Skull className="w-3.5 h-3.5 mr-1.5" /> Monstros</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       </div>
+
 
       {/* List */}
       <ScrollArea className="flex-1 p-4 h-full">

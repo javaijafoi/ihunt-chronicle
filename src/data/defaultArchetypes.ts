@@ -713,5 +713,184 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Explosão Final (Causa dano em área ao morrer)"
         ],
         "isGlobal": true
+    },
+    {
+        "id": "morto_faminto_alto_funcionamento",
+        "name": "Morto de Alto Funcionamento (O Zumbi Executivo)",
+        "kind": "monstro",
+        "description": "Raríssimo. Foi mordido, mas descobriu que se comer cérebros frescos regularmente, mantém a inteligência. Frequentemente mais esperto (e rico) que os caçadores.",
+        "aspects": [
+            "Clado: Morto Faminto (Alto Funcionamento)",
+            "Inteligência Preservada por Canibalismo",
+            "Parece Humano (até você ver o freezer)",
+            "Vilão de Quadrinhos na Vida Real"
+        ],
+        "skills": {
+            "Acadêmico": 5,
+            "Organizador": 4,
+            "Influencer": 4,
+            "Lutador": 3,
+            "Trambiqueiro": 3
+        },
+        "stress": 5,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Comedor de Carne Seletivo (Sobe 2 degraus de essência ao comer cérebro)",
+            "Mais Humano que Humano (Ganha aspecto temporário de super-inteligência ao comer)",
+            "Potência Desumana (Força física muito além da aparência)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "morto_faminto_experimento",
+        "name": "Morto Faminto (Experimento Científico/Bioweapon)",
+        "kind": "monstro",
+        "description": "Não é um zumbi qualquer. É um projeto de RH que deu errado (ou certo demais). Criado em retiros corporativos ou laboratórios ilegais. Mais forte, mais rápido e mais obediente.",
+        "aspects": [
+            "Clado: Morto Faminto (Experimento)",
+            "Dedicado ao Emprego (Literalmente)",
+            "Não Sente Dor, Só Cumpre Metas",
+            "Propriedade da Corporação Biomédica"
+        ],
+        "skills": {
+            "Lutador": 4,
+            "Atleta": 3,
+            "Sobrevivente": 3
+        },
+        "stress": 7,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Mãozinhas (Bônus +2 para agarrar e imobilizar)",
+            "Potência Desumana (Pode arremessar mesas de escritório)",
+            "Comedor de Carne: Modo Esfomeado (Fome constante e violenta)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "outros_guardiao",
+        "name": "Guardião dos Portões (O Espírito do Local)",
+        "kind": "monstro",
+        "description": "Uma entidade, anjo ou espírito preso a um local específico (uma igreja, uma floresta, um prédio ocupado). Protege aquele lugar com poder absoluto, mas não pode sair.",
+        "aspects": [
+            "Clado: Outros (Guardião)",
+            "Eu Sou o Local e o Local Sou Eu",
+            "Poder Absoluto em Seu Domínio",
+            "Preso à Geografia"
+        ],
+        "skills": {
+            "Lutador": 4,
+            "Ocultista": 4,
+            "Médico": 4,
+            "Sobrevivente": 5
+        },
+        "stress": 6,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Invasão de Área (Controla luzes, portas e ambiente do local)",
+            "Invencibilidade (Ignora dano que não seja sua Fraqueza Mortal)",
+            "Explosão de Energia (Ataque em área massivo)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "demonio_possuido",
+        "name": "O Possuído (O Hospedeiro Relutante)",
+        "kind": "monstro",
+        "description": "Um humano sendo pilotado por um demônio. O corpo é frágil, mas o piloto é sádico e tem acesso a poderes infernais. Se você matar o corpo, o demônio só volta pro inferno rindo.",
+        "aspects": [
+            "Clado: Demônio (Possessor)",
+            "Corpo Humano, Piloto Infernal",
+            "Sorriso que não chega aos olhos",
+            "Usa o refém como escudo humano"
+        ],
+        "skills": {
+            "Influencer": 4,
+            "Trambiqueiro": 4,
+            "Lutador": 2,
+            "Ocultista": 3
+        },
+        "stress": 4,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Roubo de Autonomia (Já possui o corpo, agora tenta controlar outros)",
+            "Força Profana (Usa o corpo humano além do limite, quebrando ossos para atacar)",
+            "Troca de Hospedeiro (Tenta pular para outro corpo se o atual morrer)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "criaturinha_enxame",
+        "name": "Enxame de Criaturinhas (Peste Sobrenatural)",
+        "kind": "monstro",
+        "description": "Ratos demoníacos, insetos gigantes, homenzinhos de argila. Sozinhos são patéticos (1 estrela), mas em grupo te devoram vivo.",
+        "aspects": [
+            "Clado: Criaturinha",
+            "Muitos corpos, uma fome",
+            "Difícil de acertar um só",
+            "Entra em qualquer buraco"
+        ],
+        "skills": {
+            "Furtividade (Espião)": 4,
+            "Atleta": 3,
+            "Lutador": 2
+        },
+        "stress": 2,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Ataque de Enxame (+1 no ataque para cada aliado na zona)",
+            "Alvo Pequeno (Bônus na defesa contra armas de fogo)",
+            "Mordida Infecciosa (Doenças ou venenos leves)"
+        ],
+        "isGlobal": true
+    },
+    {
+        "id": "npc_gwenyth_jade",
+        "name": "Gwenyth Jade-Flay (A Chef Canibal)",
+        "kind": "monstro",
+        "description": "Lenda urbana gastronômica. Uma 'lich' socialite que serve carne humana em restaurantes pop-up exclusivíssimos. Cobra uma fortuna e os ricos adoram.",
+        "aspects": [
+            "Clado: Morto Faminto (Único)",
+            "Chef Celebridade do Submundo",
+            "Ingredientes... Exóticos",
+            "Sempre em Movimento (Restaurante Pop-up)"
+        ],
+        "skills": {
+            "Profissional (Chef)": 5,
+            "Socialite": 5,
+            "Influencer": 4,
+            "Lutador": 2
+        },
+        "stress": 4,
+        "consequences": {
+            "mild": null,
+            "moderate": null,
+            "severe": null
+        },
+        "stunts": [
+            "Prato Especial (Pode preparar carne humana que vicia ou fortalece)",
+            "Rede de Contatos VIP (Clientes ricos a protegem)",
+            "Não Sangra (Morto-vivo difícil de parar com dano comum)"
+        ],
+        "isGlobal": true
     }
 ];

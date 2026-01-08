@@ -62,23 +62,23 @@ export function ActiveNPCSheet({ npc, sessionId, onClose }: ActiveNPCSheetProps)
   };
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border shadow-2xl w-[400px]">
+    <div className="flex flex-col h-full bg-background border-l border-border shadow-2xl w-full max-w-2xl">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between bg-card">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Popover>
             <PopoverTrigger asChild>
-              <button className="relative group">
+              <button className="relative group shrink-0">
                 {npc.avatar ? (
-                  <img src={npc.avatar} className="w-12 h-12 rounded bg-muted object-cover border border-border group-hover:border-primary transition-colors" />
+                  <img src={npc.avatar} className="w-16 h-16 rounded-md bg-muted object-cover border border-border group-hover:border-primary transition-colors" />
                 ) : (
-                  <div className={`w-12 h-12 rounded flex items-center justify-center border border-border group-hover:border-primary transition-colors ${npc.kind === 'monstro' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
+                  <div className={`w-16 h-16 rounded-md flex items-center justify-center border border-border group-hover:border-primary transition-colors ${npc.kind === 'monstro' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
                     }`}>
-                    {npc.kind === 'monstro' ? <Skull className="w-6 h-6" /> : <Heart className="w-6 h-6" />}
+                    {npc.kind === 'monstro' ? <Skull className="w-8 h-8" /> : <Heart className="w-8 h-8" />}
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded transition-opacity">
-                  <ImagePlus className="w-4 h-4 text-white" />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-md transition-opacity">
+                  <ImagePlus className="w-5 h-5 text-white" />
                 </div>
               </button>
             </PopoverTrigger>
@@ -105,102 +105,114 @@ export function ActiveNPCSheet({ npc, sessionId, onClose }: ActiveNPCSheetProps)
           </Popover>
 
           <div>
-            <h2 className="font-display text-xl leading-none">{npc.name}</h2>
-            <p className="text-xs text-muted-foreground">{npc.archetypeName}</p>
+            <h2 className="font-display text-2xl leading-none mb-1">{npc.name}</h2>
+            <div className="flex gap-2 items-center">
+              <Badge variant="outline" className="text-xs">{npc.archetypeName}</Badge>
+              {npc.kind === 'monstro' && <Badge variant="destructive" className="text-[10px] uppercase">Ameaça</Badge>}
+            </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 -mr-2"><X className="w-5 h-5" /></Button>
       </div>
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-6">
-          {/* Stress Track */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-              <ShieldAlert className="w-3 h-3" /> Stress
-            </h4>
-            <div className="flex gap-2">
-              {Array.from({ length: npc.stress }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleStressToggle(i)}
-                  className={`w-8 h-8 rounded border-2 flex items-center justify-center font-bold text-sm transition-all ${i < currentStress
-                    ? 'bg-destructive border-destructive text-destructive-foreground'
-                    : 'border-border hover:border-destructive/50'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-6">
 
-          {/* Consequences */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase text-muted-foreground">Consequências</h4>
-            <div className="grid gap-2">
-              <div className="flex gap-2 items-center">
-                <Badge variant="outline" className="w-16 justify-center">LEVE</Badge>
-                <Input
-                  className="h-8"
-                  placeholder="-2"
-                  value={npc.consequences.mild || ""}
-                  onChange={(e) => handleConsequenceChange('mild', e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 items-center">
-                <Badge variant="outline" className="w-16 justify-center border-yellow-500/50 text-yellow-500">MOD</Badge>
-                <Input
-                  className="h-8"
-                  placeholder="-4"
-                  value={npc.consequences.moderate || ""}
-                  onChange={(e) => handleConsequenceChange('moderate', e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 items-center">
-                <Badge variant="outline" className="w-16 justify-center border-red-500/50 text-red-500">GRAVE</Badge>
-                <Input
-                  className="h-8"
-                  placeholder="-6"
-                  value={npc.consequences.severe || ""}
-                  onChange={(e) => handleConsequenceChange('severe', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Aspects */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase text-muted-foreground">Aspectos</h4>
-            <div className="space-y-2">
-              {npc.aspects.map((aspect, i) => (
-                <div key={i} className="p-2 rounded bg-accent/10 border border-accent/20 text-sm">
-                  {aspect}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column: Stats */}
+            <div className="space-y-6">
+              {/* Stress Track */}
+              <div className="space-y-2 bg-muted/30 p-3 rounded-lg border border-border/50">
+                <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2 mb-2">
+                  <ShieldAlert className="w-3 h-3" /> Stress
+                </h4>
+                <div className="flex gap-2 flex-wrap">
+                  {Array.from({ length: npc.stress }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleStressToggle(i)}
+                      className={`w-10 h-10 rounded border-2 flex items-center justify-center font-bold text-lg transition-all ${i < currentStress
+                        ? 'bg-destructive border-destructive text-destructive-foreground shadow-sm'
+                        : 'border-border bg-background hover:border-destructive/50'
+                        }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Skills */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase text-muted-foreground">Perícias</h4>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(npc.skills).map(([skill, val]) => (
-                <Badge key={skill} variant="secondary">
-                  {skill} <span className="ml-1 text-primary font-bold">+{val}</span>
-                </Badge>
-              ))}
+              {/* Consequences */}
+              <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border/50">
+                <h4 className="text-xs font-bold uppercase text-muted-foreground">Consequências</h4>
+                <div className="grid gap-2">
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="outline" className="w-16 h-8 justify-center shrink-0">LEVE</Badge>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="-2"
+                      value={npc.consequences.mild || ""}
+                      onChange={(e) => handleConsequenceChange('mild', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="outline" className="w-16 h-8 justify-center shrink-0 border-yellow-500/50 text-yellow-500">MOD</Badge>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="-4"
+                      value={npc.consequences.moderate || ""}
+                      onChange={(e) => handleConsequenceChange('moderate', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="outline" className="w-16 h-8 justify-center shrink-0 border-red-500/50 text-red-500">GRAVE</Badge>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="-6"
+                      value={npc.consequences.severe || ""}
+                      onChange={(e) => handleConsequenceChange('severe', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Aspects & Skills */}
+            <div className="space-y-6">
+              {/* Aspects */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase text-muted-foreground">Aspectos</h4>
+                <div className="space-y-2">
+                  {npc.aspects.map((aspect, i) => (
+                    <div key={i} className="p-2.5 rounded bg-secondary/10 border border-secondary/20 text-sm font-medium text-secondary-foreground/90">
+                      {aspect}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase text-muted-foreground">Perícias</h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(npc.skills).map(([skill, val]) => (
+                    <Badge key={skill} variant="secondary" className="px-2.5 py-1 text-sm font-normal">
+                      {skill} <span className="ml-1.5 text-primary font-bold">+{val}</span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Notes */}
-          <div className="space-y-2">
+          <div className="space-y-2 pt-2 border-t border-border/50">
             <h4 className="text-xs font-bold uppercase text-muted-foreground">Anotações do Mestre</h4>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[100px] resize-none bg-yellow-950/10 border-yellow-900/20"
-              placeholder="Notas sobre interpretação, segredos, etc..."
+              className="min-h-[100px] bg-yellow-50/5 border-yellow-900/10 focus:border-yellow-500/50"
+              placeholder="Notas sobre interpretação, segredos, táticas..."
             />
           </div>
         </div>

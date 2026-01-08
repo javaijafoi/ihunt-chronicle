@@ -147,11 +147,11 @@ export function SceneManager({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className={`p-4 rounded-lg border transition-colors ${isActive
-            ? 'bg-primary/10 border-primary shadow-sm'
-            : isArchived
-              ? 'bg-muted/30 border-border/50 opacity-75'
-              : 'bg-muted/50 border-border hover:border-primary/50'
+        className={`p-3 rounded-lg border transition-all ${isActive
+          ? 'bg-primary/10 border-primary shadow-sm'
+          : isArchived
+            ? 'bg-muted/30 border-border/50 opacity-75'
+            : 'bg-card border-border hover:border-primary/50'
           }`}
       >
         {isEditing ? (
@@ -164,7 +164,6 @@ export function SceneManager({
               placeholder="Nome da cena"
               autoFocus
             />
-            {/* ... keeping other inputs similar but slightly padded ... */}
             <input
               type="text"
               value={editData.background}
@@ -252,70 +251,64 @@ export function SceneManager({
             </div>
           </div>
         ) : (
-          <>
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <MapPin className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className="font-display font-medium text-lg truncate" title={scene.name}>
-                    {scene.name}
+          <div className="flex flex-col gap-3">
+            {/* Top Row: Name & Actions */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <MapPin className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`font-display font-medium text-lg truncate ${isActive ? 'text-foreground' : 'text-foreground/90'}`} title={scene.name}>
+                  {scene.name}
+                </span>
+                {isActive && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary font-bold uppercase tracking-wider whitespace-nowrap">
+                    Ativa
                   </span>
-                  {isActive && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary font-bold uppercase tracking-wider">
-                      Ativa
-                    </span>
-                  )}
-                </div>
-                {scene.background && (
-                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                    <Image className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-[200px]">{scene.background}</span>
-                  </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1.5 border border-border/50">
+              {/* Actions Toolbar */}
+              <div className="flex items-center gap-1 shrink-0">
                 {!isActive && !isArchived && (
                   <button
                     onClick={() => onSetActiveScene(scene.id)}
-                    className="py-1.5 px-3 rounded hover:bg-primary/20 text-primary transition-colors text-sm font-bold uppercase tracking-wide"
+                    className="px-3 py-1.5 rounded hover:bg-primary/20 text-primary transition-colors text-xs font-bold uppercase tracking-wide border border-transparent hover:border-primary/30"
                     title="Ativar cena"
                   >
                     Ativar
                   </button>
                 )}
-                {/* ... existing buttons, slightly larger touch targets ... */}
+
                 {isArchived ? (
                   <button
                     onClick={() => onUnarchiveScene?.(scene.id)}
-                    className="p-2 rounded hover:bg-secondary/20 transition-colors"
+                    className="p-1.5 rounded hover:bg-secondary/20 transition-colors text-muted-foreground hover:text-secondary"
                     title="Restaurar"
                   >
-                    <RotateCcw className="w-4 h-4 text-secondary" />
+                    <RotateCcw className="w-4 h-4" />
                   </button>
                 ) : (
                   <>
                     <button
                       onClick={() => handleStartEditAspects(scene)}
-                      className="p-2 rounded hover:bg-secondary/20 transition-colors"
+                      className="p-1.5 rounded hover:bg-secondary/20 transition-colors text-muted-foreground hover:text-secondary"
                       title="Editar aspectos"
                     >
-                      <Bookmark className="w-4 h-4 text-secondary" />
+                      <Bookmark className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleStartEdit(scene)}
-                      className="p-2 rounded hover:bg-muted transition-colors"
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                       title="Editar"
                     >
-                      <Edit className="w-4 h-4 text-muted-foreground" />
+                      <Edit className="w-4 h-4" />
                     </button>
                     {!isActive && onArchiveScene && (
                       <button
                         onClick={() => onArchiveScene(scene.id)}
-                        className="p-2 rounded hover:bg-muted transition-colors"
+                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                         title="Arquivar"
                       >
-                        <Archive className="w-4 h-4 text-muted-foreground" />
+                        <Archive className="w-4 h-4" />
                       </button>
                     )}
                   </>
@@ -323,28 +316,36 @@ export function SceneManager({
                 {!isActive && (
                   <button
                     onClick={() => onDeleteScene(scene.id)}
-                    className="p-2 rounded hover:bg-destructive/20 transition-colors"
+                    className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
                     title="Excluir"
                   >
-                    <Trash2 className="w-4 h-4 text-destructive" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
             </div>
 
+            {/* Background Image Link if exists */}
+            {scene.background && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-7">
+                <Image className="w-3.5 h-3.5" />
+                <span className="truncate max-w-full">{scene.background}</span>
+              </div>
+            )}
+
             {/* Scene Aspects Preview */}
             {scene.aspects && scene.aspects.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-border/50">
+              <div className="pt-2 border-t border-border/40">
                 <div className="flex flex-wrap gap-2">
                   {scene.aspects.map((aspect) => (
                     <span
                       key={aspect.id}
-                      className="px-2.5 py-1.5 rounded text-sm bg-secondary/10 text-secondary-foreground border border-secondary/30 flex items-center gap-1.5"
+                      className="px-2 py-1 rounded-md text-xs font-medium bg-secondary/5 text-secondary-foreground border border-secondary/20 flex items-center gap-1.5"
                       title={aspect.freeInvokes > 0 ? `${aspect.freeInvokes} invocações gratuitas` : undefined}
                     >
                       {aspect.name}
                       {aspect.freeInvokes > 0 && (
-                        <span className="flex items-center justify-center bg-fate-plus text-fate-plus-foreground w-5 h-5 rounded-full text-xs font-bold">
+                        <span className="flex items-center justify-center bg-fate-plus text-fate-plus-foreground w-4 h-4 rounded-full text-[10px] font-bold">
                           {aspect.freeInvokes}
                         </span>
                       )}
@@ -353,7 +354,7 @@ export function SceneManager({
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </motion.div>
     );
