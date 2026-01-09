@@ -12,19 +12,24 @@ interface CharacterHUDProps {
   onOpenFullSheet: () => void;
   onOpenDice?: () => void;
   onAddToScene?: () => void;
+  onRemoveFromScene?: () => void;
   isInScene?: boolean;
 }
 
-export function CharacterHUD({ 
-  character, 
-  onSpendFate, 
-  onGainFate, 
+export function CharacterHUD({
+  character,
+  onSpendFate,
+  onGainFate,
   onToggleStress,
   onOpenFullSheet,
   onOpenDice,
   onAddToScene,
+  onRemoveFromScene,
   isInScene = false,
 }: CharacterHUDProps) {
+  // Debug log to ensure HMR picks up the change and prop availability
+  // console.log('CharacterHUD render. onRemoveFromScene:', !!onRemoveFromScene);
+
   const calculatedTracks = calculateStressTracks(character);
   const physicalStress = calculatedTracks.physical.map(
     (_filled, index) => character.stress.physical?.[index] ?? false
@@ -51,13 +56,13 @@ export function CharacterHUD({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 
-            className="font-display text-lg text-primary truncate" 
+          <h3
+            className="font-display text-lg text-primary truncate"
             title={character.name}
           >
             {character.name}
           </h3>
-          <p 
+          <p
             className="text-xs text-muted-foreground line-clamp-2 font-ui leading-tight"
             title={character.aspects.highConcept}
           >
@@ -96,10 +101,13 @@ export function CharacterHUD({
               Entrar na Cena
             </button>
           ) : (
-            <div className="w-full text-center p-2 rounded-lg bg-muted text-muted-foreground font-ui text-sm flex items-center justify-center gap-2">
+            <button
+              onClick={onRemoveFromScene}
+              className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors font-ui text-sm"
+            >
               <MapPin className="w-4 h-4" />
-              Já está em cena
-            </div>
+              Sair da Cena
+            </button>
           )}
         </div>
       )}
@@ -151,10 +159,10 @@ export function CharacterHUD({
                 className={`stress-box ${filled ? 'filled' : ''}`}
                 aria-label={`Estresse Mental ${index + 1}`}
                 title={`Estresse Mental ${index + 1}. ${stressTooltip}`}
-                style={{ 
+                style={{
                   borderColor: filled ? 'hsl(var(--secondary))' : undefined,
                   background: filled ? 'hsl(var(--secondary))' : undefined,
-                  boxShadow: filled ? '0 0 10px hsl(var(--secondary) / 0.5)' : undefined 
+                  boxShadow: filled ? '0 0 10px hsl(var(--secondary) / 0.5)' : undefined
                 }}
               >
                 {filled && <span className="text-xs font-display">{index + 1}</span>}
@@ -170,13 +178,13 @@ export function CharacterHUD({
           Aspectos
         </div>
         <div className="space-y-1.5">
-          <div 
+          <div
             className="aspect-tag text-xs line-clamp-2 leading-snug"
             title={character.aspects.highConcept}
           >
             {character.aspects.highConcept}
           </div>
-          <div 
+          <div
             className="aspect-tag text-xs line-clamp-2 leading-snug"
             title={character.aspects.drama}
           >

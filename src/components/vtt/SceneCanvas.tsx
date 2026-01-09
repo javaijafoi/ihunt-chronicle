@@ -9,6 +9,7 @@ interface SceneCanvasProps {
   onInvokeAspect?: (aspectName: string, useFree?: boolean) => void;
   isGM?: boolean;
   currentUserId?: string;
+  activeCharacterId?: string;
   onMoveToken?: (tokenId: string, x: number, y: number) => void;
   onDeleteToken?: (tokenId: string) => void;
   onSelectToken?: (token: Token) => void;
@@ -23,6 +24,7 @@ export function SceneCanvas({
   onInvokeAspect,
   isGM = false,
   currentUserId,
+  activeCharacterId,
   onMoveToken,
   onDeleteToken,
   onSelectToken,
@@ -102,6 +104,7 @@ export function SceneCanvas({
         tokens={tokens}
         isGM={isGM}
         currentUserId={currentUserId}
+        activeCharacterId={activeCharacterId}
         onMoveToken={onMoveToken}
         onDeleteToken={onDeleteToken}
         onSelectToken={onSelectToken}

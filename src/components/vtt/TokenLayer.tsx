@@ -39,6 +39,7 @@ interface TokenLayerProps {
   tokens: Token[];
   isGM?: boolean;
   currentUserId?: string;
+  activeCharacterId?: string;
   onMoveToken?: (tokenId: string, x: number, y: number) => void;
   onDeleteToken?: (tokenId: string) => void;
   onSelectToken?: (token: Token) => void;
@@ -51,6 +52,7 @@ interface DraggableTokenProps {
   containerRef: React.RefObject<HTMLDivElement>;
   isGM: boolean;
   currentUserId?: string;
+  activeCharacterId?: string;
   isSelected: boolean;
   isHovered: boolean;
   onMoveToken: ((tokenId: string, x: number, y: number) => void) | undefined;
@@ -65,6 +67,7 @@ const DraggableToken = ({
   containerRef,
   isGM,
   currentUserId,
+  activeCharacterId,
   isSelected,
   isHovered,
   onMoveToken,
@@ -81,7 +84,10 @@ const DraggableToken = ({
 
   const canDrag = () => {
     if (isGM) return true;
-    return token.type === 'character' && token.ownerId === currentUserId;
+    if (token.type === 'character') {
+      return token.ownerId === currentUserId || token.characterId === activeCharacterId;
+    }
+    return false;
   };
 
   const handleDragEnd = (event: any, info: PanInfo) => {
@@ -226,9 +232,9 @@ const DraggableToken = ({
             <EyeOff className="w-2.5 h-2.5 text-muted-foreground" />
           </div>
         )}
-        {isGM && isSelected && (
+        {(isGM || canDrag()) && isSelected && (
           <div className="absolute -top-2 -right-2 flex gap-1">
-            {onToggleVisibility && (
+            {isGM && onToggleVisibility && (
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleVisibility(token.id); }}
                 className="w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -276,6 +282,7 @@ export function TokenLayer({
   tokens,
   isGM = false,
   currentUserId,
+  activeCharacterId,
   onMoveToken,
   onDeleteToken,
   onSelectToken,
@@ -299,6 +306,7 @@ export function TokenLayer({
           containerRef={containerRef}
           isGM={isGM}
           currentUserId={currentUserId}
+          activeCharacterId={activeCharacterId}
           isSelected={selectedTokenId === token.id}
           isHovered={hoveredTokenId === token.id}
           onMoveToken={onMoveToken}

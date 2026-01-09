@@ -23,6 +23,7 @@ interface LeftSidebarProps {
   onOpenFullSheet: () => void;
   onOpenDice: () => void;
   onAddCharacterToScene?: () => void;
+  onRemoveCharacterFromScene?: () => void;
   isCharacterInScene?: boolean;
   // GM props
   isGM?: boolean;
@@ -126,6 +127,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onOpenFullSheet={props.onOpenFullSheet}
             onOpenDice={props.onOpenDice}
             onAddToScene={props.onAddCharacterToScene}
+            onRemoveFromScene={props.onRemoveCharacterFromScene}
             isInScene={props.isCharacterInScene}
           />
         ) : (

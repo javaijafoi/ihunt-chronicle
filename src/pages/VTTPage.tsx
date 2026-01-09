@@ -29,7 +29,7 @@ const appVersion = import.meta.env.APP_VERSION;
 export function VTTPage() {
   const navigate = useNavigate();
 
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, signOut } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
   const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters();
 
@@ -151,6 +151,7 @@ export function VTTPage() {
 
   const handleLeaveSession = async () => {
     await leaveSession();
+    await signOut();
     setActiveCharacter(null);
     navigate('/');
   };
@@ -224,6 +225,29 @@ export function VTTPage() {
       isVisible: true,
     });
     addLog(`${selectedCharacter.name} entrou na cena`, 'system');
+  };
+
+  const handleRemoveCharacterFromScene = async () => {
+    if (!selectedCharacter || !user) return;
+
+    // Find the token for this character
+    const token = tokens.find(t => t.type === 'character' && t.characterId === selectedCharacter.id);
+    if (!token) return;
+
+    const isOwner = token.ownerId === user.uid;
+    const isCharacterOwner = token.characterId === selectedCharacter.id;
+
+    if (!isOwner && !isCharacterOwner && !isGM) {
+      toast({
+        title: 'Erro',
+        description: 'Você não tem permissão para remover este token.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    await deleteToken(token.id);
+    addLog(`${selectedCharacter.name} saiu da cena`, 'system');
   };
 
   return (
@@ -401,6 +425,7 @@ export function VTTPage() {
           onOpenFullSheet={() => setShowSheet(true)}
           onOpenDice={() => openDiceRoller()}
           onAddCharacterToScene={handleAddCharacterToScene}
+          onRemoveCharacterFromScene={handleRemoveCharacterFromScene}
           isCharacterInScene={isCharacterInScene}
           isGM={isGM}
           scenes={scenes}
@@ -479,6 +504,7 @@ export function VTTPage() {
                   onInvokeAspect={invokeAspect}
                   isGM={isGM}
                   currentUserId={user?.uid}
+                  activeCharacterId={activeCharacter?.id}
                   onMoveToken={updateTokenPosition}
                   onDeleteToken={async (id) => {
                     const token = tokens.find(t => t.id === id);
