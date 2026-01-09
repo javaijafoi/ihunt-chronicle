@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -15,8 +15,10 @@ import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
+import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ActionType, Character, Token } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +31,7 @@ export function VTTPage() {
 
   const { user, userProfile, loading: authLoading } = useAuth();
   const { currentSession, leaveSession, isGM } = useSession();
-  const { partyCharacters, presenceMap } = usePartyCharacters();
+  const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters();
 
   const sessionId = currentSession?.id || GLOBAL_SESSION_ID;
 
@@ -58,6 +60,7 @@ export function VTTPage() {
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
+  const [showArchetypes, setShowArchetypes] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
@@ -149,6 +152,7 @@ export function VTTPage() {
   const handleLeaveSession = async () => {
     await leaveSession();
     setActiveCharacter(null);
+    navigate('/');
   };
 
   const handleInvokeAspect = (characterName: string, aspect: string) => {
@@ -165,6 +169,15 @@ export function VTTPage() {
     const diceResult = rollDice(modifier, skill, action, type, opposition);
     void createRollLog(diceResult);
     return diceResult;
+  };
+
+  const handleFastRoll = async () => {
+    const diceResult = rollDice(0, undefined, undefined, 'normal');
+    void createRollLog(diceResult);
+    toast({
+      title: 'Rolagem Rápida',
+      description: 'Rolando 4 dados Fate...',
+    });
   };
 
   const isSessionGM = user?.uid === currentSession?.gmId;
@@ -263,7 +276,7 @@ export function VTTPage() {
                     <LogOut className="w-3 h-3 text-muted-foreground" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Trocar Personagem</TooltipContent>
+                <TooltipContent>Sair da Sessão</TooltipContent>
               </Tooltip>
             </div>
           )}
@@ -304,6 +317,18 @@ export function VTTPage() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
+                onClick={handleFastRoll}
+                className="p-2.5 rounded-lg glass-panel hover:bg-muted transition-colors text-yellow-500 hover:text-yellow-600"
+              >
+                <Zap className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Rolar Rápido (4dF)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
                 onClick={() => openDiceRoller()}
                 className={`p-2.5 rounded-lg transition-colors ${showDice ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'
                   }`}
@@ -326,6 +351,20 @@ export function VTTPage() {
             </TooltipTrigger>
             <TooltipContent>Ficha do Personagem</TooltipContent>
           </Tooltip>
+
+          {isGM && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowArchetypes(true)}
+                  className={`p-2.5 rounded-lg transition-colors ${showArchetypes ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'}`}
+                >
+                  <Database className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Base de Arquétipos</TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -351,6 +390,7 @@ export function VTTPage() {
       <div className="flex-1 flex min-h-0">
         <LeftSidebar
           partyCharacters={partyCharacters}
+          archivedCharacters={archivedCharacters}
           myCharacterId={activeCharacter?.id}
           onViewCharacter={setViewingCharacter}
           onInvokeAspect={handleInvokeAspect}
@@ -565,6 +605,22 @@ export function VTTPage() {
       </AnimatePresence>
 
       <SafetyCard isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} isGM={isGM} />
+
+      {/* Archetype Database Modal */}
+      <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
+        <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-background/95 backdrop-blur-sm border-border">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
+            <h2 className="font-display text-xl flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              Base de Arquétipos
+            </h2>
+            {/* Close button is automatic in DialogContent usually, but we can have custom if needed */}
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden p-4">
+            <ArchetypeDatabase sessionId={sessionId} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

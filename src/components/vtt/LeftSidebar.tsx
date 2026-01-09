@@ -11,6 +11,7 @@ interface LeftSidebarProps {
   sessionId: string;
   // Party
   partyCharacters: PartyCharacter[];
+  archivedCharacters?: PartyCharacter[];
   myCharacterId?: string;
   onViewCharacter: (char: PartyCharacter) => void;
   onInvokeAspect: (characterName: string, aspect: string) => void;
@@ -100,6 +101,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
             // Re-added party props that GMPanel seems to take?
             // GMPanel takes partyCharacters and onEditCharacter.
             partyCharacters={props.partyCharacters}
+            archivedCharacters={props.archivedCharacters}
             onEditCharacter={props.onEditCharacter || (() => { })}
           />
         ) : null;

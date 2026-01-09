@@ -48,14 +48,14 @@ export function useFirebaseCharacters(sessionId: string) {
       q,
       (snapshot) => {
         const chars: Character[] = snapshot.docs.map(doc => {
-          const data = doc.data();
+          const data = doc.data() as Character & { ownerId?: string };
           return {
             id: doc.id,
             ...data,
             sessionId: data.sessionId || GLOBAL_SESSION_ID,
-            createdBy: data.createdBy || (data as { ownerId?: string }).ownerId || 'desconhecido',
-          } as Character;
-        });
+            createdBy: data.createdBy || data.ownerId || 'desconhecido',
+          };
+        }).filter(char => !(char as Character).isArchived) as Character[];
         setCharacters(chars);
         setLoading(false);
       },
@@ -129,6 +129,48 @@ export function useFirebaseCharacters(sessionId: string) {
     }
   }, []);
 
+  const archiveCharacter = useCallback(async (id: string) => {
+    try {
+      const docRef = doc(db, 'characters', id);
+      await updateDoc(docRef, {
+        isArchived: true,
+        updatedAt: serverTimestamp(),
+      });
+      toast({
+        title: 'Personagem arquivado',
+        description: 'O personagem foi movido para o arquivo.',
+      });
+    } catch (error) {
+      console.error('Error archiving character:', error);
+      toast({
+        title: 'Erro ao arquivar',
+        description: 'Não foi possível arquivar o personagem.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
+
+  const unarchiveCharacter = useCallback(async (id: string) => {
+    try {
+      const docRef = doc(db, 'characters', id);
+      await updateDoc(docRef, {
+        isArchived: false,
+        updatedAt: serverTimestamp(),
+      });
+      toast({
+        title: 'Personagem recuperado',
+        description: 'O personagem foi movido de volta para a lista principal.',
+      });
+    } catch (error) {
+      console.error('Error unarchiving character:', error);
+      toast({
+        title: 'Erro ao desafazer arquivamento',
+        description: 'Não foi possível recuperar o personagem.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
+
   const duplicateCharacter = useCallback(async (id: string): Promise<Character | null> => {
     const original = characters.find(c => c.id === id);
     if (!original || !user || !sessionId) return null;
@@ -149,5 +191,7 @@ export function useFirebaseCharacters(sessionId: string) {
     updateCharacter,
     deleteCharacter,
     duplicateCharacter,
+    archiveCharacter,
+    unarchiveCharacter,
   };
 }

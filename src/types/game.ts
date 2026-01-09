@@ -25,6 +25,7 @@ export interface Character {
   createdBy: string;
   name: string;
   avatar?: string;
+  isArchived?: boolean; // Soft delete
   drive?: DriveName;
   aspects: {
     highConcept: string;

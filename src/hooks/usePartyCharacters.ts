@@ -134,11 +134,16 @@ export function usePartyCharacters() {
     };
   }, [currentSession, presenceMap]);
 
-  const myCharacter = partyCharacters.find(c => c.ownerId === user?.uid) || null;
-  const otherCharacters = partyCharacters.filter(c => c.ownerId !== user?.uid);
+  // Separate active and archived characters
+  const activePartyCharacters = partyCharacters.filter(c => !c.isArchived);
+  const archivedPartyCharacters = partyCharacters.filter(c => c.isArchived);
+
+  const myCharacter = activePartyCharacters.find(c => c.ownerId === user?.uid) || null;
+  const otherCharacters = activePartyCharacters.filter(c => c.ownerId !== user?.uid);
 
   return {
-    partyCharacters,
+    partyCharacters: activePartyCharacters,
+    archivedCharacters: archivedPartyCharacters,
     presenceMap,
     myCharacter,
     otherCharacters,
