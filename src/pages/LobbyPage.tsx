@@ -17,7 +17,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useScenes } from '@/hooks/useScenes';
-import { CharacterSeeder } from '@/components/vtt/CharacterSeeder';
 
 export function LobbyPage() {
   const navigate = useNavigate();
