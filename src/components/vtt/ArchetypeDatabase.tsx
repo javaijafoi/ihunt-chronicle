@@ -173,13 +173,9 @@ export function ArchetypeDatabase({ sessionId }: ArchetypeDatabaseProps) {
 
                 <div className="flex items-center justify-between pt-3 border-t border-border/50 mt-auto">
                   <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
-                    <div className="flex items-center gap-1" title="Estresse Físico">
+                    <div className="flex items-center gap-1" title="Total de Estresse">
                       <div className="w-2 h-2 rounded-full bg-rose-500/70" />
-                      {archetype.stress.physical}
-                    </div>
-                    <div className="flex items-center gap-1" title="Estresse Mental">
-                      <div className="w-2 h-2 rounded-full bg-blue-500/70" />
-                      {archetype.stress.mental}
+                      {archetype.stress} boxes
                     </div>
                   </div>
 

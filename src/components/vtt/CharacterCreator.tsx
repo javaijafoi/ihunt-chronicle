@@ -38,6 +38,7 @@ const BASE_CHARACTER: Omit<Character, 'id' | 'sessionId' | 'createdBy'> = {
   },
   skills: {},
   maneuvers: [],
+  selfies: [],
   stress: {
     physical: [false, false, false],
     mental: [false, false, false],
