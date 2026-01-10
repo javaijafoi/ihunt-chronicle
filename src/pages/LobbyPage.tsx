@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { userProfile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { userProfile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
   const { claimGmRole, currentSession, joinAsGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
 
@@ -139,6 +139,7 @@ export function LobbyPage() {
                   onError={setAuthError}
                   signInWithEmail={signInWithEmail}
                   signUpWithEmail={signUpWithEmail}
+                  resetPassword={resetPassword}
                 />
               </>
             )}
@@ -160,17 +161,38 @@ export function LobbyPage() {
 function AuthForm({
   onError,
   signInWithEmail,
-  signUpWithEmail
+  signUpWithEmail,
+  resetPassword
 }: {
   onError: (msg: string) => void;
   signInWithEmail: (e: string, p: string) => Promise<void>;
   signUpWithEmail: (e: string, p: string, n: string) => Promise<void>;
+  resetPassword: (e: string) => Promise<void>;
 }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      onError('Digite seu email para recuperar a senha.');
+      return;
+    }
+    setLoading(true);
+    onError('');
+    try {
+      await resetPassword(email);
+      onError('Email de recuperação enviado! Verifique sua caixa de entrada.');
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/user-not-found') onError('Email não cadastrado.');
+      else onError('Erro ao enviar email. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +269,18 @@ function AuthForm({
             disabled={loading}
             className="bg-background/50"
           />
+          {!isRegistering && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                disabled={loading}
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
