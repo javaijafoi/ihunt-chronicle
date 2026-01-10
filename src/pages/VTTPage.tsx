@@ -7,12 +7,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useScenes } from '@/hooks/useScenes';
-import { useActiveNPCs } from '@/hooks/useActiveNPCs'; // Replaces useMonsters/useNPCs
+import { useActiveNPCs } from '@/hooks/useActiveNPCs';
 import { useTokens } from '@/hooks/useTokens';
 import { toast } from '@/hooks/use-toast';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
-import { SafetyCard } from '@/components/vtt/SafetyCard';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
@@ -24,6 +23,11 @@ import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
 
+// Safety Tools Imports
+import { SafetyControls } from '@/components/vtt/safety/SafetyControls';
+import { XCardOverlay } from '@/components/vtt/safety/XCardOverlay';
+import { useSafetyTools } from '@/hooks/useSafetyTools';
+
 const appVersion = import.meta.env.APP_VERSION;
 
 export function VTTPage() {
@@ -34,6 +38,17 @@ export function VTTPage() {
   const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters();
 
   const sessionId = currentSession?.id || GLOBAL_SESSION_ID;
+
+  // Initialize Safety Tools
+  const {
+    safetyState,
+    mySettings,
+    aggregatedLevels,
+    updateMySetting,
+    triggerXCard,
+    resolveXCard,
+    togglePause
+  } = useSafetyTools(sessionId, isGM);
 
   const {
     scenes,
@@ -61,7 +76,7 @@ export function VTTPage() {
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showArchetypes, setShowArchetypes] = useState(false);
-  const [isSafetyOpen, setIsSafetyOpen] = useState(false);
+  // const [isSafetyOpen, setIsSafetyOpen] = useState(false); // Removed legacy state
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
   // Merge Tokens with ActiveNPC data for live updates
@@ -121,12 +136,7 @@ export function VTTPage() {
 
   // GM Kickback Logic
   useEffect(() => {
-    // If user thinks they are GM (isGM boolean derived from hook)
-    // AND currentSession.gmId exists but is NOT the user
-    // It means someone else claimed the throne.
     if (isGM && currentSession?.gmId && currentSession.gmId !== user?.uid) {
-      // Force a re-render/return to selection logic implicitly by isGM becoming false.
-      // We just need to notify. The navigation happens automatically because !isGM && !activeCharacter -> CharacterSelect.
       toast({
         title: "Acesso de Mestre Revogado",
         description: "Outro usuário assumiu o controle da mesa.",
@@ -230,10 +240,10 @@ export function VTTPage() {
   const handleRemoveCharacterFromScene = async () => {
     if (!selectedCharacter || !user) return;
 
-    // Find the token for this character
     const token = tokens.find(t => t.type === 'character' && t.characterId === selectedCharacter.id);
     if (!token) return;
 
+    // FIX: Relaxed permission check
     const isOwner = token.ownerId === user.uid;
     const isCharacterOwner = token.characterId === selectedCharacter.id;
 
@@ -390,17 +400,14 @@ export function VTTPage() {
             </Tooltip>
           )}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setIsSafetyOpen(true)}
-                className="p-2.5 rounded-lg glass-panel hover:bg-muted transition-colors"
-              >
-                <Shield className="w-5 h-5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Ferramentas de Segurança</TooltipContent>
-          </Tooltip>
+          {/* New Safety Controls */}
+          <SafetyControls
+            mySettings={mySettings}
+            aggregatedLevels={aggregatedLevels}
+            onUpdateSetting={updateMySetting}
+            onTriggerXCard={triggerXCard}
+            onTogglePause={togglePause}
+          />
         </div>
 
         <div className="glass-panel px-3 py-1.5 flex items-center gap-2">
@@ -410,6 +417,20 @@ export function VTTPage() {
           </span>
         </div>
       </motion.header>
+
+      {/* Safety Overlay */}
+      <XCardOverlay
+        safetyState={safetyState}
+        currentUserId={user?.uid}
+        isGM={isGM}
+        onResolve={() => {
+          if (safetyState.xCardTriggeredBy) {
+            resolveXCard();
+          } else {
+            togglePause();
+          }
+        }}
+      />
 
       <div className="flex-1 flex min-h-0">
         <LeftSidebar
@@ -440,7 +461,6 @@ export function VTTPage() {
           onArchiveScene={archiveScene}
           onUnarchiveScene={unarchiveScene}
           minAspects={MIN_ASPECTS}
-          // Updated props for GMPanel inside LeftSidebar
           sessionId={sessionId}
           onEditCharacter={(character) => {
             setViewingCharacter(character as PartyCharacter);
@@ -510,7 +530,6 @@ export function VTTPage() {
                     const token = tokens.find(t => t.id === id);
                     if (token) {
                       await deleteToken(id);
-                      // Sync NPC state if it's an NPC token
                       if (token.type === 'npc' && token.npcId) {
                         updateNPC(token.npcId, { hasToken: false });
                       }
@@ -630,8 +649,6 @@ export function VTTPage() {
         )}
       </AnimatePresence>
 
-      <SafetyCard isOpen={isSafetyOpen} onClose={() => setIsSafetyOpen(false)} isGM={isGM} />
-
       {/* Archetype Database Modal */}
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
         <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-background/95 backdrop-blur-sm border-border">
@@ -640,7 +657,6 @@ export function VTTPage() {
               <Database className="w-5 h-5 text-primary" />
               Base de Arquétipos
             </h2>
-            {/* Close button is automatic in DialogContent usually, but we can have custom if needed */}
           </div>
           <div className="flex-1 min-h-0 overflow-hidden p-4">
             <ArchetypeDatabase sessionId={sessionId} />
