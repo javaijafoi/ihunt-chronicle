@@ -5,6 +5,115 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // --- NEW CAMPAIGN ARCHITECTURE HELPERS ---
+    
+    function isCampaignMember(campaignId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid));
+    }
+
+    function isCampaignGM(campaignId) {
+      // Check if member doc exists AND role is 'gm'
+      let memberPath = /databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid);
+      return isSignedIn() && exists(memberPath) && get(memberPath).data.role == 'gm';
+    }
+
+    // --- CAMPAIGNS & SUBCOLLECTIONS ---
+
+    match /campaigns/{campaignId} {
+      // Allow read if signed in (for joining via code or listing)
+      // Ideally restrict list to "my campaigns", but "get" needs to be open for joining.
+      allow read: if isSignedIn();
+      
+      allow create: if isSignedIn() && request.resource.data.gmId == request.auth.uid;
+      allow update: if isCampaignGM(campaignId) && request.resource.data.gmId == resource.data.gmId;
+      allow delete: if isCampaignGM(campaignId);
+
+      match /members/{memberId} {
+        // Members can read the member list
+        allow read: if isCampaignMember(campaignId) || (isSignedIn() && request.auth.uid == memberId);
+        
+        // Joining: User creates their own member record
+        allow create: if isSignedIn() && request.auth.uid == memberId;
+        
+        // Updating: GM can update roles, User can update their own config (e.g. selected character)
+        allow update: if isCampaignGM(campaignId) || request.auth.uid == memberId;
+        
+        // Deleting: GM can kick, User can leave
+        allow delete: if isCampaignGM(campaignId) || request.auth.uid == memberId;
+      }
+    }
+
+    // --- ROOT LEVEL COLLECTIONS LINKED BY campaignId ---
+
+    // Seasons
+    match /seasons/{seasonId} {
+      allow read: if isCampaignMember(resource.data.campaignId);
+      allow create: if isCampaignGM(request.resource.data.campaignId);
+      allow update, delete: if isCampaignGM(resource.data.campaignId);
+    }
+
+    // Stories
+    match /stories/{storyId} {
+      allow read: if isCampaignMember(resource.data.campaignId);
+      allow create: if isCampaignGM(request.resource.data.campaignId);
+      allow update, delete: if isCampaignGM(resource.data.campaignId);
+    }
+
+    // Episodes
+    match /episodes/{episodeId} {
+      allow read: if isCampaignMember(resource.data.campaignId);
+      allow create: if isCampaignGM(request.resource.data.campaignId);
+      allow update, delete: if isCampaignGM(resource.data.campaignId);
+    }
+
+    // Scenes (New Schema)
+    match /scenes/{sceneId} {
+      allow read: if isCampaignMember(resource.data.campaignId);
+      allow create: if isCampaignGM(request.resource.data.campaignId);
+      allow update, delete: if isCampaignGM(resource.data.campaignId);
+    }
+
+    // Active NPCs (New Schema)
+    match /activeNpcs/{npcId} {
+       allow read: if isCampaignMember(resource.data.campaignId);
+       allow create: if isCampaignGM(request.resource.data.campaignId);
+       allow update, delete: if isCampaignGM(resource.data.campaignId);
+    }
+    
+    // Tokens (New Schema)
+    match /tokens/{tokenId} {
+       allow read: if isCampaignMember(resource.data.campaignId);
+       allow create: if isCampaignGM(request.resource.data.campaignId);
+       // GM can update any token. Players can update their own Character tokens (movement).
+       allow update: if isCampaignGM(resource.data.campaignId) 
+          || (isCampaignMember(resource.data.campaignId) && resource.data.type == 'character' && resource.data.ownerId == request.auth.uid);
+       allow delete: if isCampaignGM(resource.data.campaignId);
+    }
+
+    // --- CHARACTERS (Hybrid / Migration) ---
+    // Characters are root level. New chars have campaignId. Old chars have sessionId.
+    match /characters/{characterId} {
+      // New Logic: Check campaignId
+      allow read: if isSignedIn() && (
+         (resource.data.campaignId != null && isCampaignMember(resource.data.campaignId)) ||
+         (resource.data.sessionId != null && canAccessSession(resource.data.sessionId))
+      );
+
+      allow create: if isSignedIn() && (
+         (request.resource.data.campaignId != null && isCampaignMember(request.resource.data.campaignId)) ||
+         (request.resource.data.sessionId != null && canAccessSession(request.resource.data.sessionId))
+      );
+      
+      allow update, delete: if isSignedIn() && (
+         // Campaign Logic
+         (resource.data.campaignId != null && (resource.data.userId == request.auth.uid || isCampaignGM(resource.data.campaignId))) ||
+         // Legacy Session Logic
+         (resource.data.sessionId != null && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId)))
+      );
+    }
+
+    // --- LEGACY SESSION LOGIC (Keep for now) ---
+
     function sessionSnapshot(sessionId) {
       return get(/databases/$(database)/documents/sessions/$(sessionId));
     }
@@ -40,21 +149,6 @@ service cloud.firestore {
       return isSessionGm(sessionId) || hasSessionPresence(sessionId);
     }
 
-    match /characters/{characterId} {
-      allow read: if isSignedIn()
-        && resource.data.sessionId != null
-        && canAccessSession(resource.data.sessionId);
-
-      allow create: if isSignedIn()
-        && request.resource.data.sessionId != null
-        && canAccessSession(request.resource.data.sessionId);
-
-      allow update, delete: if isSignedIn()
-        && resource.data.sessionId != null
-        && canAccessSession(resource.data.sessionId)
-        && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId));
-    }
-
     match /sessions/{sessionId} {
       allow create: if isSignedIn()
         && (request.resource.data.gmId == null
@@ -83,25 +177,23 @@ service cloud.firestore {
             || isSessionGm(sessionId));
       }
 
-      // Scenes subcollection - only GM can write
+      // Legacy Subcollections (Only GM can write usually in VTT, except Tokens)
       match /scenes/{sceneId} {
         allow read: if canAccessSession(sessionId);
         allow create, update, delete: if isSessionGm(sessionId);
       }
-
-      // Archetypes subcollection - only GM can write
+      
+      // Note: Archetypes was global or subcollection? Previous rules had it here.
       match /archetypes/{archetypeId} {
         allow read: if canAccessSession(sessionId);
         allow create, update, delete: if isSessionGm(sessionId);
       }
 
-      // Active NPCs subcollection - only GM can write
       match /activeNpcs/{activeNpcId} {
         allow read: if canAccessSession(sessionId);
         allow create, update, delete: if isSessionGm(sessionId);
       }
 
-      // Tokens subcollection - GM can write, players can update their own character tokens
       match /tokens/{tokenId} {
         allow read: if canAccessSession(sessionId);
         allow create, delete: if isSessionGm(sessionId);

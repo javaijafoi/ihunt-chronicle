@@ -72,9 +72,40 @@ export function SelfieTimeline({
 
     const handleCreateSelfie = async (newSelfie: Selfie) => {
         if (!myCharacter) return;
+
+        // Find a slot to use
+        // Prioritize slots of the specific type, but for 'mood' usually any 'mood' slot works.
+        // For now, simple logic: Find first unused slot of type 'mood' (since newSelfie from form is usually mood/default?)
+        // Actually NewSelfieForm might allow selecting type? Or usually it's Mood.
+        // Let's assume NewSelfieForm creates a 'mood' selfie by default or we check newSelfie.type.
+
+        const slots = myCharacter.selfieSlots || [];
+        const slotIndex = slots.findIndex(s => !s.used && s.type === newSelfie.type);
+
+        // Allow GM to bypass slot requirement? Or just enforce it?
+        // Let's enforce it for players.
+        if (slotIndex === -1 && !isGM) {
+            toast({ title: 'Sem slots disponíveis', description: `Você não tem slots de ${newSelfie.type} disponíveis.`, variant: 'destructive' });
+            return;
+        }
+
         try {
             const updatedSelfies = [newSelfie, ...(myCharacter.selfies || [])];
-            await onUpdateCharacter(myCharacter.id, { selfies: updatedSelfies });
+            let updatedSlots = [...slots];
+
+            if (slotIndex !== -1) {
+                updatedSlots[slotIndex] = {
+                    ...updatedSlots[slotIndex],
+                    used: true,
+                    usedAt: new Date() // Will be converted to Timestamp by Firestore
+                } as any;
+            }
+
+            await onUpdateCharacter(myCharacter.id, {
+                selfies: updatedSelfies,
+                selfieSlots: updatedSlots
+            });
+
             toast({ title: 'Selfie Publicada!', description: 'Agora escolha sua evolução.' });
             setAdvancementSelfie(newSelfie);
             setShowNewSelfie(false);
@@ -136,10 +167,24 @@ export function SelfieTimeline({
                 </div>
 
                 {myCharacter && (
-                    <Button size="sm" onClick={() => setShowNewSelfie(true)} className="h-7 text-xs gap-1">
-                        <Plus className="w-3 h-3" />
-                        Nova Selfie
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {/* Slots Indicator */}
+                        <div className="flex gap-1">
+                            {(myCharacter.selfieSlots || []).filter(s => !s.used).map((slot, i) => (
+                                <div key={i} className={cn("w-2 h-2 rounded-full", slot.type === 'mood' ? "bg-blue-400" : slot.type === 'auge' ? "bg-amber-400" : "bg-red-400")} title={`Slot disponível: ${slot.type}`} />
+                            ))}
+                        </div>
+
+                        <Button
+                            size="sm"
+                            onClick={() => setShowNewSelfie(true)}
+                            className="h-7 text-xs gap-1"
+                            disabled={!isGM && (myCharacter.selfieSlots || []).filter(s => !s.used).length === 0}
+                        >
+                            <Plus className="w-3 h-3" />
+                            Nova Selfie
+                        </Button>
+                    </div>
                 )}
             </div>
 

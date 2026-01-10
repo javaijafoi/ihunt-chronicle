@@ -20,7 +20,7 @@ import {
     SAFETY_LEVELS
 } from '@/types/safety';
 
-export function useSafetyTools(sessionId: string, isGM: boolean) {
+export function useSafetyTools(episodeId: string | undefined, campaignId: string | undefined, isGM: boolean) {
     const { user } = useAuth();
     const [safetyState, setSafetyState] = useState<SafetyState>({
         isPaused: false,
@@ -32,16 +32,15 @@ export function useSafetyTools(sessionId: string, isGM: boolean) {
     const [mySettings, setMySettings] = useState<Record<string, SafetyLevel>>({});
     const [loading, setLoading] = useState(true);
 
-    // 1. Listen to Safety State (Global for Session)
+    // 1. Listen to Safety State (Episode Level)
     useEffect(() => {
-        if (!sessionId) return;
-        const stateRef = doc(db, 'sessions', sessionId, 'safety', 'state');
+        if (!episodeId) return;
+        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
 
         const unsubscribe = onSnapshot(stateRef, (snap) => {
             if (snap.exists()) {
                 setSafetyState(snap.data() as SafetyState);
             } else {
-                // Initialize if doesn't exist (only GM ideally, but safe to allow race)
                 if (isGM) {
                     setDoc(stateRef, {
                         isPaused: false,
@@ -53,12 +52,12 @@ export function useSafetyTools(sessionId: string, isGM: boolean) {
         });
 
         return () => unsubscribe();
-    }, [sessionId, isGM]);
+    }, [episodeId, isGM]);
 
-    // 2. Listen to All Player Settings (for Aggregation)
+    // 2. Listen to All Player Settings (Campaign Level)
     useEffect(() => {
-        if (!sessionId) return;
-        const settingsCol = collection(db, 'sessions', sessionId, 'safety_settings');
+        if (!campaignId) return;
+        const settingsCol = collection(db, 'campaigns', campaignId, 'safety_settings');
 
         const unsubscribe = onSnapshot(settingsCol, (snapshot) => {
             const allSettings: PlayerSafetySetting[] = [];
@@ -67,7 +66,6 @@ export function useSafetyTools(sessionId: string, isGM: boolean) {
             snapshot.docs.forEach(doc => {
                 const data = doc.data();
                 if (data.settings) {
-                    // data.settings is Record<topicId, level>
                     Object.entries(data.settings as Record<string, SafetyLevel>).forEach(([topicId, level]) => {
                         allSettings.push({
                             userId: doc.id,
@@ -88,7 +86,7 @@ export function useSafetyTools(sessionId: string, isGM: boolean) {
         });
 
         return () => unsubscribe();
-    }, [sessionId, user]);
+    }, [campaignId, user]);
 
     // 3. Computed Aggregated Level
     const aggregatedLevels = useMemo(() => {
@@ -118,49 +116,47 @@ export function useSafetyTools(sessionId: string, isGM: boolean) {
     // Actions
 
     const updateMySetting = useCallback(async (topicId: string, level: SafetyLevel) => {
-        if (!user || !sessionId) return;
+        if (!user || !campaignId) return;
 
-        const userSettingsRef = doc(db, 'sessions', sessionId, 'safety_settings', user.uid);
-        // Use merge to update single topic without wiping others
+        const userSettingsRef = doc(db, 'campaigns', campaignId, 'safety_settings', user.uid);
         await setDoc(userSettingsRef, {
             settings: {
                 [topicId]: level
             },
             updatedAt: serverTimestamp()
         }, { merge: true });
-    }, [user, sessionId]);
+    }, [user, campaignId]);
 
     const triggerXCard = useCallback(async () => {
-        if (!user || !sessionId) return;
-        const stateRef = doc(db, 'sessions', sessionId, 'safety', 'state');
+        if (!user || !episodeId) return;
+        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
         await setDoc(stateRef, {
-            isPaused: true, // X-Card implies immediate stop
+            isPaused: true,
             xCardTriggeredBy: user.uid,
             lastUpdated: serverTimestamp()
         }, { merge: true });
-    }, [user, sessionId]);
+    }, [user, episodeId]);
 
     const resolveXCard = useCallback(async () => {
-        // Only Triggerer or GM should call this (checked in UI, enforce in Rules ideally)
-        if (!user || !sessionId) return;
-        const stateRef = doc(db, 'sessions', sessionId, 'safety', 'state');
+        if (!user || !episodeId) return;
+        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
         await updateDoc(stateRef, {
             isPaused: false,
             xCardTriggeredBy: null,
             lastUpdated: serverTimestamp()
         });
-    }, [user, sessionId]);
+    }, [user, episodeId]);
 
     const togglePause = useCallback(async () => {
-        if (!sessionId) return;
-        if (safetyState.xCardTriggeredBy) return; // Cannot unpause X-Card via normal pause
+        if (!episodeId) return;
+        if (safetyState.xCardTriggeredBy) return;
 
-        const stateRef = doc(db, 'sessions', sessionId, 'safety', 'state');
+        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
         await updateDoc(stateRef, {
             isPaused: !safetyState.isPaused,
             lastUpdated: serverTimestamp()
         });
-    }, [sessionId, safetyState]);
+    }, [episodeId, safetyState]);
 
     return {
         safetyState,

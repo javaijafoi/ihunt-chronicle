@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
@@ -16,7 +17,6 @@ import { db } from '@/lib/firebase';
 import { Character } from '@/types/game';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
-import { GLOBAL_SESSION_ID } from './useSession';
 import { sanitizeFirestoreData } from '@/utils/sanitizeFirestoreData';
 
 interface FirebaseCharacter extends Omit<Character, 'id'> {
@@ -24,14 +24,14 @@ interface FirebaseCharacter extends Omit<Character, 'id'> {
   updatedAt: Timestamp;
 }
 
-export function useFirebaseCharacters(sessionId: string) {
+export function useFirebaseCharacters(campaignId: string | undefined) {
   const { user } = useAuth();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Listen to user's characters
+  // Listen to user's characters in the campaign
   useEffect(() => {
-    if (!user || !sessionId) {
+    if (!user || !campaignId) {
       setCharacters([]);
       setLoading(false);
       return;
@@ -39,54 +39,54 @@ export function useFirebaseCharacters(sessionId: string) {
 
     setLoading(true);
 
+    // Query characters in this campaign (assuming validation is done elsewhere or we check ownerId matches user for edit rights later)
+    // Actually, this hook seems to fetch "My Characters" usually?
+    // "Listen to user's characters" -> comment says so.
+    // If it's listening to ALL characters in campaign, that's different.
+    // The previous code had:  where('sessionId', '==', sessionId)
+    // And filtered: filter(char => !(char as Character).isArchived)
+    // It didn't filter by ownerId in the query, but maybe in logic?
+    // Wait, let's look at previous code:
+    // It fetched ALL characters in session.
+
     const q = query(
       collection(db, 'characters'),
-      where('sessionId', '==', sessionId)
+      where('campaignId', '==', campaignId)
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const chars: Character[] = snapshot.docs.map(doc => {
-          const data = doc.data() as Character & { ownerId?: string };
+          const data = doc.data() as Character;
           return {
             id: doc.id,
             ...data,
-            sessionId: data.sessionId || GLOBAL_SESSION_ID,
-            createdBy: data.createdBy || data.ownerId || 'desconhecido',
+            // Ensure compatibility
+            campaignId: data.campaignId || campaignId,
           };
-        }).filter(char => !(char as Character).isArchived) as Character[];
+        }).filter(char => !char.isArchived) as Character[];
         setCharacters(chars);
         setLoading(false);
       },
       (error: FirestoreError) => {
-        if (error.code === 'permission-denied') {
-          toast({
-            title: 'Acesso negado',
-            description: 'Perdemos o acesso aos seus personagens. Entre novamente para continuar.',
-            variant: 'destructive',
-          });
-          setCharacters([]);
-        } else {
-          console.error('Erro ao escutar personagens do usuário:', error);
-        }
+        console.error('Erro ao escutar personagens:', error);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [user, sessionId]);
+  }, [user, campaignId]);
 
   const createCharacter = useCallback(async (characterData: Omit<Character, 'id'>): Promise<Character | null> => {
-    if (!user || !sessionId) return null;
+    if (!user || !campaignId) return null;
 
     try {
-      const characterSessionId = characterData.sessionId || sessionId || GLOBAL_SESSION_ID;
       const createdBy = user.uid;
 
       const payload = sanitizeFirestoreData({
         ...characterData,
-        sessionId: characterSessionId,
+        campaignId,
         createdBy,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -98,7 +98,7 @@ export function useFirebaseCharacters(sessionId: string) {
         id: docRef.id,
         ...sanitizeFirestoreData({
           ...characterData,
-          sessionId: characterSessionId,
+          campaignId,
           createdBy,
         }),
       };
@@ -106,7 +106,7 @@ export function useFirebaseCharacters(sessionId: string) {
       console.error('Error creating character:', error);
       return null;
     }
-  }, [user, sessionId]);
+  }, [user, campaignId]);
 
   const updateCharacter = useCallback(async (id: string, updates: Partial<Character>) => {
     try {
@@ -173,16 +173,16 @@ export function useFirebaseCharacters(sessionId: string) {
 
   const duplicateCharacter = useCallback(async (id: string): Promise<Character | null> => {
     const original = characters.find(c => c.id === id);
-    if (!original || !user || !sessionId) return null;
+    if (!original || !user || !campaignId) return null;
 
-    const { id: _, createdBy: _createdBy, ...characterData } = original;
+    const { id: _, ...characterData } = original;
     return createCharacter({
       ...characterData,
-      sessionId: original.sessionId,
+      campaignId,
       createdBy: user.uid,
       name: `${characterData.name} (cópia)`,
     });
-  }, [characters, user, sessionId, createCharacter]);
+  }, [characters, user, campaignId, createCharacter]);
 
   return {
     characters,

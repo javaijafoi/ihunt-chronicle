@@ -1,5 +1,7 @@
 // iHUNT VTT Core Types
 
+import { Timestamp } from 'firebase/firestore';
+
 export type DriveName = 'malina' | 'cavalo' | 'fui' | 'os66';
 
 export interface Maneuver {
@@ -21,8 +23,10 @@ export interface Drive {
 
 export interface Character {
   id: string;
-  sessionId: string;
-  createdBy: string;
+  sessionId?: string; // @deprecated use campaignId
+  campaignId: string;
+  userId: string; // Owner ID (former createdBy, normalized)
+  createdBy: string; // Keep for legacy or alias to userId
   name: string;
   avatar?: string;
   isArchived?: boolean; // Soft delete
@@ -37,6 +41,7 @@ export interface Character {
   skills: Record<string, number>;
   maneuvers: string[];
   selfies: Selfie[];
+  selfieSlots?: SelfieSlot[]; // New progression system
   stress: {
     physical: boolean[];
     mental: boolean[];
@@ -120,6 +125,9 @@ export interface Scene {
   background?: string;
   aspects: SceneAspect[];
   isActive: boolean;
+  order: number;
+  episodeId: string;
+  campaignId: string;
 }
 
 export type TokenType = 'character' | 'monster' | 'npc';
@@ -127,6 +135,8 @@ export type TokenType = 'character' | 'monster' | 'npc';
 export interface Token {
   id: string;
   characterId?: string; // Reference to character/monster/NPC
+  campaignId: string;
+  sceneId: string;
   npcId?: string; // Reference to ActiveNPC
   type: TokenType;
   x: number;
@@ -156,6 +166,15 @@ export interface Selfie {
   usedAt?: string; // ISO Date da última utilização
 }
 
+export interface SelfieSlot {
+  id: string;
+  type: SelfieType;
+  grantedBy: string; // episodeId
+  used: boolean;
+  usedAt?: Timestamp | Date;
+  createdAt: Timestamp | Date;
+}
+
 // ========== ARCHETYPE SYSTEM ==========
 
 // ========== ARCHETYPE SYSTEM ==========
@@ -164,6 +183,7 @@ export type ArchetypeKind = 'pessoa' | 'monstro';
 
 export interface Archetype {
   id: string;
+  campaignId: string | null; // null = global
   name: string;
   kind: ArchetypeKind;
   description?: string;
@@ -184,6 +204,8 @@ export interface Archetype {
 
 export interface ActiveNPC {
   id: string;
+  campaignId: string;
+  episodeId: string | null;
   name: string; // Nome único na sessão (ex: "Vlad")
   archetypeId: string; // Referência ao arquétipo original
   archetypeName: string; // Cache do nome do arquétipo (ex: "Vampiro Comum")

@@ -7,6 +7,8 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  query,
+  where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Token } from '@/types/game';
@@ -76,7 +78,7 @@ const sanitizeTokenPayload = <T extends Record<string, unknown>>(data: T): T => 
   return normalized as T;
 };
 
-export function useTokens(sessionId: string) {
+export function useTokens(sceneId: string | undefined, campaignId: string | undefined) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const pendingUpdates = useRef<Map<string, { x: number; y: number }>>(new Map());
@@ -84,16 +86,20 @@ export function useTokens(sessionId: string) {
 
   // Subscribe to tokens collection
   useEffect(() => {
-    if (!sessionId) {
+    if (!sceneId) {
       setTokens([]);
       setLoading(false);
       return;
     }
 
-    const tokensRef = collection(db, 'sessions', sessionId, 'tokens');
+    const tokensRef = collection(db, 'tokens');
+    const q = query(
+      tokensRef,
+      where('sceneId', '==', sceneId)
+    );
 
     const unsubscribe = onSnapshot(
-      tokensRef,
+      q,
       (snapshot) => {
         const tokensData: Token[] = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -109,19 +115,21 @@ export function useTokens(sessionId: string) {
     );
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [sceneId]);
 
   const createToken = useCallback(
-    async (tokenData: Omit<Token, 'id'>) => {
-      if (!sessionId) return null;
+    async (tokenData: Omit<Token, 'id' | 'campaignId' | 'sceneId'>) => {
+      if (!sceneId || !campaignId) return null;
 
       try {
         const tokenId = crypto.randomUUID();
-        const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
+        const tokenRef = doc(db, 'tokens', tokenId);
         const payload = sanitizeTokenPayload(tokenData);
 
         await setDoc(tokenRef, {
           ...payload,
+          sceneId,
+          campaignId,
           createdAt: serverTimestamp(),
         });
 
@@ -136,19 +144,19 @@ export function useTokens(sessionId: string) {
         return null;
       }
     },
-    [sessionId]
+    [sceneId, campaignId]
   );
 
   // Flush pending position updates to Firebase
   const flushPositionUpdates = useCallback(async () => {
-    if (!sessionId || pendingUpdates.current.size === 0) return;
+    if (pendingUpdates.current.size === 0) return;
 
     const updates = new Map(pendingUpdates.current);
     pendingUpdates.current.clear();
 
     for (const [tokenId, position] of updates) {
       try {
-        const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
+        const tokenRef = doc(db, 'tokens', tokenId);
         await updateDoc(tokenRef, {
           x: position.x,
           y: position.y,
@@ -157,7 +165,7 @@ export function useTokens(sessionId: string) {
         console.error('Erro ao atualizar posição do token:', error);
       }
     }
-  }, [sessionId]);
+  }, []);
 
   // Debounced position update - batches rapid drag movements
   const updateTokenPosition = useCallback(
@@ -181,27 +189,23 @@ export function useTokens(sessionId: string) {
 
   const updateToken = useCallback(
     async (tokenId: string, updates: Partial<Token>) => {
-      if (!sessionId) return;
-
       try {
         const cleanedUpdates = sanitizeTokenPayload(updates as Record<string, unknown>);
         if (Object.keys(cleanedUpdates).length === 0) return;
 
-        const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
+        const tokenRef = doc(db, 'tokens', tokenId);
         await updateDoc(tokenRef, cleanedUpdates);
       } catch (error) {
         console.error('Erro ao atualizar token:', error);
       }
     },
-    [sessionId]
+    []
   );
 
   const deleteToken = useCallback(
     async (tokenId: string) => {
-      if (!sessionId) return;
-
       try {
-        const tokenRef = doc(db, 'sessions', sessionId, 'tokens', tokenId);
+        const tokenRef = doc(db, 'tokens', tokenId);
         await deleteDoc(tokenRef);
       } catch (error) {
         console.error('Erro ao deletar token:', error);
@@ -212,11 +216,12 @@ export function useTokens(sessionId: string) {
         });
       }
     },
-    [sessionId]
+    []
   );
 
   const clearAllTokens = useCallback(async () => {
-    if (!sessionId) return;
+    // Careful: this deletes all tokens in CURRENT SCENE now
+    if (!sceneId) return;
 
     try {
       for (const token of tokens) {
@@ -225,7 +230,7 @@ export function useTokens(sessionId: string) {
     } catch (error) {
       console.error('Erro ao limpar tokens:', error);
     }
-  }, [sessionId, tokens, deleteToken]);
+  }, [sceneId, tokens, deleteToken]);
 
   // Cleanup debounce on unmount
   useEffect(() => {

@@ -8,13 +8,11 @@ import {
   deleteDoc,
   serverTimestamp,
   query,
-  orderBy,
-  writeBatch,
   where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Scene, SceneAspect } from '@/types/game';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 // Minimum aspects required for a scene
 const MIN_ASPECTS = 3;
@@ -28,24 +26,27 @@ const DEFAULT_ASPECTS: Omit<SceneAspect, 'id'>[] = [
 
 export interface ExtendedScene extends Scene {
   isArchived?: boolean;
-  order?: number;
 }
 
-export function useScenes(sessionId: string, isGM: boolean = false) {
+export function useScenes(episodeId: string | undefined, campaignId: string | undefined, isGM: boolean = false) {
   const [allScenes, setAllScenes] = useState<ExtendedScene[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Subscribe to scenes collection
   useEffect(() => {
-    if (!sessionId) {
+    if (!episodeId) {
       setAllScenes([]);
       setLoading(false);
       return;
     }
 
-    const scenesRef = collection(db, 'sessions', sessionId, 'scenes');
-    const scenesQuery = query(scenesRef, orderBy('order', 'asc'));
+    // Flat collection query
+    const scenesRef = collection(db, 'scenes');
+    const scenesQuery = query(
+      scenesRef,
+      where('episodeId', '==', episodeId)
+    );
 
     const unsubscribe = onSnapshot(
       scenesQuery,
@@ -54,38 +55,32 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
           id: doc.id,
           ...doc.data(),
         })) as ExtendedScene[];
+
+        // Sort client-side
+        scenesData.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         setAllScenes(scenesData);
         setLoading(false);
       },
       (error) => {
-        // Permission denied is expected when user hasn't joined session yet
-        if (error.code === 'permission-denied') {
-          setAllScenes([]);
-        } else {
-          console.error('Erro ao carregar cenas:', error);
-        }
+        console.error('Erro ao carregar cenas:', error);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [episodeId]);
 
   // Filter scenes based on user role
-  // - Everyone sees the active scene
-  // - Only GM sees inactive/archived scenes
   const scenes = useMemo(() => {
     let filtered = allScenes;
 
-    // Non-GM users only see active scene
     if (!isGM) {
       filtered = allScenes.filter((s) => s.isActive);
     } else {
-      // GM sees all non-archived scenes (archived are hidden by default)
       filtered = allScenes.filter((s) => !s.isArchived);
     }
 
-    // Apply search filter (GM only)
     if (isGM && searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -109,11 +104,9 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
     return allScenes.find((s) => s.isActive) || null;
   }, [allScenes]);
 
-  // Validate aspects - ensure minimum count
   const validateAspects = useCallback((aspects: SceneAspect[]): SceneAspect[] => {
     if (aspects.length >= MIN_ASPECTS) return aspects;
 
-    // Add default aspects to reach minimum
     const newAspects = [...aspects];
     while (newAspects.length < MIN_ASPECTS) {
       const defaultAspect = DEFAULT_ASPECTS[newAspects.length] || DEFAULT_ASPECTS[0];
@@ -127,69 +120,54 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
   }, []);
 
   const createScene = useCallback(
-    async (sceneData: Omit<Scene, 'id'>) => {
-      if (!sessionId) return null;
+    async (sceneData: Omit<Scene, 'id' | 'episodeId' | 'campaignId' | 'order'>) => {
+      if (!episodeId || !campaignId) return null;
 
-      // Ensure minimum aspects
       const validatedAspects = validateAspects(sceneData.aspects || []);
 
       try {
         const sceneId = crypto.randomUUID();
-        const sceneRef = doc(db, 'sessions', sessionId, 'scenes', sceneId);
+        const sceneRef = doc(db, 'scenes', sceneId);
 
         const isFirstScene = allScenes.length === 0;
 
         await setDoc(sceneRef, {
           ...sceneData,
+          episodeId,
+          campaignId,
           aspects: validatedAspects,
-          isActive: isFirstScene || sceneData.isActive, // First scene is always active
+          isActive: isFirstScene || sceneData.isActive,
           isArchived: false,
           order: allScenes.length,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
 
-        // If this is the first/active scene, sync to session
+        // If active, update episode currentSceneId
         if (isFirstScene || sceneData.isActive) {
-          const sessionRef = doc(db, 'sessions', sessionId);
-          await updateDoc(sessionRef, {
-            currentScene: {
-              id: sceneId,
-              name: sceneData.name,
-              background: sceneData.background || null,
-              aspects: validatedAspects,
-            },
-            updatedAt: serverTimestamp(),
+          const epRef = doc(db, 'episodes', episodeId);
+          await updateDoc(epRef, {
+            currentSceneId: sceneId,
+            // We might not need to duplicate aspect data here anymore if Clients subscribe to Scene directly
           });
         }
 
-        toast({
-          title: 'Cena criada',
-          description: `"${sceneData.name}" foi adicionada com ${validatedAspects.length} aspectos.`,
-        });
-
+        toast.success(`Cena "${sceneData.name}" criada.`);
         return sceneId;
       } catch (error) {
         console.error('Erro ao criar cena:', error);
-        toast({
-          title: 'Erro ao criar cena',
-          description: 'Não foi possível criar a cena. Tente novamente.',
-          variant: 'destructive',
-        });
+        toast.error('Erro ao criar cena.');
         return null;
       }
     },
-    [sessionId, allScenes.length, validateAspects]
+    [episodeId, campaignId, allScenes.length, validateAspects]
   );
 
   const updateScene = useCallback(
     async (sceneId: string, updates: Partial<ExtendedScene>) => {
-      if (!sessionId) return;
-
       try {
-        const sceneRef = doc(db, 'sessions', sessionId, 'scenes', sceneId);
+        const sceneRef = doc(db, 'scenes', sceneId);
 
-        // If updating aspects, validate them
         if (updates.aspects) {
           updates.aspects = validateAspects(updates.aspects);
         }
@@ -199,69 +177,37 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
           updatedAt: serverTimestamp(),
         });
 
-        // Sync to session if this is the active scene
-        const scene = allScenes.find((s) => s.id === sceneId);
-        if (scene?.isActive) {
-          const sessionRef = doc(db, 'sessions', sessionId);
-          await updateDoc(sessionRef, {
-            currentScene: {
-              id: sceneId,
-              name: updates.name || scene.name,
-              background: updates.background !== undefined ? updates.background : scene.background,
-              aspects: updates.aspects || scene.aspects,
-            },
-            updatedAt: serverTimestamp(),
-          });
-        }
+        // We don't necessarily update Episode doc here unless we want to cache name/bg
       } catch (error) {
         console.error('Erro ao atualizar cena:', error);
-        toast({
-          title: 'Erro ao atualizar cena',
-          description: 'Não foi possível salvar as alterações.',
-          variant: 'destructive',
-        });
+        toast.error('Erro ao atualizar cena.');
       }
     },
-    [sessionId, allScenes, validateAspects]
+    [validateAspects]
   );
 
   const deleteScene = useCallback(
     async (sceneId: string) => {
-      if (!sessionId) return;
-
       const scene = allScenes.find((s) => s.id === sceneId);
       if (scene?.isActive) {
-        toast({
-          title: 'Não é possível excluir',
-          description: 'Ative outra cena antes de excluir esta.',
-          variant: 'destructive',
-        });
+        toast.error('Ative outra cena antes de excluir esta.');
         return;
       }
 
       try {
-        const sceneRef = doc(db, 'sessions', sessionId, 'scenes', sceneId);
-        await deleteDoc(sceneRef);
-
-        toast({
-          title: 'Cena removida',
-          description: 'A cena foi excluída da sessão.',
-        });
+        await deleteDoc(doc(db, 'scenes', sceneId));
+        toast.success('Cena removida.');
       } catch (error) {
         console.error('Erro ao deletar cena:', error);
-        toast({
-          title: 'Erro ao remover cena',
-          description: 'Não foi possível excluir a cena.',
-          variant: 'destructive',
-        });
+        toast.error('Erro ao remover cena.');
       }
     },
-    [sessionId, allScenes]
+    [allScenes]
   );
 
   const setActiveScene = useCallback(
     async (sceneId: string) => {
-      if (!sessionId) return;
+      if (!episodeId) return;
 
       try {
         const batch = writeBatch(db);
@@ -269,105 +215,73 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
 
         if (!targetScene) return;
 
-        // Validate aspects before activating
         const validatedAspects = validateAspects(targetScene.aspects || []);
 
-        // Deactivate all scenes, activate target
+        // Deactivate all matching scenes, activate target
         for (const scene of allScenes) {
-          const sceneRef = doc(db, 'sessions', sessionId, 'scenes', scene.id);
+          const sceneRef = doc(db, 'scenes', scene.id);
           if (scene.id === sceneId) {
-            batch.update(sceneRef, { 
-              isActive: true, 
-              isArchived: false, // Unarchive if archived
+            batch.update(sceneRef, {
+              isActive: true,
+              isArchived: false,
               aspects: validatedAspects,
             });
           } else {
-            batch.update(sceneRef, { isActive: false });
+            // Only update if it was mistakenly active? Or just safe update
+            if (scene.isActive) batch.update(sceneRef, { isActive: false });
           }
         }
 
-        // Update session's currentScene with the active scene data
-        const sessionRef = doc(db, 'sessions', sessionId);
-        batch.update(sessionRef, {
-          currentScene: {
-            id: sceneId,
-            name: targetScene.name,
-            background: targetScene.background || null,
-            aspects: validatedAspects,
-          },
-          updatedAt: serverTimestamp(),
+        const epRef = doc(db, 'episodes', episodeId);
+        batch.update(epRef, {
+          currentSceneId: sceneId
         });
 
         await batch.commit();
 
-        toast({
-          title: 'Cena ativa alterada',
-          description: `"${targetScene.name}" agora é a cena ativa para todos.`,
-        });
+        toast.success(`Cena ativa: ${targetScene.name}`);
       } catch (error) {
         console.error('Erro ao definir cena ativa:', error);
-        toast({
-          title: 'Erro ao trocar cena',
-          description: 'Não foi possível alterar a cena ativa.',
-          variant: 'destructive',
-        });
+        toast.error('Erro ao trocar cena.');
       }
     },
-    [sessionId, allScenes, validateAspects]
+    [episodeId, allScenes, validateAspects]
   );
 
   const archiveScene = useCallback(
     async (sceneId: string) => {
-      if (!sessionId) return;
-
       const scene = allScenes.find((s) => s.id === sceneId);
       if (scene?.isActive) {
-        toast({
-          title: 'Não é possível arquivar',
-          description: 'Ative outra cena antes de arquivar esta.',
-          variant: 'destructive',
-        });
+        toast.error('Ative outra cena antes de arquivar.');
         return;
       }
 
       try {
-        const sceneRef = doc(db, 'sessions', sessionId, 'scenes', sceneId);
-        await updateDoc(sceneRef, {
+        await updateDoc(doc(db, 'scenes', sceneId), {
           isArchived: true,
           updatedAt: serverTimestamp(),
         });
-
-        toast({
-          title: 'Cena arquivada',
-          description: 'A cena foi movida para o arquivo.',
-        });
+        toast.success('Cena arquivada.');
       } catch (error) {
         console.error('Erro ao arquivar cena:', error);
       }
     },
-    [sessionId, allScenes]
+    [allScenes]
   );
 
   const unarchiveScene = useCallback(
     async (sceneId: string) => {
-      if (!sessionId) return;
-
       try {
-        const sceneRef = doc(db, 'sessions', sessionId, 'scenes', sceneId);
-        await updateDoc(sceneRef, {
+        await updateDoc(doc(db, 'scenes', sceneId), {
           isArchived: false,
           updatedAt: serverTimestamp(),
         });
-
-        toast({
-          title: 'Cena restaurada',
-          description: 'A cena foi removida do arquivo.',
-        });
+        toast.success('Cena restaurada.');
       } catch (error) {
         console.error('Erro ao restaurar cena:', error);
       }
     },
-    [sessionId]
+    []
   );
 
   const updateSceneAspects = useCallback(
@@ -394,10 +308,10 @@ export function useScenes(sessionId: string, isGM: boolean = false) {
   );
 
   return {
-    scenes, // Filtered based on user role
-    allScenes, // All scenes (for GM reference)
-    archivedScenes, // Archived scenes (GM only)
-    activeScene, // Current active scene
+    scenes,
+    allScenes,
+    archivedScenes,
+    activeScene,
     loading,
     searchQuery,
     setSearchQuery,

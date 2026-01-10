@@ -14,18 +14,21 @@ import { db } from '@/lib/firebase';
 import { ActiveNPC, Archetype } from '@/types/game';
 import { toast } from 'sonner';
 
-export function useActiveNPCs(sessionId: string) {
+export function useActiveNPCs(campaignId: string | undefined) {
   const [activeNPCs, setActiveNPCs] = useState<ActiveNPC[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!campaignId) {
       setActiveNPCs([]);
       setLoading(false);
       return;
     }
 
-    const q = query(collection(db, `sessions/${sessionId}/activeNpcs`));
+    const q = query(
+      collection(db, 'activeNpcs'),
+      where('campaignId', '==', campaignId)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const npcs = snapshot.docs.map(doc => ({
@@ -37,15 +40,14 @@ export function useActiveNPCs(sessionId: string) {
       setLoading(false);
     }, (error) => {
       console.error("Error fetching Active NPCs:", error);
-      toast.error("Erro ao carregar NPCs ativos");
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [campaignId]);
 
   const createFromArchetype = async (archetype: Archetype, customName: string) => {
-    if (!sessionId) return;
+    if (!campaignId) return;
     try {
       const newNPC = {
         name: customName || archetype.name,
@@ -59,8 +61,10 @@ export function useActiveNPCs(sessionId: string) {
         consequences: { ...archetype.consequences },
         stunts: archetype.stunts ? [...archetype.stunts] : [],
         avatar: archetype.avatar,
+        campaignId,
 
         sceneId: null, // Starts "guarded" / off-scene
+        episodeId: null,
         hasToken: false,
         notes: "",
         sceneTags: [],
@@ -69,7 +73,7 @@ export function useActiveNPCs(sessionId: string) {
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, `sessions/${sessionId}/activeNpcs`), newNPC);
+      await addDoc(collection(db, 'activeNpcs'), newNPC);
       toast.success(`${customName} adicionado à sessão!`);
     } catch (error) {
       console.error("Error creating Active NPC:", error);
@@ -78,9 +82,8 @@ export function useActiveNPCs(sessionId: string) {
   };
 
   const updateNPC = async (id: string, updates: Partial<ActiveNPC>) => {
-    if (!sessionId) return;
     try {
-      await updateDoc(doc(db, `sessions/${sessionId}/activeNpcs`, id), {
+      await updateDoc(doc(db, 'activeNpcs', id), {
         ...updates,
         updatedAt: serverTimestamp()
       });
@@ -92,10 +95,9 @@ export function useActiveNPCs(sessionId: string) {
   };
 
   const deleteNPC = async (id: string) => {
-    if (!sessionId) return;
     if (window.confirm("Isso removerá permanentemente este NPC e todo seu histórico. Tem certeza?")) {
       try {
-        await deleteDoc(doc(db, `sessions/${sessionId}/activeNpcs`, id));
+        await deleteDoc(doc(db, 'activeNpcs', id));
         toast.success("NPC removido permanentemente.");
       } catch (error) {
         console.error("Error deleting NPC:", error);

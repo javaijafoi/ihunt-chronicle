@@ -12,55 +12,77 @@ import {
   Users,
   MapPin,
   Sparkles,
-  Mail
+  Mail,
+  BookOpen,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
-import { usePartyCharacters } from '@/hooks/usePartyCharacters';
-import { useScenes } from '@/hooks/useScenes';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { getDocs, query, where, collection, setDoc, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+
+// ... inputs
+
+
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { userProfile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
-  const { claimGmRole, currentSession, joinAsGM } = useSession();
-  const { partyCharacters } = usePartyCharacters();
+  const { userProfile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut } = useAuth();
 
-  // Check if user is GM to show all scenes or just active
-  const isGM = currentSession?.gmId === userProfile?.uid;
-  const { scenes, activeScene, createScene } = useScenes(GLOBAL_SESSION_ID, isGM);
+  // Dashboard State
+  const [myCampaigns, setMyCampaigns] = useState<any[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [joinCode, setJoinCode] = useState("");
 
-  const [authError, setAuthError] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [gmActionLoading, setGmActionLoading] = useState(false);
 
-  // Create default scene if none exists (GM action)
+  // Fetch Campaigns
   useEffect(() => {
-    const createDefaultScene = async () => {
-      if (currentSession && scenes.length === 0 && isGM && !activeScene) {
-        await createScene({
-          name: 'Beco Escuro',
-          background: '',
-          aspects: [
-            { id: crypto.randomUUID(), name: 'Sombras Densas', freeInvokes: 1, createdBy: 'gm', isTemporary: false },
-            { id: crypto.randomUUID(), name: 'Lixo e Entulho', freeInvokes: 0, createdBy: 'gm', isTemporary: false },
-            { id: crypto.randomUUID(), name: 'Silêncio Opressivo', freeInvokes: 0, createdBy: 'gm', isTemporary: false },
-          ],
-          isActive: true,
-        });
-      }
-    };
-    createDefaultScene();
-  }, [isGM, scenes.length, activeScene, createScene, currentSession]);
-
-  // Redirect to VTT if authenticated
-  useEffect(() => {
-    if (userProfile) {
-      navigate('/vtt');
+    if (!userProfile) {
+      setMyCampaigns([]);
+      return;
     }
-  }, [userProfile, navigate]);
+
+    const fetchCampaigns = async () => {
+      setLoadingCampaigns(true);
+      console.log("Fetching campaigns with V2 query (array-contains)...");
+      try {
+        // Query campaigns using array-contains on the 'members' field
+        const q = query(
+          collection(db, 'campaigns'),
+          where('members', 'array-contains', userProfile.uid)
+        );
+        const querySnapshot = await getDocs(q);
+        const campaigns = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        setMyCampaigns(campaigns);
+      } catch (e) {
+        console.error(e);
+      }
+      setLoadingCampaigns(false);
+    };
+
+    fetchCampaigns();
+  }, [userProfile]);
+
+  const handleJoin = async () => {
+    if (!joinCode) return;
+    console.log("Join", joinCode);
+  };
+
+  // Guard against null profile
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Show login if not authenticated
   if (!userProfile) {
@@ -100,21 +122,13 @@ export function LobbyPage() {
               </div>
             ) : (
               <>
-                {authError && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
-                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                    <p className="text-destructive">{authError}</p>
-                  </div>
-                )}
-
                 {/* Google Login */}
                 <button
                   onClick={async () => {
                     try {
-                      setAuthError('');
                       await signInWithGoogle();
                     } catch (e: any) {
-                      setAuthError(e.message || 'Erro ao fazer login');
+                      console.error(e);
                     }
                   }}
                   className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg
@@ -134,9 +148,8 @@ export function LobbyPage() {
                   </div>
                 </div>
 
-                {/* Email/Password Form */}
                 <AuthForm
-                  onError={setAuthError}
+                  onError={(msg) => console.log(msg)}
                   signInWithEmail={signInWithEmail}
                   signUpWithEmail={signUpWithEmail}
                   resetPassword={resetPassword}
@@ -149,15 +162,78 @@ export function LobbyPage() {
     );
   }
 
-  // Loading state while redirecting
+  // Dashboard UI (Authenticated)
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="min-h-screen bg-background p-8">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <header className="flex items-center justify-between pb-6 border-b border-border">
+          <div>
+            <h1 className="font-display text-3xl">Lobby de Caçadores</h1>
+            <p className="text-muted-foreground">Bem-vindo, {userProfile.displayName}</p>
+          </div>
+          <div className="flex items-center gap-4">
+
+            <Button variant="outline" className="gap-2" onClick={() => signOut()}>
+              <LogOut className="w-4 h-4" /> Sair
+            </Button>
+          </div>
+        </header>
+
+
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Main Content: Campaign List */}
+          <div className="md:col-span-2 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Minhas Crônicas
+              </h2>
+            </div>
+
+            {loadingCampaigns ? (
+              <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+            ) : myCampaigns.length === 0 ? (
+              <div className="text-center p-12 border border-dashed rounded-xl bg-muted/20">
+                <p className="text-muted-foreground mb-4">Você não está participando de nenhuma crônica.</p>
+                <Button onClick={() => navigate('/campaigns/new')}>Criar Nova Crônica</Button>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {myCampaigns.map(camp => (
+                  <div key={camp.id} className="p-4 border rounded-lg bg-card hover:border-primary transition-colors cursor-pointer" onClick={() => navigate(`/campaign/${camp.id}`)}>
+                    <h3 className="font-bold text-lg">{camp.title}</h3>
+                    <p className="text-sm text-muted-foreground">{camp.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar: Actions */}
+          <div className="space-y-6">
+            <div className="p-6 rounded-xl border bg-card space-y-4">
+              <h3 className="font-bold">Ações Rápidas</h3>
+              <Button className="w-full gap-2" onClick={() => navigate('/campaigns/new')}>
+                <Plus className="w-4 h-4" /> Criar Crônica
+              </Button>
+
+              <div className="pt-4 border-t">
+                <Label>Entrar com Código</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input value={joinCode} onChange={e => setJoinCode(e.target.value)} placeholder="HUNT-XXXX" className="uppercase" />
+                  <Button variant="secondary" onClick={handleJoin}>Entrar</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// Auth Form Component
+// Auth Form Component Reuse
 function AuthForm({
   onError,
   signInWithEmail,
