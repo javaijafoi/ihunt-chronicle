@@ -10,7 +10,7 @@ export interface StressTrackOptions {
 }
 
 const BASE_STRESS_BOXES = 2;
-const DEFAULT_MENTAL_ALIASES = ['Vontade', 'Ocultista', 'Acadêmico'];
+const DEFAULT_MENTAL_ALIASES = ['Vontade', 'Ocultista', 'Acadêmico', 'Sobrevivente'];
 
 const calculateTrackSize = (skillValue: number): number => {
   if (skillValue >= 3) return 4;
@@ -43,7 +43,6 @@ export const calculateStressTracks = (
     : DEFAULT_MENTAL_ALIASES;
 
   const physicalSkillValue = Math.max(
-    character.skills?.['Sobrevivente'] ?? 0,
     character.skills?.['Atleta'] ?? 0,
     character.skills?.['Atletismo'] ?? 0,
     character.skills?.['Vigor'] ?? 0
@@ -57,4 +56,32 @@ export const calculateStressTracks = (
     physical: buildTrack(character.stress?.physical, physicalTrackSize),
     mental: buildTrack(character.stress?.mental, mentalTrackSize),
   };
+};
+
+export const validateSkillPyramid = (skills: Record<string, number>): { valid: boolean; error?: string } => {
+  const counts: Record<number, number> = {};
+  let maxRank = 0;
+
+  // Count skills per rank
+  Object.values(skills).forEach(rank => {
+    if (rank > 0) {
+      counts[rank] = (counts[rank] || 0) + 1;
+      maxRank = Math.max(maxRank, rank);
+    }
+  });
+
+  // Check pyramid structure (Rank N <= Rank N-1)
+  for (let rank = maxRank; rank > 1; rank--) {
+    const higherCount = counts[rank] || 0;
+    const lowerCount = counts[rank - 1] || 0;
+
+    if (higherCount > lowerCount) {
+      return {
+        valid: false,
+        error: `Quebra da Pirâmide: Você tem ${higherCount} perícias no nível ${rank}, mas apenas ${lowerCount} no nível ${rank - 1}.`
+      };
+    }
+  }
+
+  return { valid: true };
 };

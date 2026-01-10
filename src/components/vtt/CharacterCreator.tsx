@@ -95,11 +95,17 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
 
   // Calculate available refresh
   const purchasedManeuversCount = useMemo(() => {
-    if (!currentDrive) return selectedManeuverIds.length;
-    
-    // Count only non-free maneuvers
-    const freeId = currentDrive.freeManeuver.id;
-    return selectedManeuverIds.filter(id => id !== freeId).length;
+    let count = selectedManeuverIds.length;
+
+    // Deduct drive free maneuver if selected
+    if (currentDrive && selectedManeuverIds.includes(currentDrive.freeManeuver.id)) {
+      count -= 1;
+    }
+
+    // Deduct 2 base free maneuvers (General or Exclusive)
+    count -= 2;
+
+    return Math.max(0, count);
   }, [selectedManeuverIds, currentDrive]);
 
   const availableRefresh = BASE_REFRESH - purchasedManeuversCount;
@@ -133,12 +139,30 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
 
     setSelectedManeuverIds(prev => {
       const isSelected = prev.includes(maneuver.id);
-      
+
       if (isSelected) {
         return prev.filter(id => id !== maneuver.id);
       } else {
         // Check if we have refresh available
-        if (availableRefresh <= 0 && maneuver.cost > 0) return prev;
+        // If we have "free slots" (purchased < 0 effectively in the calculation logic before max(0)), 
+        // we can still add despite availableRefresh being 5.
+        // Actually, if availableRefresh > 0 we can always add.
+        // If availableRefresh === 0, we can ONLY add if we still have free slots.
+        // My purchasedManeuversCount logic floors at 0.
+        // Let's recalculate hypothetical cost.
+
+        let newCount = prev.length + 1;
+        if (currentDrive && (prev.includes(currentDrive.freeManeuver.id) || maneuver.id === currentDrive.freeManeuver.id)) {
+          // careful here, simplified check
+          if (currentDrive.freeManeuver.id === maneuver.id || prev.includes(currentDrive.freeManeuver.id)) {
+            newCount -= 1;
+          }
+        }
+        newCount -= 2;
+        const newPurchased = Math.max(0, newCount);
+
+        if (BASE_REFRESH - newPurchased < 0) return prev;
+
         return [...prev, maneuver.id];
       }
     });
@@ -209,7 +233,7 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                 autoFocus
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-ui uppercase tracking-wider text-muted-foreground mb-2">
                 Avatar (URL da imagem)
@@ -232,7 +256,7 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
             <p className="text-sm text-muted-foreground mb-4">
               Sua Tara define seu estilo de caçar. Cada uma traz uma manobra grátis e acesso a manobras exclusivas.
             </p>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {DRIVES.map(drive => (
                 <motion.button
@@ -240,11 +264,10 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                   onClick={() => selectDrive(drive.id)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`p-4 rounded-xl text-left transition-all border-2 ${
-                    character.drive === drive.id
+                  className={`p-4 rounded-xl text-left transition-all border-2 ${character.drive === drive.id
                       ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
                       : 'border-border bg-muted/50 hover:border-muted-foreground/50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl">{drive.icon}</span>
@@ -288,7 +311,7 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
             <p className="text-sm text-muted-foreground mb-4">
               Aspectos são frases que definem seu personagem. Eles podem ser invocados para bônus ou chamados para complicações.
             </p>
-            
+
             <div>
               <label className="block text-sm font-ui uppercase tracking-wider text-muted-foreground mb-2">
                 Alto Conceito * <span className="text-primary">(quem você é como caçador)</span>
@@ -418,12 +441,11 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                   Refresh Disponível
                 </span>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Base 5 - {purchasedManeuversCount} manobras compradas
+                  Base 5 (+2 Grátis + 1 Tara) - {Math.max(0, Boolean(currentDrive) ? selectedManeuverIds.length - 3 : selectedManeuverIds.length - 2)} extras
                 </p>
               </div>
-              <span className={`font-display text-4xl ${
-                availableRefresh <= 1 ? 'text-destructive' : 'text-accent'
-              }`}>
+              <span className={`font-display text-4xl ${availableRefresh <= 1 ? 'text-destructive' : 'text-accent'
+                }`}>
                 {availableRefresh}
               </span>
             </div>
@@ -460,19 +482,18 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                   {currentDrive.exclusiveManeuvers.map(maneuver => {
                     const isSelected = selectedManeuverIds.includes(maneuver.id);
                     const canAfford = availableRefresh > 0 || isSelected;
-                    
+
                     return (
                       <button
                         key={maneuver.id}
                         onClick={() => toggleManeuver(maneuver)}
                         disabled={!canAfford && !isSelected}
-                        className={`w-full p-3 rounded-lg text-left transition-all border ${
-                          isSelected
+                        className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
                             ? 'border-secondary bg-secondary/10'
                             : canAfford
-                            ? 'border-border bg-muted/50 hover:border-secondary/50'
-                            : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
-                        }`}
+                              ? 'border-border bg-muted/50 hover:border-secondary/50'
+                              : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
@@ -481,9 +502,8 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                               {maneuver.name}
                             </span>
                           </div>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
-                          }`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
+                            }`}>
                             -1 Refresh
                           </span>
                         </div>
@@ -504,19 +524,18 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                 {GENERAL_MANEUVERS.map(maneuver => {
                   const isSelected = selectedManeuverIds.includes(maneuver.id);
                   const canAfford = availableRefresh > 0 || isSelected;
-                  
+
                   return (
                     <button
                       key={maneuver.id}
                       onClick={() => toggleManeuver(maneuver)}
                       disabled={!canAfford && !isSelected}
-                      className={`w-full p-3 rounded-lg text-left transition-all border ${
-                        isSelected
+                      className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
                           ? 'border-secondary bg-secondary/10'
                           : canAfford
-                          ? 'border-border bg-muted/50 hover:border-secondary/50'
-                          : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
-                      }`}
+                            ? 'border-border bg-muted/50 hover:border-secondary/50'
+                            : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
@@ -525,9 +544,8 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                             {maneuver.name}
                           </span>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-secondary/20 text-secondary' : 'bg-muted text-muted-foreground'
+                          }`}>
                           -1 Refresh
                         </span>
                       </div>
@@ -612,11 +630,10 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                     const isFree = currentDrive?.freeManeuver.id === id;
 
                     return (
-                      <span 
-                        key={id} 
-                        className={`px-2 py-1 rounded-md text-sm ${
-                          isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
-                        }`}
+                      <span
+                        key={id}
+                        className={`px-2 py-1 rounded-md text-sm ${isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                          }`}
                       >
                         {maneuverName}
                         {isFree && <span className="ml-1 text-xs opacity-70">(grátis)</span>}
@@ -652,7 +669,7 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
           exit={{ opacity: 0 }}
         >
           <div className="absolute inset-0 bg-background/90 backdrop-blur-md" onClick={handleClose} />
-          
+
           <motion.div
             className="relative glass-panel w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
             initial={{ scale: 0.9, opacity: 0 }}
@@ -682,13 +699,12 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                   <button
                     key={step.id}
                     onClick={() => setCurrentStep(index)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${
-                      index === currentStep
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${index === currentStep
                         ? 'bg-primary text-primary-foreground'
                         : index < currentStep
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
+                          ? 'bg-primary/20 text-primary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span className="hidden sm:inline text-sm font-ui">{step.title}</span>

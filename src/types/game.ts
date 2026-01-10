@@ -36,6 +36,7 @@ export interface Character {
   };
   skills: Record<string, number>;
   maneuvers: string[];
+  selfies: Selfie[];
   stress: {
     physical: boolean[];
     mental: boolean[];
@@ -138,6 +139,21 @@ export interface Token {
   isVisible?: boolean; // GM can hide tokens from players
   size?: 'small' | 'medium' | 'large'; // Token size
   color?: string; // Custom border color
+}
+
+// ========== SELFIE SYSTEM ==========
+
+export type SelfieType = 'mood' | 'auge' | 'mudanca';
+
+export interface Selfie {
+  id: string;
+  url: string; // URL da imagem (Storage ou Blob local se offline)
+  title: string;
+  description: string; // Pode conter HTML/Rich Text básico
+  type: SelfieType;
+  isAvailable: boolean; // Se pode ser usada na sessão atual
+  createdAt: string; // ISO Date
+  usedAt?: string; // ISO Date da última utilização
 }
 
 // ========== ARCHETYPE SYSTEM ==========

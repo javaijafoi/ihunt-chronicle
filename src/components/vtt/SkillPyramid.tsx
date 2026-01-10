@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus, X } from 'lucide-react';
-
-// iHunt default skills
-const DEFAULT_SKILLS = [
-  'Atirar', 'Combate', 'Atletismo', 'Furtividade', 'Percepção',
-  'Enganar', 'Intimidar', 'Empatia', 'Contatos', 'Recursos',
-  'Vontade', 'Vigor', 'Investigar', 'Ofícios', 'Conhecimento',
-  'Provocar', 'Comunicação', 'Dirigir', 'Roubo', 'Tecnologia'
-];
+import { SKILL_NAMES } from '@/data/skills';
 
 // Pyramid structure: level -> max skills at that level
 const PYRAMID_STRUCTURE = {
@@ -49,7 +42,7 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
   };
 
   // Get available skills (not yet assigned)
-  const availableSkills = DEFAULT_SKILLS.filter(skill => !(skill in skills));
+  const availableSkills = SKILL_NAMES.filter(skill => !(skill in skills));
 
   // Add skill at level
   const addSkill = (skill: string, level: number) => {
@@ -68,17 +61,17 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
   const moveSkill = (skill: string, direction: 'up' | 'down') => {
     const currentLevel = skills[skill];
     const newLevel = direction === 'up' ? currentLevel + 1 : currentLevel - 1;
-    
+
     if (newLevel < 1 || newLevel > 4) return;
     if (!canAddAtLevel(newLevel)) return;
-    
+
     onChange({ ...skills, [skill]: newLevel });
   };
 
   // Add custom skill
   const addCustomSkill = () => {
     if (!customSkill.trim()) return;
-    if (customSkill in skills || DEFAULT_SKILLS.includes(customSkill)) return;
+    if (customSkill in skills || SKILL_NAMES.includes(customSkill)) return;
     onChange({ ...skills, [customSkill.trim()]: 1 });
     setCustomSkill('');
   };
@@ -92,7 +85,7 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
   };
 
   // Check if pyramid is valid
-  const isValid = 
+  const isValid =
     counts[4] === 1 &&
     counts[3] === 2 &&
     counts[2] === 3 &&
@@ -110,15 +103,14 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
                 {LEVEL_NAMES[level]}
               </span>
             </div>
-            <span className={`text-xs font-mono ${
-              counts[level as keyof typeof counts] === PYRAMID_STRUCTURE[level as keyof typeof PYRAMID_STRUCTURE]
-                ? 'text-green-500'
-                : 'text-muted-foreground'
-            }`}>
+            <span className={`text-xs font-mono ${counts[level as keyof typeof counts] === PYRAMID_STRUCTURE[level as keyof typeof PYRAMID_STRUCTURE]
+              ? 'text-green-500'
+              : 'text-muted-foreground'
+              }`}>
               {counts[level as keyof typeof counts]}/{PYRAMID_STRUCTURE[level as keyof typeof PYRAMID_STRUCTURE]}
             </span>
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             {getSkillsAtLevel(level).map(skill => (
               <motion.div
@@ -156,7 +148,7 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
                 )}
               </motion.div>
             ))}
-            
+
             {/* Add skill dropdown */}
             {!readOnly && canAddAtLevel(level) && (
               <select
@@ -210,12 +202,11 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
       )}
 
       {/* Validation Status */}
-      <div className={`text-sm font-ui p-3 rounded-md ${
-        isValid 
-          ? 'bg-green-500/10 text-green-500 border border-green-500/30'
-          : 'bg-accent/10 text-accent border border-accent/30'
-      }`}>
-        {isValid 
+      <div className={`text-sm font-ui p-3 rounded-md ${isValid
+        ? 'bg-green-500/10 text-green-500 border border-green-500/30'
+        : 'bg-accent/10 text-accent border border-accent/30'
+        }`}>
+        {isValid
           ? '✓ Pirâmide completa!'
           : `Adicione: ${1 - counts[4]} em +4, ${2 - counts[3]} em +3, ${3 - counts[2]} em +2, ${4 - counts[1]} em +1`
         }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useAuth } from '@/hooks/useAuth';
 import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
@@ -14,7 +14,9 @@ import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
+import { CharacterCreator } from '@/components/vtt/CharacterCreator';
 import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
+import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
@@ -22,6 +24,7 @@ import { ActionType, Character, Token } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
+import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 
 // Safety Tools Imports
 import { SafetyControls } from '@/components/vtt/safety/SafetyControls';
@@ -67,15 +70,18 @@ export function VTTPage() {
 
   // New Hook for NPCs/Monsters
   const { activeNPCs, updateNPC } = useActiveNPCs(sessionId);
+  const { updateCharacter: updateFirebaseCharacter } = useFirebaseCharacters(sessionId);
 
   const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(sessionId);
 
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showArchetypes, setShowArchetypes] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   // const [isSafetyOpen, setIsSafetyOpen] = useState(false); // Removed legacy state
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
@@ -189,6 +195,23 @@ export function VTTPage() {
       title: 'Rolagem Rápida',
       description: 'Rolando 4 dados Fate...',
     });
+  };
+
+  const handleSaveCharacter = async (characterData: Omit<Character, 'id'>) => {
+    if (editingCharacter) {
+      await updateFirebaseCharacter(editingCharacter.id, characterData);
+
+      // Update local state if we are viewing/controlling this character
+      if (activeCharacter?.id === editingCharacter.id) {
+        setActiveCharacter({ ...activeCharacter, ...characterData });
+      }
+      if (viewingCharacter?.id === editingCharacter.id) {
+        setViewingCharacter({ ...viewingCharacter, ...characterData });
+      }
+
+      setEditingCharacter(null);
+      toast({ title: 'Personagem atualizado!', description: 'As alterações foram salvas.' });
+    }
   };
 
   const isSessionGM = user?.uid === currentSession?.gmId;
@@ -386,6 +409,18 @@ export function VTTPage() {
             <TooltipContent>Ficha do Personagem</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowTimeline(true)}
+                className={`p-2.5 rounded-lg transition-colors ${showTimeline ? 'bg-primary text-primary-foreground' : 'glass-panel hover:bg-muted'}`}
+              >
+                <Camera className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Timeline de Memórias</TooltipContent>
+          </Tooltip>
+
           {isGM && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -479,12 +514,23 @@ export function VTTPage() {
               >
                 <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/90 backdrop-blur-sm border-b border-border">
                   <h2 className="font-display text-xl text-primary">Ficha do Personagem</h2>
-                  <button
-                    onClick={() => setShowSheet(false)}
-                    className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isGM && (
+                      <button
+                        onClick={() => setEditingCharacter(selectedCharacter)}
+                        className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                        title="Editar Personagem"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowSheet(false)}
+                      className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="p-4 max-w-5xl mx-auto">
                   <CharacterSheet
@@ -575,6 +621,12 @@ export function VTTPage() {
                       setPresetSkill(null);
                     }}
                     onRoll={handleRollDice}
+                    onUpdateCharacter={async (id, updates) => {
+                      await updateFirebaseCharacter(id, updates);
+                      if (activeCharacter?.id === id) {
+                        setActiveCharacter(prev => prev ? { ...prev, ...updates } : null);
+                      }
+                    }}
                     skills={selectedCharacter?.skills}
                     presetSkill={presetSkill}
                     fatePoints={selectedCharacter?.fatePoints}
@@ -617,12 +669,26 @@ export function VTTPage() {
           >
             <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/90 backdrop-blur-sm border-b border-border">
               <h2 className="font-display text-xl text-primary">{viewingCharacter.name}</h2>
-              <button
-                onClick={() => setViewingCharacter(null)}
-                className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {isGM && (
+                  <button
+                    onClick={() => {
+                      // Cast viewingCharacter to proper character type if checking against state
+                      setEditingCharacter(viewingCharacter as Character);
+                    }}
+                    className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                    title="Editar Personagem"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setViewingCharacter(null)}
+                  className="p-2 rounded-lg glass-panel hover:bg-muted transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <div className="p-4 max-w-5xl mx-auto">
               <CharacterSheet
@@ -663,6 +729,29 @@ export function VTTPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Selfie Timeline Modal */}
+      <Dialog open={showTimeline} onOpenChange={setShowTimeline}>
+        <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0 bg-background/95 backdrop-blur-sm border-border overflow-hidden">
+          <SelfieTimeline
+            myCharacter={activeCharacter || (viewingCharacter as Character)}
+            partyCharacters={partyCharacters}
+            onUpdateCharacter={updateFirebaseCharacter}
+            isGM={isGM}
+            currentUserId={user?.uid}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Editor Modal */}
+      {editingCharacter && (
+        <CharacterCreator
+          isOpen={!!editingCharacter}
+          onClose={() => setEditingCharacter(null)}
+          onSave={handleSaveCharacter}
+          editingCharacter={editingCharacter}
+        />
+      )}
     </div>
   );
 }

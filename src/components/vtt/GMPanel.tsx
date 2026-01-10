@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Users, Users2, Archive, RefreshCcw } from 'lucide-react';
+import { Crown, MapPin, Users, Users2, Archive, RefreshCcw, Camera } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { SceneManager } from './SceneManager';
 import { ActiveNPCsPanel } from './ActiveNPCsPanel';
 import { ActiveNPCSheet } from './ActiveNPCSheet';
@@ -42,6 +43,8 @@ interface GMPanelProps {
 
 type PanelSection = 'scenes' | 'active_npcs' | 'archetypes' | 'characters';
 
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 
 export function GMPanel({
@@ -69,7 +72,37 @@ export function GMPanel({
   const [characterToArchive, setCharacterToArchive] = useState<{ id: string; name: string } | null>(null);
 
   // Hook for character management (archiving)
-  const { archiveCharacter, unarchiveCharacter } = useFirebaseCharacters(sessionId);
+  const { archiveCharacter, unarchiveCharacter, updateCharacter } = useFirebaseCharacters(sessionId);
+
+  // Migration logic
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  const handleMigrateSkills = async () => {
+    if (!partyCharacters.length) return;
+
+    setIsMigrating(true);
+    try {
+      const { migrateCharacterSkills } = await import('@/utils/skillMigration');
+
+      let count = 0;
+      for (const char of partyCharacters) {
+        const fullChar = char as unknown as Character; // Type assertion since PartyCharacter is subset
+        const migrated = migrateCharacterSkills(fullChar);
+
+        // Only update if skills actually changed (simple check)
+        if (JSON.stringify(fullChar.skills) !== JSON.stringify(migrated.skills)) {
+          await updateCharacter(char.id, { skills: migrated.skills });
+          count++;
+        }
+      }
+      alert(`Migração concluída! ${count} personagens atualizados.`);
+    } catch (error) {
+      console.error('Erro na migração:', error);
+      alert('Erro ao migrar perícias. Verifique o console.');
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   // View state for characters tab
   const [charactersViewMode, setCharactersViewMode] = useState<'active' | 'archived'>('active');
@@ -78,6 +111,36 @@ export function GMPanel({
     if (characterToArchive) {
       await archiveCharacter(characterToArchive.id);
       setCharacterToArchive(null);
+    }
+  };
+
+  const handleResetSession = async () => {
+    if (!confirm('Tem certeza? Isso tornará TODAS as selfies de TODOS os jogadores disponíveis novamente.')) return;
+
+    try {
+      const q = query(collection(db, 'characters'), where('sessionId', '==', sessionId));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+
+      let count = 0;
+      snapshot.docs.forEach(docSnap => {
+        const char = docSnap.data() as Character;
+        if (char.selfies && char.selfies.length > 0) {
+          const updatedSelfies = char.selfies.map(s => ({ ...s, isAvailable: true }));
+          batch.update(docSnap.ref, { selfies: updatedSelfies });
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        await batch.commit();
+        toast({ title: 'Sessão Reiniciada', description: `${count} fichas renovadas.` });
+      } else {
+        toast({ title: 'Aviso', description: 'Nenhum personagem com selfies encontrado.' });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao resetar sessão.' });
     }
   };
 
@@ -151,6 +214,23 @@ export function GMPanel({
                     Arquivados ({archivedCharacters.length})
                   </button>
                 </div>
+
+                <button
+                  onClick={handleMigrateSkills}
+                  disabled={isMigrating || partyCharacters.length === 0}
+                  className="p-1.5 rounded-md bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 transition-colors"
+                  title="Migrar Perícias (Legado -> iHunt)"
+                >
+                  <RefreshCcw className={`w-4 h-4 ${isMigrating ? 'animate-spin' : ''}`} />
+                </button>
+
+                <button
+                  onClick={handleResetSession}
+                  className="p-1.5 rounded-md bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors"
+                  title="Reiniciar Sessão (Recarregar Memórias)"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
               </div>
 
               {charactersViewMode === 'active' ? (

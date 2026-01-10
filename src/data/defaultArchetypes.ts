@@ -308,7 +308,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
         ],
         "skills": {
             "Sobrevivente": 5,
-            "Serviço Social": 4,
+            "Assistente Social": 4,
             "Atleta": 2,
             "Acadêmico": 2
         },
@@ -489,7 +489,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
         "skills": {
             "Atleta": 4,
             "Lutador": 3,
-            "Serviço Social": 3,
+            "Assistente Social": 3,
             "Médico": 2
         },
         "stress": 6,
@@ -519,7 +519,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
         "skills": {
             "Lutador": 4,
             "Atleta": 4,
-            "Furtividade (Espião)": 3
+            "Espião": 3
         },
         "stress": 5,
         "consequences": {
@@ -669,7 +669,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
         "skills": {
             "Ocultista": 4,
             "Médico": 3,
-            "Serviço Social": 3,
+            "Assistente Social": 3,
             "Criador": 2
         },
         "stress": 3,

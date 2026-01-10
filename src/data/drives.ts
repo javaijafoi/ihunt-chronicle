@@ -44,13 +44,13 @@ export const GENERAL_MANEUVERS: Maneuver[] = [
 export const DRIVES: Drive[] = [
   {
     id: 'malina',
-    name: 'Malinas',
+    name: 'Malinas (Os Sabichões)',
     icon: '📚',
-    summary: 'Caçam com conhecimento. Estudam os monstros, aprendem como funcionam, e usam isso contra eles. Pesquisa é sua arma mais poderosa.',
+    summary: 'Lutam com conhecimento, segredos e o profano. Estudam monstros e usam o conhecimento das sombras contra elas.',
     freeManeuver: {
       id: 'sabe-das-coisas',
       name: 'Sabe das Coisas',
-      description: 'Você pode usar Conhecimento para criar vantagem ao identificar fraquezas de monstros. +2 quando pesquisar sobre criaturas sobrenaturais.',
+      description: '“Segura” um aspecto situacional de conhecimento com 1 invocação grátis. Só pode ter um por vez.',
       driveExclusive: 'malina',
       cost: 0,
     },
@@ -58,21 +58,21 @@ export const DRIVES: Drive[] = [
       {
         id: 'mestre-pesquisa',
         name: 'Mestre da Pesquisa',
-        description: 'Uma vez por sessão, você pode declarar que já pesquisou sobre o assunto atual e receber uma informação crucial do GM.',
+        description: 'Vantagem em pesquisa. Pode defender com Acadêmico/Ocultista se tiver aspecto de pesquisa.',
         driveExclusive: 'malina',
         cost: 1,
       },
       {
         id: 'pocoes',
         name: 'Poções',
-        description: 'Você pode criar itens consumíveis usando Conhecimento. Comece cada sessão com uma poção gratuita.',
+        description: 'Gaste 1 PD para criar poção. Quem beber ganha Aspecto + 2 invocações (ou penalidades se veneno).',
         driveExclusive: 'malina',
         cost: 1,
       },
       {
         id: 'embruxacao',
         name: 'Embruxação',
-        description: 'Você aprendeu rituais básicos. Pode gastar um Ponto de Destino para criar efeitos sobrenaturais menores.',
+        description: 'Acesso a dons mágicos. Pague custos de essência com estresse físico ou mental (1 por 1).',
         driveExclusive: 'malina',
         cost: 1,
       },
@@ -80,13 +80,13 @@ export const DRIVES: Drive[] = [
   },
   {
     id: 'cavalo',
-    name: 'Cavalos',
-    icon: '⚔️',
-    summary: 'Lutam com força bruta. Vão direto na jugular. Quando a diplomacia falha, eles entram em cena com punhos e determinação.',
+    name: 'Cavalos (Os Porradeiros)',
+    icon: '👊',
+    summary: 'Lutam com força bruta e violência. O corpo é uma ferramenta descartável para resolver problemas na porrada.',
     freeManeuver: {
       id: 'melhor-defesa',
       name: 'A Melhor Defesa',
-      description: 'Quando você ataca com sucesso, pode escolher receber +2 na defesa até seu próximo turno em vez de causar mais dano.',
+      description: 'Gaste 1 PD para “guardar” uma boa rolagem de ataque e usá-la como defesa depois.',
       driveExclusive: 'cavalo',
       cost: 0,
     },
@@ -94,21 +94,21 @@ export const DRIVES: Drive[] = [
       {
         id: 'consciencia-situacional',
         name: 'Consciência Situacional',
-        description: '+2 para notar emboscadas e ameaças físicas. Você nunca é pego completamente de surpresa.',
+        description: 'Ganha impulso ao usar aspecto de ambiente. Aspecto de cenário como arma invoca com +3.',
         driveExclusive: 'cavalo',
         cost: 1,
       },
       {
         id: 'machuca-nao-doi',
         name: 'Machuca Mas Não Dói',
-        description: 'Uma vez por cena, você pode ignorar uma consequência leve relacionada a dano físico.',
+        description: 'Gaste 1 PD para reduzir dano físico em 2 e ganhar impulso. Vantagem em consequência grave.',
         driveExclusive: 'cavalo',
         cost: 1,
       },
       {
         id: 'espirito-equipe',
         name: 'Espírito de Equipe',
-        description: 'Quando defender um aliado, +2 na defesa. Se falhar, você recebe o dano em vez do aliado.',
+        description: 'Invocação grátis se aliado seguir plano. 1x/sessão: gaste PD para refazer ação (rollback).',
         driveExclusive: 'cavalo',
         cost: 1,
       },
@@ -116,13 +116,13 @@ export const DRIVES: Drive[] = [
   },
   {
     id: 'fui',
-    name: 'Fuis',
+    name: 'Fuis (Os Techs)',
     icon: '💻',
-    summary: 'Lutam com ferramentas. Criam, invadem, consertam e quebram. Tecnologia, gambiarras e criatividade são suas armas.',
+    summary: 'Lutam com tecnologia. Hackers, pilotos e anarquistas que resolvem tretas com gadgets e explosivos.',
     freeManeuver: {
-      id: 'estoque-fui',
-      name: 'Estoque de Fui',
-      description: 'Você sempre tem uma ferramenta ou gadget útil. Uma vez por cena, declare que tem exatamente o que precisa.',
+      id: 'protocolo-basico',
+      name: 'Protocolo Básico',
+      description: 'Elimina automaticamente aspectos situacionais simples se tiver ferramentas apropriadas.',
       driveExclusive: 'fui',
       cost: 0,
     },
@@ -130,21 +130,21 @@ export const DRIVES: Drive[] = [
       {
         id: 'referencia-hacker',
         name: 'Referência Hacker',
-        description: '+2 para invadir sistemas, bypassar segurança digital e encontrar informações online.',
+        description: 'Vantagem com computadores. Dificuldade para te impedir = sua perícia Hacker. Se opor, +2.',
         driveExclusive: 'fui',
         cost: 1,
       },
       {
         id: 'pilotagem-sagaz',
         name: 'Pilotagem Sagaz',
-        description: '+2 ao dirigir em perseguições ou situações de risco. Você sabe tirar o máximo de qualquer veículo.',
+        description: 'Aspectos de veículo/drones ganham +1 invocação grátis. +2 na defesa pilotando.',
         driveExclusive: 'fui',
         cost: 1,
       },
       {
         id: 'anarquia-ihunt',
         name: 'Anarquia no #iHunt',
-        description: 'Você tem reputação na comunidade. +2 em interações sociais com outros caçadores online.',
+        description: '+2 para destruir/criar vantagem destruindo. Sucesso cria aspecto extra de distração grátis.',
         driveExclusive: 'fui',
         cost: 1,
       },
@@ -152,13 +152,13 @@ export const DRIVES: Drive[] = [
   },
   {
     id: 'os66',
-    name: 'Os 66',
+    name: 'Os 66 (O Social)',
     icon: '🤝',
-    summary: 'Lutam com comunidade. Organizam pessoas, constroem redes, mobilizam recursos. Juntos somos mais fortes.',
+    summary: 'Lutam com pessoas. Usam lábia, contatos e a opinião pública contra os monstros.',
     freeManeuver: {
       id: 'pessoas-conhecem-pessoas',
       name: 'Pessoas Que Conhecem Pessoas',
-      description: 'Você sempre conhece alguém. Uma vez por sessão, pode introduzir um PNJ que te deve um favor.',
+      description: 'Gaste 1 PD para criar NPC especialista (+4 ou +3/grupo) com aspecto e 1 invocação.',
       driveExclusive: 'os66',
       cost: 0,
     },
@@ -166,21 +166,21 @@ export const DRIVES: Drive[] = [
       {
         id: 'disfarce-secreto',
         name: 'Disfarce Secreto',
-        description: '+2 para se passar por outra pessoa ou se infiltrar em grupos. Você é um camaleão social.',
+        description: 'Aspecto de infiltração dá acesso a perícia relevante no nível +3 ou manobra da perícia.',
         driveExclusive: 'os66',
         cost: 1,
       },
       {
         id: 'imunidade-diplomatica',
         name: 'Imunidade Diplomática',
-        description: 'Uma vez por sessão, você pode evitar um conflito completamente através de negociação.',
+        description: 'Aspecto de aceitação social ganha 1 invocação/cena. Defesas sociais bem sucedidas têm Estilo.',
         driveExclusive: 'os66',
         cost: 1,
       },
       {
         id: 'alvo-na-cabeca',
         name: 'Alvo na Cabeça',
-        description: 'Quando você marca alguém como alvo, todos os aliados ganham +1 para atacar esse alvo até o fim da cena.',
+        description: 'Inimigo público ganha aspecto com invocação + dilema. Se desconhecido, +1 invocação extra.',
         driveExclusive: 'os66',
         cost: 1,
       },
@@ -195,7 +195,7 @@ export function getDriveById(id: DriveName): Drive | undefined {
 export function getAllManeuversForDrive(driveId: DriveName): Maneuver[] {
   const drive = getDriveById(driveId);
   if (!drive) return GENERAL_MANEUVERS;
-  
+
   return [
     drive.freeManeuver,
     ...drive.exclusiveManeuvers,
