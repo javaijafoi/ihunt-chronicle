@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Users, Users2, Archive, RefreshCcw, Camera, Calendar } from 'lucide-react';
+import { Crown, MapPin, Users, Users2, Archive, RefreshCcw, Calendar, BookOpen } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { SceneManager } from './SceneManager';
 import { ActiveNPCsPanel } from './ActiveNPCsPanel';
 import { ActiveNPCSheet } from './ActiveNPCSheet';
 import { TimelineManager } from './TimelineManager';
+import { ArchetypeDatabase } from './ArchetypeDatabase';
 // ... imports
 import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
@@ -73,7 +74,7 @@ export function GMPanel({
 
   const [charactersViewMode, setCharactersViewMode] = useState<'active' | 'archived'>('active');
   const [characterToArchive, setCharacterToArchive] = useState<{ id: string; name: string } | null>(null);
-  const [isMigrating, setIsMigrating] = useState(false);
+  const [showArchetypes, setShowArchetypes] = useState(false);
 
   // Helper to archive/unarchive
   const setCharacterArchived = async (charId: string, archived: boolean) => {
@@ -82,28 +83,10 @@ export function GMPanel({
       // Based on recent changes, characters are likely root with sessionId.
       // But let's try to be generic or use the passed prop logic if available.
       // Since we don't have onArchiveCharacter prop, we'll try direct update or check if we should add it to props.
-      // For now, let's look at imports. We imported 'db'.
-      // We'll update the character document directly.
-      // NOTE: This might need adjustment if characters are subcollections.
-      await writeBatch(db).update(query(collection(db, 'characters'), where('id', '==', charId)), { archived: archived }).commit();
-      // Actually simpler: just update the doc if we knew the path. 
-      // Since we don't have the path easily, we might rely on the parent updating or try to find it.
-      // Better approach: Let's assume onUpdateScene logic but for characters? No.
-      // Let's just use the direct reference if we can, or query.
-      // Given the context of "Fixing Crashes", let's implement a robust handler or stub if unsure.
-      // PROPOSAL: Add onArchiveCharacter/onUnarchiveCharacter to props? 
-      // User didn't ask for props change.
-      // Let's implement a direct Firestore update assuming 'characters' collection.
-
-      const charRef = doc(db, 'characters', charId);
-      // We can also try 'sessions/{sessionId}/characters/{charId}' if legacy.
-      // But wait! We have onEditCharacter but not onArchive.
-      // Let's just suppress the error by implementing the state. 
-      // The logic for archiving was likely lost.
-
       // Let's assume standard update:
       const batch = writeBatch(db);
-      batch.update(charRef, { archived });
+      const charRef = doc(db, 'characters', charId);
+      batch.update(charRef, { isArchived: archived });
       await batch.commit();
       toast({ title: archived ? "Personagem arquivado" : "Personagem restaurado" });
     } catch (e) {
@@ -126,18 +109,9 @@ export function GMPanel({
     await setCharacterArchived(charId, false);
   };
 
-  const handleMigrateSkills = async () => {
-    setIsMigrating(true);
-    // Simulation
-    setTimeout(() => {
-      setIsMigrating(false);
-      toast({ title: "Migração simulada com sucesso" });
-    }, 1000);
-  };
+  /* Removed handleMigrateSkills */
 
-  const handleResetSession = () => {
-    window.location.reload();
-  };
+
 
   const tabs = [
     { id: 'scenes' as const, label: 'Cenas', icon: MapPin },
@@ -153,12 +127,25 @@ export function GMPanel({
           <Crown className="w-4 h-4 text-secondary" />
           <span className="font-display text-sm text-secondary">Painel do GM</span>
         </div>
-        <button onClick={() => setShowTimeline(true)} className="p-1 hover:bg-secondary/20 rounded" title="Gerenciar Linha do Tempo">
-          <Calendar className="w-4 h-4 text-secondary" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowArchetypes(true)} className="p-1 hover:bg-secondary/20 rounded" title="Base de Arquétipos">
+            <BookOpen className="w-4 h-4 text-secondary" />
+          </button>
+          <button onClick={() => setShowTimeline(true)} className="p-1 hover:bg-secondary/20 rounded" title="Gerenciar Linha do Tempo">
+            <Calendar className="w-4 h-4 text-secondary" />
+          </button>
+        </div>
       </div>
 
       <TimelineManager isOpen={showTimeline} onClose={() => setShowTimeline(false)} />
+
+      <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
+        <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ArchetypeDatabase sessionId={sessionId} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         {/* ... tabs content */}
@@ -193,10 +180,14 @@ export function GMPanel({
 
           <TabsContent value="npcs" className="m-0 h-full mt-0">
             <ActiveNPCsPanel
-              sessionId={sessionId}
+              campaignId={sessionId}
               currentSceneId={currentScene?.id || null}
               onSelectNPC={setSelectedNPC}
             />
+          </TabsContent>
+
+          <TabsContent value="archetypes" className="m-0 h-full mt-0">
+            <ArchetypeDatabase sessionId={sessionId} />
           </TabsContent>
 
           <TabsContent value="characters" className="m-0 h-full mt-0">
@@ -218,22 +209,9 @@ export function GMPanel({
                   </button>
                 </div>
 
-                <button
-                  onClick={handleMigrateSkills}
-                  disabled={isMigrating || partyCharacters.length === 0}
-                  className="p-1.5 rounded-md bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 transition-colors"
-                  title="Migrar Perícias (Legado -> iHunt)"
-                >
-                  <RefreshCcw className={`w-4 h-4 ${isMigrating ? 'animate-spin' : ''}`} />
-                </button>
 
-                <button
-                  onClick={handleResetSession}
-                  className="p-1.5 rounded-md bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors"
-                  title="Reiniciar Sessão (Recarregar Memórias)"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
+
+
               </div>
 
               {charactersViewMode === 'active' ? (

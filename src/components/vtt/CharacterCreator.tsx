@@ -5,7 +5,7 @@ import { Character, DriveName, Maneuver } from '@/types/game';
 import { SkillPyramid } from './SkillPyramid';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 import { useAuth } from '@/hooks/useAuth';
-import { GLOBAL_SESSION_ID, useSession } from '@/hooks/useSession';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 interface CharacterCreatorProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ const STEPS = [
 
 const BASE_REFRESH = 5;
 
-const BASE_CHARACTER: Omit<Character, 'id' | 'sessionId' | 'createdBy'> = {
+const BASE_CHARACTER: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'> = {
   name: '',
   avatar: '',
   drive: undefined,
@@ -52,19 +52,20 @@ const BASE_CHARACTER: Omit<Character, 'id' | 'sessionId' | 'createdBy'> = {
   refresh: 3,
 };
 
-const buildDefaultCharacter = (sessionId: string, createdBy: string): Omit<Character, 'id'> => ({
+const buildDefaultCharacter = (campaignId: string, userId: string): Omit<Character, 'id'> => ({
   ...BASE_CHARACTER,
-  sessionId,
-  createdBy,
+  campaignId,
+  createdBy: userId,
+  userId,
 });
 
 export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: CharacterCreatorProps) {
   const { user } = useAuth();
-  const { currentSession } = useSession();
+  const { campaign } = useCampaign();
 
   const defaultCharacter = useMemo(
-    () => buildDefaultCharacter(currentSession?.id || GLOBAL_SESSION_ID, user?.uid || 'anonymous'),
-    [currentSession?.id, user?.uid]
+    () => buildDefaultCharacter(campaign?.id || 'offline', user?.uid || 'anonymous'),
+    [campaign?.id, user?.uid]
   );
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -266,8 +267,8 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`p-4 rounded-xl text-left transition-all border-2 ${character.drive === drive.id
-                      ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
-                      : 'border-border bg-muted/50 hover:border-muted-foreground/50'
+                    ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                    : 'border-border bg-muted/50 hover:border-muted-foreground/50'
                     }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
@@ -490,10 +491,10 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                         onClick={() => toggleManeuver(maneuver)}
                         disabled={!canAfford && !isSelected}
                         className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
-                            ? 'border-secondary bg-secondary/10'
-                            : canAfford
-                              ? 'border-border bg-muted/50 hover:border-secondary/50'
-                              : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                          ? 'border-secondary bg-secondary/10'
+                          : canAfford
+                            ? 'border-border bg-muted/50 hover:border-secondary/50'
+                            : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
                           }`}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -532,10 +533,10 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                       onClick={() => toggleManeuver(maneuver)}
                       disabled={!canAfford && !isSelected}
                       className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
-                          ? 'border-secondary bg-secondary/10'
-                          : canAfford
-                            ? 'border-border bg-muted/50 hover:border-secondary/50'
-                            : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                        ? 'border-secondary bg-secondary/10'
+                        : canAfford
+                          ? 'border-border bg-muted/50 hover:border-secondary/50'
+                          : 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -701,10 +702,10 @@ export function CharacterCreator({ isOpen, onClose, onSave, editingCharacter }: 
                     key={step.id}
                     onClick={() => setCurrentStep(index)}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${index === currentStep
-                        ? 'bg-primary text-primary-foreground'
-                        : index < currentStep
-                          ? 'bg-primary/20 text-primary'
-                          : 'bg-muted text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground'
+                      : index < currentStep
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-muted text-muted-foreground'
                       }`}
                   >
                     <Icon className="w-4 h-4" />

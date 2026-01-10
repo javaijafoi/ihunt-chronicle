@@ -107,15 +107,15 @@ export function LeftSidebar(props: LeftSidebarProps) {
           />
         ) : null;
       case 'party':
-        return props.partyCharacters.length > 0 ? (
+      case 'party':
+        return (
           <PartyPanel
             partyCharacters={props.partyCharacters}
             myCharacterId={props.myCharacterId}
             onViewCharacter={props.onViewCharacter}
             onInvokeAspect={props.onInvokeAspect}
+            inviteCode={props.sessionId}
           />
-        ) : (
-          <p className="text-sm text-muted-foreground p-2">Nenhum jogador online.</p>
         );
       case 'hud':
         return props.selectedCharacter ? (

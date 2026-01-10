@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     collection,
     query,
-    increment
+    increment,
+    onSnapshot,
+    addDoc,
+    serverTimestamp,
+    doc,
+    updateDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ActionType, DiceResult, LogEntry } from '@/types/game';
@@ -57,17 +62,40 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
 
     const createRollLog = useCallback(async (result: DiceResult) => {
         if (!episodeId) return;
-        // ... helper to format result ... 
-        // For brevity reusing logic in VTTPage or assuming result has formatted data
+
+        // Convert the result details to a plain object and remove undefined values
+        const details = JSON.parse(JSON.stringify({
+            ...result,
+            kind: 'roll',
+            timestamp: result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp
+        }));
+
+        // Firestore doesn't accept undefined, but JSON.stringify/parse cleans them.
+        // We need to restore timestamp to serverTimestamp() or Date if needed, 
+        // but here we are sending a separate top-level timestamp.
+        // Let's manually clean just to be safe and efficient without JSON overhead if preferred,
+        // but JSON stringify is the easiest way to strip undefineds recursively.
+
+        // However, result.timestamp might be a complex object.
+        // Let's just manually construct the safe object.
+
+        const safeDetails: any = {
+            ...result,
+            kind: 'roll'
+        };
+
+        // Remove undefined keys
+        Object.keys(safeDetails).forEach(key => {
+            if (safeDetails[key] === undefined) {
+                delete safeDetails[key];
+            }
+        });
+
         const logEntry = {
             type: 'roll',
             message: `${result.character} rolou ${result.action || 'dados'}`,
             character: result.character,
-            details: {
-                ...result,
-                // Ensure no undefineds
-                kind: 'roll'
-            },
+            details: safeDetails,
             timestamp: serverTimestamp()
         };
         await addDoc(collection(db, 'episodes', episodeId, 'logs'), logEntry);

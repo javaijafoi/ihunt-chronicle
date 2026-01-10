@@ -78,11 +78,11 @@ export function TimelineManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                                             <span>{season.title}</span>
                                             <div className="flex gap-2">
                                                 <Badge variant="outline">{season.status}</Badge>
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
+                                                <div role="button" className="h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" onClick={(e) => {
                                                     e.stopPropagation();
                                                     setSelectedSeasonId(season.id);
                                                     setCreateMode('story');
-                                                }}><Plus className="w-3 h-3" /></Button>
+                                                }}><Plus className="w-3 h-3" /></div>
                                             </div>
                                         </div>
                                     </AccordionTrigger>
@@ -104,8 +104,8 @@ export function TimelineManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                                                                 <span>{episode.title}</span>
                                                                 <div className="flex gap-1">
                                                                     {episode.status === 'active' && <Badge className="bg-green-500">Ativo</Badge>}
-                                                                    {episode.status === 'completed' && <Badge variant="secondary">Concluído</Badge>}
-                                                                    {episode.status === 'pending' && <Button size="sm" variant="ghost" onClick={() => activateEpisode(episode.id)}><Play className="w-3 h-3 text-green-500" /></Button>}
+                                                                    {episode.status === 'closed' && <Badge variant="secondary">Concluído</Badge>}
+                                                                    {episode.status === 'draft' && <Button size="sm" variant="ghost" onClick={() => activateEpisode(episode.id)}><Play className="w-3 h-3 text-green-500" /></Button>}
                                                                     {episode.status === 'active' && <Button size="sm" variant="ghost" onClick={() => closeEpisode(episode.id)}><CheckCircle className="w-3 h-3 text-blue-500" /></Button>}
                                                                 </div>
                                                             </div>

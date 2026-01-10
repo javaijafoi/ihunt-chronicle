@@ -17,6 +17,7 @@ export interface UserProfile {
   uid: string;
   displayName: string | null;
   photoURL: string | null;
+  email: string | null;
   isAnonymous: boolean;
 }
 
@@ -48,6 +49,7 @@ export function useAuth() {
           uid: firebaseUser.uid,
           displayName: firebaseUser.displayName || 'Caçador',
           photoURL: firebaseUser.photoURL,
+          email: firebaseUser.email,
           isAnonymous: firebaseUser.isAnonymous,
         });
       } else {

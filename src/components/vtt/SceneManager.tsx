@@ -9,7 +9,7 @@ interface SceneManagerProps {
   currentScene: Scene | null;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
-  onCreateScene: (scene: Omit<Scene, 'id'>) => void | Promise<string | null>;
+  onCreateScene: (scene: Omit<Scene, 'id' | 'episodeId' | 'campaignId' | 'order'>) => void | Promise<string | null>;
   onUpdateScene: (sceneId: string, updates: Partial<Scene>) => void | Promise<void>;
   onDeleteScene: (sceneId: string) => void | Promise<void>;
   onSetActiveScene: (sceneId: string) => void | Promise<void>;

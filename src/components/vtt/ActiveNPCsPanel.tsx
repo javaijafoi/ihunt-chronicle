@@ -26,14 +26,14 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 interface ActiveNPCsPanelProps {
-  sessionId: string;
+  campaignId: string;
   currentSceneId: string | null;
   onSelectNPC: (npc: ActiveNPC) => void;
 }
 
-export function ActiveNPCsPanel({ sessionId, currentSceneId, onSelectNPC }: ActiveNPCsPanelProps) {
-  const { activeNPCs, moveToScene, toggleToken, deleteNPC, updateNPC } = useActiveNPCs(sessionId);
-  const { tokens, createToken, deleteToken } = useTokens(sessionId);
+export function ActiveNPCsPanel({ campaignId, currentSceneId, onSelectNPC }: ActiveNPCsPanelProps) {
+  const { activeNPCs, moveToScene, toggleToken, deleteNPC, updateNPC } = useActiveNPCs(campaignId);
+  const { tokens, createToken, deleteToken } = useTokens(currentSceneId, campaignId);
 
   // Grouping
   const inScene = activeNPCs.filter(n => n.sceneId === currentSceneId && currentSceneId !== null);

@@ -31,6 +31,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
         stress: 5,
         consequences: { mild: null, moderate: null, severe: null },
         stunts: [],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -58,6 +59,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "Sabe das coisas (Malina)",
             "Embruxação x3 (Malina)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -84,6 +86,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "A Melhor Defesa (Cavala)",
             "Consciência Situacional (Cavala)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -111,6 +114,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "Pilotagem Sagaz (Fui)",
             "Desmascarar (Investigadore)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -138,6 +142,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "Disfarce Secreto (66)",
             "Vestide para o Sucesso (Influencer)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -161,6 +166,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
         stunts: [
             "Insensível (Sobrevivente)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -184,6 +190,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
         stunts: [
             "Insensível (Sobrevivente)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -208,6 +215,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "Amuletos de Defesa (Ocultista)",
             "Especialização (Ocultista)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
     {
@@ -232,6 +240,7 @@ export const SCENARIO_ARCHETYPES: Archetype[] = [
             "Insensível (Sobrevivente)",
             "Vença a Dor (Lutador)"
         ],
+        campaignId: null,
         isGlobal: true,
     },
 ];

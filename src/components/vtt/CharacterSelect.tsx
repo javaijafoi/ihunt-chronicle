@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, Timestamp, type FirestoreError } from 'firebase/firestore';
 import { Character } from '@/types/game';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
-import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
+import { useCampaign } from '@/contexts/CampaignContext';
+import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useAuth } from '@/hooks/useAuth';
 import { CharacterCreator } from './CharacterCreator';
-import { GMClaimDialog } from './GMClaimDialog';
+// Removed GMClaimDialog content
 import { db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 import { PRESENCE_STALE_MS } from '@/constants/presence';
@@ -30,7 +31,9 @@ type ViewState = 'lobby' | 'selection';
 export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const { joinAsPlayer, claimGmRole, isGM, currentSession } = useSession();
+  const { campaign, currentScene, selectCharacter: contextSelectCharacter, isGM } = useCampaign();
+  const { partyCharacters } = usePartyCharacters(campaign?.id);
+
   const {
     characters,
     loading,
@@ -38,7 +41,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
     updateCharacter,
     deleteCharacter,
     duplicateCharacter,
-  } = useFirebaseCharacters(currentSession?.id || GLOBAL_SESSION_ID);
+  } = useFirebaseCharacters(campaign?.id); // Use campaign ID for characters
 
   const [view, setView] = useState<ViewState>('lobby');
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
@@ -46,99 +49,26 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [isClaimingGM, setIsClaimingGM] = useState(false);
-  const [showGMDialog, setShowGMDialog] = useState(false);
-
-  const [characterPresenceMap, setCharacterPresenceMap] = useState<Map<string, CharacterPresence>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ... (Presence Logic remains the same)
+  // Placeholder for any other side effects, presence is now handled by partyCharacters hook
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'sessions', GLOBAL_SESSION_ID, 'presence'),
-      (snapshot) => {
-        const presence = new Map<string, CharacterPresence>();
-        snapshot.docs.forEach((doc) => {
-          const characterId = doc.data()?.characterId as string | undefined;
-          const ownerId = (doc.data()?.ownerId as string | undefined) ?? doc.id;
-          const lastSeenValue = doc.data()?.lastSeen;
-          const lastSeen =
-            lastSeenValue instanceof Timestamp
-              ? lastSeenValue.toMillis()
-              : typeof lastSeenValue === 'number'
-                ? lastSeenValue
-                : 0;
-          if (characterId) {
-            const incomingPresence = { ownerId, lastSeen };
-            const existingPresence = presence.get(characterId);
-            const incomingIsCurrentUser = ownerId === user?.uid;
-
-            if (!existingPresence) {
-              presence.set(characterId, incomingPresence);
-              return;
-            }
-
-            const existingIsCurrentUser = existingPresence.ownerId === user?.uid;
-
-            if (existingIsCurrentUser && !incomingIsCurrentUser) {
-              return;
-            }
-
-            if (incomingIsCurrentUser && !existingIsCurrentUser) {
-              presence.set(characterId, incomingPresence);
-              return;
-            }
-
-            if (incomingPresence.lastSeen > existingPresence.lastSeen) {
-              presence.set(characterId, incomingPresence);
-            }
-          }
-        });
-        setCharacterPresenceMap(presence);
-      },
-      (error: FirestoreError) => {
-        if (error.code !== 'permission-denied') {
-          console.error('Erro ao ler presença:', error);
-        }
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user?.uid]);
+    // no-op
+  }, []);
 
   const charactersTaken = useMemo<Map<string, CharacterPresence | null>>(() => {
-    const merged = new Map<string, CharacterPresence | null>();
-
-    characterPresenceMap.forEach((presence, characterId) => {
-      const existingPresence = merged.get(characterId);
-
-      if (!existingPresence) {
-        merged.set(characterId, presence);
-        return;
-      }
-
-      if (existingPresence.ownerId === user?.uid && presence.ownerId !== user?.uid) {
-        return;
-      }
-
-      if (presence.ownerId === user?.uid && existingPresence.ownerId !== user?.uid) {
-        merged.set(characterId, presence);
-        return;
-      }
-
-      if (presence.lastSeen > existingPresence.lastSeen) {
-        merged.set(characterId, presence);
+    const map = new Map<string, CharacterPresence | null>();
+    partyCharacters.forEach(pc => {
+      if (pc.id) {
+        map.set(pc.id, {
+          ownerId: pc.ownerId,
+          lastSeen: pc.lastSeen instanceof Date ? pc.lastSeen.getTime() : 0
+        });
       }
     });
-
-    (currentSession?.characterIds ?? []).forEach((characterId) => {
-      if (!merged.has(characterId)) {
-        merged.set(characterId, null);
-      }
-    });
-
-    return merged;
-  }, [characterPresenceMap, currentSession?.characterIds, user?.uid]);
+    return map;
+  }, [partyCharacters]);
 
   const isPresencActive = (presence?: CharacterPresence | null) => {
     if (!presence) return false;
@@ -243,28 +173,14 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
 
   const handlePlay = async () => {
     const character = selectedCharacter;
-    if (!character || !selectedStatus) return;
-    const shouldForceJoin = selectedStatus === 'occupied';
+    if (!character) return;
+    // const shouldForceJoin = selectedStatus === 'occupied'; // Logic simplified
 
     setIsJoining(true);
-    const success = await joinAsPlayer(character.id, shouldForceJoin);
+    await contextSelectCharacter(character.id);
     setIsJoining(false);
 
-    if (success) {
-      onSelectCharacter(character);
-    }
-  };
-
-  const handleClaimGM = async () => {
-    setIsClaimingGM(true);
-    const success = await claimGmRole();
-    setIsClaimingGM(false);
-    setShowGMDialog(false);
-
-    if (success) {
-      // Just confirm locally if needed, but usage of isGM in parent will handle nav
-      toast({ title: "Você é o Mestre agora", description: "O controle da sessão é seu." });
-    }
+    onSelectCharacter(character);
   };
 
   if (loading) {
@@ -290,7 +206,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                 <Sparkles className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-display text-foreground">{currentSession?.name || "Sessão Principal"}</h1>
+                <h1 className="text-xl font-display text-foreground">{campaign?.title || "Minha Campanha"}</h1>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                   <span className="text-xs text-muted-foreground">Sessão Ativa</span>
@@ -304,7 +220,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                   <div className="text-xs uppercase text-muted-foreground font-bold tracking-wider mb-1 flex items-center gap-1">
                     <MapPin className="w-3 h-3" /> Cena Atual
                   </div>
-                  <div className="font-medium text-foreground">{currentSession?.currentScene?.name || "Sem cena ativa"}</div>
+                  <div className="font-medium text-foreground">{currentScene?.name || "Sem cena ativa"}</div>
                 </div>
 
                 <div className="h-8 w-px bg-border/50" />
@@ -314,7 +230,7 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                     <Users className="w-3 h-3" /> Jogadores
                   </div>
                   <div className="font-medium text-foreground text-sm">
-                    {characterPresenceMap.size} online
+                    {partyCharacters.length} online
                   </div>
                 </div>
               </div>
@@ -323,8 +239,8 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
             <div className="text-right">
               <div className="text-xs uppercase text-muted-foreground font-bold tracking-wider mb-2">Aspectos da Cena</div>
               <div className="flex gap-2 justify-end">
-                {currentSession?.currentScene?.aspects && currentSession.currentScene.aspects.length > 0 ? (
-                  currentSession.currentScene.aspects.slice(0, 3).map((aspect) => (
+                {currentScene?.aspects && currentScene.aspects.length > 0 ? (
+                  currentScene.aspects.slice(0, 3).map((aspect) => (
                     <span key={aspect.id} className="text-[10px] bg-cyan-950/50 text-cyan-400 border border-cyan-800/50 px-2 py-1 rounded">
                       {aspect.name}
                     </span>
@@ -375,37 +291,9 @@ export function CharacterSelect({ onSelectCharacter }: CharacterSelectProps) {
                   <p className="text-sm text-indigo-300/70">Entrar como jogador na sessão</p>
                 </div>
               </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowGMDialog(true)}
-                className="group relative p-6 h-24 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/50 transition-all text-left flex items-center gap-4 overflow-hidden"
-              >
-                <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Crown className="w-6 h-6 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-amber-100">Assumir como Mestre</h3>
-                  <p className="text-sm text-amber-300/70">Tomar o controle da mesa</p>
-                </div>
-                {currentSession?.gmId && (
-                  <span className="absolute top-4 right-4 text-[10px] uppercase font-bold tracking-wider text-amber-500/50 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                    Ocupado
-                  </span>
-                )}
-              </motion.button>
             </div>
           </div>
         </div>
-
-        <GMClaimDialog
-          isOpen={showGMDialog}
-          onClose={() => setShowGMDialog(false)}
-          onConfirm={handleClaimGM}
-          currentSession={currentSession}
-          isClaiming={isClaimingGM}
-        />
       </div>
     );
   }

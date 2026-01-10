@@ -37,7 +37,7 @@ interface TimelineItem {
 
 export function SelfieTimeline({
     myCharacter,
-    partyCharacters,
+    partyCharacters = [],
     onUpdateCharacter,
     isGM,
     currentUserId

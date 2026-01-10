@@ -103,7 +103,7 @@ export function useTimeline(campaignId?: string) {
                 storyId,
                 title,
                 description,
-                status: 'pending',
+                status: 'draft',
                 createdAt: serverTimestamp()
             });
             toast({ title: 'Episódio criado!' });
@@ -141,7 +141,7 @@ export function useTimeline(campaignId?: string) {
             // 1. Close the episode
             const epRef = doc(db, 'episodes', episodeId);
             batch.update(epRef, {
-                status: 'completed',
+                status: 'closed',
                 endedAt: serverTimestamp()
             });
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEpisode } from '@/hooks/useEpisode';
@@ -59,6 +59,7 @@ export function VTTPage() {
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showArchetypes, setShowArchetypes] = useState(false);
+  const [showSelfieAlbum, setShowSelfieAlbum] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
@@ -186,17 +187,52 @@ export function VTTPage() {
           <Link to="/" className="p-2 rounded-lg glass-panel hover:bg-muted"><Home className="w-4 h-4" /></Link>
           <div className="glass-panel px-3 py-1.5"><h1 className="font-display text-xl text-primary">#iHUNT</h1></div>
           <div className="glass-panel px-2 py-1.5 text-xs text-muted-foreground">{campaign.title}</div>
+
+          {/* Room Code */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(campaign.id);
+                  toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+                }}
+                className="glass-panel px-2 py-1.5 flex items-center gap-1.5 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="text-[10px] uppercase font-bold text-muted-foreground">Sala:</div>
+                <code className="text-xs font-mono font-bold text-accent group-hover:text-accent/80 transition-colors">
+                  {campaign.id.slice(0, 8)}...
+                </code>
+                <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Clique para copiar o código da sala</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex items-center gap-2">
           <SafetyControls mySettings={mySettings} aggregatedLevels={aggregatedLevels} onUpdateSetting={updateMySetting} onTriggerXCard={triggerXCard} onTogglePause={togglePause} />
           {/* Dice & Sheet Toggles */}
           <button onClick={() => setShowDice(!showDice)} className="p-2 glass-panel"><Dices className="w-5 h-5" /></button>
+          <button onClick={() => setShowSelfieAlbum(!showSelfieAlbum)} className="p-2 glass-panel" title="Álbum de Selfies"><Camera className="w-5 h-5" /></button>
           <button onClick={() => setShowSheet(!showSheet)} className="p-2 glass-panel"><BookOpen className="w-5 h-5" /></button>
         </div>
       </motion.header>
 
       <XCardOverlay safetyState={safetyState} currentUserId={user?.uid} isGM={isGM} onResolve={resolveXCard} />
+
+      <Dialog open={showSelfieAlbum} onOpenChange={setShowSelfieAlbum}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background border-border">
+          <SelfieTimeline
+            partyCharacters={partyCharacters}
+            myCharacter={myCharacter}
+            onUpdateCharacter={updateFirebaseCharacter}
+            isGM={isGM}
+            currentUserId={user?.uid}
+          />
+        </DialogContent>
+      </Dialog>
 
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar */}

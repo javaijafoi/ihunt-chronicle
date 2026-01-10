@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { getDocs, query, where, collection, setDoc, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { getDocs, query, where, collection, setDoc, doc, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 
@@ -71,8 +71,61 @@ export function LobbyPage() {
   }, [userProfile]);
 
   const handleJoin = async () => {
-    if (!joinCode) return;
-    console.log("Join", joinCode);
+    if (!joinCode || !userProfile) return;
+
+    // Sanitize code: remove whitespace and handle "Join CODE" paste error
+    const code = joinCode.replace(/.*Join\s+/, '').trim();
+
+    console.log("Attempting to join with code:", code);
+
+    try {
+      const campaignRef = doc(db, 'campaigns', code);
+      const campaignSnap = await getDocs(query(collection(db, 'campaigns'), where('__name__', '==', code)));
+
+      if (campaignSnap.empty) {
+        // Fallback: Check if it's a join code logic (if you implemented mapped codes), 
+        // but for now assumining joinCode IS the ID.
+        // Alert user
+        alert("Crônica não encontrada com este código.");
+        return;
+      }
+
+      const campaignDoc = campaignSnap.docs[0];
+      const campaignData = campaignDoc.data();
+
+      // Check if already member
+      if (campaignData.members?.includes(userProfile.uid)) {
+        navigate(`/campaign/${code}`);
+        return;
+      }
+
+      const playerData = {
+        uid: userProfile.uid,
+        displayName: userProfile.displayName || 'Caçador',
+        photoURL: userProfile.photoURL || null,
+        email: userProfile.email || null
+      };
+
+      console.log("Adding player:", playerData);
+
+      // Create member document (Required by CampaignContext)
+      await setDoc(doc(db, `campaigns/${code}/members`, userProfile.uid), {
+        userId: userProfile.uid,
+        role: 'player',
+        characterId: null,
+        joinedAt: serverTimestamp()
+      });
+
+      await updateDoc(campaignRef, {
+        members: arrayUnion(userProfile.uid),
+        players: arrayUnion(playerData)
+      });
+
+      navigate(`/campaign/${code}`);
+    } catch (error) {
+      console.error("Error joining campaign:", error);
+      alert("Erro ao entrar na crônica. Verifique o código.");
+    }
   };
 
   // Guard against null profile

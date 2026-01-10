@@ -167,9 +167,10 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
     const selectCharacter = useCallback(async (characterId: string) => {
         if (!user || !campaign?.id) return;
 
-        await updateDoc(doc(db, `campaigns/${campaign.id}/members`, user.uid), {
+        // Use setDoc with merge to be safe against missing member docs
+        await setDoc(doc(db, `campaigns/${campaign.id}/members`, user.uid), {
             characterId
-        });
+        }, { merge: true });
     }, [user, campaign?.id]);
 
     const updateCampaign = useCallback(async (data: Partial<Campaign>) => {

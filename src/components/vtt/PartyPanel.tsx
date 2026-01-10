@@ -1,59 +1,88 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, User, Sparkles, ChevronRight, Eye } from 'lucide-react';
+import { Users, User, Sparkles, ChevronRight, Eye, Link as LinkIcon, Check, Copy } from 'lucide-react';
 import { PartyCharacter } from '@/types/session';
 import { Character } from '@/types/game';
 import { isPresenceRecent } from '@/utils/presence';
+import { toast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 interface PartyPanelProps {
   partyCharacters: PartyCharacter[];
   myCharacterId?: string;
   onViewCharacter: (character: Character) => void;
   onInvokeAspect?: (characterName: string, aspect: string) => void;
+  inviteCode?: string;
 }
 
-export function PartyPanel({ 
-  partyCharacters, 
+export function PartyPanel({
+  partyCharacters,
   myCharacterId,
   onViewCharacter,
-  onInvokeAspect 
+  onInvokeAspect,
+  inviteCode
 }: PartyPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyCode = () => {
+    if (inviteCode) {
+      navigator.clipboard.writeText(inviteCode);
+      setCopied(true);
+      toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const freshCharacters = partyCharacters.filter((character) => {
     return isPresenceRecent(character.lastSeen);
   });
 
-  if (freshCharacters.length === 0) {
-    return (
-      <div className="glass-panel p-4 w-72">
-        <div className="flex items-center gap-2 mb-3">
+  return (
+    <div className="glass-panel p-4 w-72 max-h-[60vh] overflow-y-auto">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-primary" />
           <span className="font-display text-sm">Grupo</span>
         </div>
+        <span className="text-xs text-muted-foreground">
+          {freshCharacters.length} online
+        </span>
+      </div>
+
+      {/* Invite Code Section */}
+      {inviteCode && (
+        <div className="mb-4 p-3 bg-muted/40 rounded-lg border border-border">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Código da Sala</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-background p-1.5 rounded text-xs font-mono border border-border/50 text-center select-all">
+              {inviteCode}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              onClick={handleCopyCode}
+              title="Copiar Código"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {freshCharacters.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-4">
           Nenhum personagem na sessão
         </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="glass-panel p-4 w-72 max-h-[60vh] overflow-y-auto">
-      <div className="flex items-center gap-2 mb-3">
-        <Users className="w-4 h-4 text-primary" />
-        <span className="font-display text-sm">Grupo</span>
-        <span className="text-xs text-muted-foreground ml-auto">
-          {freshCharacters.length} caçador{freshCharacters.length !== 1 ? 'es' : ''}
-        </span>
-      </div>
+      )}
 
       <div className="space-y-2">
         <AnimatePresence>
           {freshCharacters.map((character) => {
             const isMe = character.id === myCharacterId;
             const isExpanded = expandedId === character.id;
-            
+
             // Get visible aspects for invocation
             const visibleAspects = [
               character.aspects.highConcept,
@@ -75,18 +104,17 @@ export function PartyPanel({
                   className="w-full flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors"
                 >
                   {/* Online Indicator */}
-                  <div 
-                    className={`w-2 h-2 rounded-full ${
-                      isPresenceRecent(character.lastSeen) ? 'bg-green-500' : 'bg-muted-foreground'
-                    }`} 
+                  <div
+                    className={`w-2 h-2 rounded-full ${isPresenceRecent(character.lastSeen) ? 'bg-green-500' : 'bg-muted-foreground'
+                      }`}
                     title={isPresenceRecent(character.lastSeen) ? 'Online' : 'Offline'}
                   />
-                  
+
                   {/* Avatar */}
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                     {character.avatar ? (
-                      <img 
-                        src={character.avatar} 
+                      <img
+                        src={character.avatar}
                         alt={character.name}
                         className="w-full h-full rounded-full object-cover"
                       />
@@ -94,11 +122,11 @@ export function PartyPanel({
                       <User className="w-4 h-4 text-primary" />
                     )}
                   </div>
-                  
+
                   {/* Name */}
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-1">
-                      <span 
+                      <span
                         className="font-display text-sm truncate"
                         title={character.name}
                       >
@@ -110,7 +138,7 @@ export function PartyPanel({
                         </span>
                       )}
                     </div>
-                    <span 
+                    <span
                       className="text-[10px] text-muted-foreground line-clamp-1 block"
                       title={character.ownerName}
                     >
@@ -126,10 +154,9 @@ export function PartyPanel({
                     </span>
                   </div>
 
-                  <ChevronRight 
-                    className={`w-4 h-4 text-muted-foreground transition-transform ${
-                      isExpanded ? 'rotate-90' : ''
-                    }`}
+                  <ChevronRight
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''
+                      }`}
                   />
                 </button>
 

@@ -28,6 +28,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Regeneração (Cura uma consequência leve por cena)",
             "Sentidos Especiais: Cheiro de Sangue (+2 para notar feridos)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -59,6 +60,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Forma de Névoa (Imune a dano físico por 1 turno)",
             "Invocação de Lacaios (Gasta 1 ponto de destino para chamar seguranças)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -88,6 +90,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Transformação Monstruosa (Ganha +2 em força bruta)",
             "Mordida Infecciosa (Pode transmitir a maldição)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -118,6 +121,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Escudo de Proteção (+2 na defesa contra danos físicos)",
             "Ritual de Prosperidade (Gera recursos/vantagens financeiras)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -146,6 +150,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Horda (Ganha +1 para cada aliado na mesma zona)",
             "Agarra Firme (Ao acertar um ataque, impede movimento do alvo)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -176,6 +181,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Pacto (Concede bônus a mortais em troca de Aspectos negativos)",
             "Imortalidade Condicional (Só morre se o contrato for quebrado)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -205,6 +211,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Telepatia (Lê pensamentos superficiais)",
             "Euforia (Causa prazer na mordida)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -234,6 +241,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Camuflagem (Mistura-se ao ambiente urbano)",
             "Ataque Rápido (O primeiro ataque na cena tem +2)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -263,6 +271,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Potência Desumana (Pode realizar feitos de força absurdos)",
             "Preso às Regras (Não pode recusar um desafio formal)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -293,6 +302,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Vestida para Matar (Usa Influencer para defesa social)",
             "Euforia (Vítimas não sentem dor, só prazer)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -323,6 +333,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Filho da Puta Liso (Foge de qualquer situação)",
             "Cara de Raiva (Bônus em intimidar)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -353,6 +364,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Maldição Ancestral (Causa dano mental à distância)",
             "Forma de Névoa (Imunidade física temporária)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -383,6 +395,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Gerar Lealdade (Sangue viciante)",
             "Armadura Profana (Resistência sobrenatural)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -413,6 +426,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Fuga de Responsabilidade (Desvia o foco para outros)",
             "Roubar Autonomia (Via drogas ou hipnose fraca)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -443,6 +457,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Velocidade Ofuscante (Move-se instantaneamente)",
             "Telepatia (Lê mentes para achar carência)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -473,6 +488,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Regeneração Acelerada (Cura stress físico rapidamente)",
             "Forma Monstruosa (Ganha +2 em Força e Tamanho na Lua Cheia)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -503,6 +519,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Invencibilidade Parcial (Ignora danos que não sejam Prata)",
             "Velocidade Ofuscante (Move-se instantaneamente em combate)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -532,6 +549,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Escalada Aranha (Anda pelas paredes)",
             "Fraqueza Específica: Moeda na Boca e Decapitação (Único jeito de matar de vez)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -562,6 +580,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Imunidade Diplomática (Dificulta ações sociais contra ele)",
             "Forma Demoníaca Real (Revela a verdadeira face para aterrorizar)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -592,6 +611,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Invisibilidade (Difícil de detectar sem meios mágicos)",
             "Explosão de Azar (Causa falhas em testes alheios)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -623,6 +643,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Puf! (Teleporte instantâneo)",
             "Fraqueza: Banimento (Pode ser expulso da realidade)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -653,6 +674,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Etéreo (Não tem corpo físico para atacar)",
             "Coleta de Dados (Sabe tudo que está online)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -683,6 +705,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Ritual de Coven (Bônus gigantesco quando trabalha com outras)",
             "Maldição Sutil (Azar ou doença em alvos)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -712,6 +735,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Contato com o Abismo (Pode invocar horrores menores)",
             "Explosão Final (Causa dano em área ao morrer)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -743,6 +767,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Mais Humano que Humano (Ganha aspecto temporário de super-inteligência ao comer)",
             "Potência Desumana (Força física muito além da aparência)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -772,6 +797,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Potência Desumana (Pode arremessar mesas de escritório)",
             "Comedor de Carne: Modo Esfomeado (Fome constante e violenta)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -802,6 +828,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Invencibilidade (Ignora dano que não seja sua Fraqueza Mortal)",
             "Explosão de Energia (Ataque em área massivo)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -832,6 +859,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Força Profana (Usa o corpo humano além do limite, quebrando ossos para atacar)",
             "Troca de Hospedeiro (Tenta pular para outro corpo se o atual morrer)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -861,6 +889,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Alvo Pequeno (Bônus na defesa contra armas de fogo)",
             "Mordida Infecciosa (Doenças ou venenos leves)"
         ],
+        "campaignId": null,
         "isGlobal": true
     },
     {
@@ -891,6 +920,7 @@ export const DEFAULT_ARCHETYPES: Archetype[] = [
             "Rede de Contatos VIP (Clientes ricos a protegem)",
             "Não Sangra (Morto-vivo difícil de parar com dano comum)"
         ],
+        "campaignId": null,
         "isGlobal": true
     }
 ];
