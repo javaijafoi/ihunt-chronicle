@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap, Bookmark, User, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { ActionType, DiceResult, SceneAspect, Character, Selfie } from '@/types/game';
 import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
-import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { Camera } from 'lucide-react';
 
 interface InvokableAspect {
@@ -96,7 +96,6 @@ export function DiceRoller({
   const [isHiddenRoll, setIsHiddenRoll] = useState(false);
 
   // Selfie System State
-  const [isSelfieAlbumOpen, setIsSelfieAlbumOpen] = useState(false);
   const [pendingAugeSelfie, setPendingAugeSelfie] = useState<Selfie | null>(null);
 
   const formatNumber = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
@@ -347,14 +346,11 @@ export function DiceRoller({
       // But user might want to "save for later"? No, consume now.
       if (!result) {
         handleApplySelfie(selfie, 'bonus');
-        setIsSelfieAlbumOpen(false);
       } else {
         setPendingAugeSelfie(selfie);
-        setIsSelfieAlbumOpen(false); // Close album, show choice dialog
       }
     } else {
       handleApplySelfie(selfie);
-      setIsSelfieAlbumOpen(false);
     }
   };
 
@@ -573,16 +569,37 @@ export function DiceRoller({
         )}
       </AnimatePresence>
 
-      {/* Memories Button */}
+      {/* Selfie Mini-Selector */}
       {myCharacter && onUpdateCharacter && (
         <div className="px-2 pb-2">
-          <button
-            onClick={() => setIsSelfieAlbumOpen(true)}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all font-display text-sm"
-          >
-            <Camera className="w-4 h-4" />
-            Memórias ({myCharacter.selfies?.filter(s => s.isAvailable).length || 0})
-          </button>
+          <div className="flex items-center gap-2 mb-1.5 px-1">
+            <Camera className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] uppercase font-bold text-muted-foreground">Memórias Disponíveis</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {myCharacter.selfies?.filter(s => s.isAvailable).length === 0 ? (
+              <p className="text-[10px] text-muted-foreground italic px-1">Nenhuma memória disponível.</p>
+            ) : (
+              myCharacter.selfies?.filter(s => s.isAvailable).map(selfie => (
+                <button
+                  key={selfie.id}
+                  onClick={() => onActivateSelfie(selfie)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded border text-[10px] transition-all
+                                ${selfie.type === 'mood' ? 'border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' :
+                      selfie.type === 'auge' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' :
+                        'border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                    }`}
+                  title={selfie.description}
+                >
+                  {selfie.type === 'mood' && <span className="font-bold">+1</span>}
+                  {selfie.type === 'auge' && <span className="font-bold">+2/Reroll</span>}
+                  {selfie.type === 'mudanca' && <span className="font-bold">Adv.</span>}
+                  <span className="truncate max-w-[80px]">{selfie.title}</span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -775,6 +792,7 @@ export function DiceRoller({
       {/* Auge Choice Dialog */}
       <Dialog open={!!pendingAugeSelfie} onOpenChange={(open) => !open && setPendingAugeSelfie(null)}>
         <DialogContent className="sm:max-w-md">
+          <DialogTitle className="sr-only">Escolha do Auge</DialogTitle>
           <div className="grid gap-4 py-4">
             <h3 className="font-display text-lg text-center">Invocando Auge</h3>
             <p className="text-center text-sm text-muted-foreground">Escolha o efeito desta memória.</p>

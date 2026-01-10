@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -11,12 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Selfie, SelfieType, Character } from '@/types/game';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Selfie, SelfieType } from '@/types/game';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ImagePlus, Link as LinkIcon, Sparkles, Trophy, Heart } from 'lucide-react';
+import { Loader2, Link as LinkIcon, Sparkles, Trophy, Heart } from 'lucide-react';
 
 interface NewSelfieFormProps {
     characterId: string;
@@ -35,17 +32,13 @@ export function NewSelfieForm({
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [type, setType] = useState<SelfieType>('mood');
-    const [useUrl, setUseUrl] = useState(false);
     const [imageUrl, setImageUrl] = useState('');
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetForm = () => {
         setTitle('');
         setDescription('');
         setType('mood');
-        setUseUrl(false);
         setImageUrl('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleSubmit = async () => {
@@ -54,39 +47,26 @@ export function NewSelfieForm({
             return;
         }
 
+        if (!imageUrl) {
+            toast({ title: 'Erro', description: 'Forneça uma URL de imagem.', variant: 'destructive' });
+            return;
+        }
+
         setLoading(true);
         try {
-            let finalImageUrl = imageUrl;
-
-            // Handle File Upload
-            if (!useUrl && fileInputRef.current?.files?.[0]) {
-                const file = fileInputRef.current.files[0];
-                const storageRef = ref(storage, `selfies/${characterId}/${Date.now()}_${file.name}`);
-                const snapshot = await uploadBytes(storageRef, file);
-                finalImageUrl = await getDownloadURL(snapshot.ref);
-            } else if (useUrl && !imageUrl) {
-                toast({ title: 'Erro', description: 'Forneça uma URL de imagem.', variant: 'destructive' });
-                setLoading(false);
-                return;
-            } else if (!useUrl && !fileInputRef.current?.files?.[0]) {
-                toast({ title: 'Erro', description: 'Selecione uma imagem ou use uma URL.', variant: 'destructive' });
-                setLoading(false);
-                return;
-            }
-
             const newSelfie: Selfie = {
                 id: crypto.randomUUID(),
                 title,
                 description,
                 type,
-                url: finalImageUrl,
+                url: imageUrl,
                 isAvailable: true,
                 createdAt: new Date().toISOString()
             };
 
             await onSubmit(newSelfie);
             resetForm();
-            onClose(); // Parent handles opening advancement modal if needed
+            onClose();
 
         } catch (error) {
             console.error(error);
@@ -108,43 +88,24 @@ export function NewSelfieForm({
 
                 <div className="grid gap-4 py-4">
 
-                    {/* Image Input */}
+                    {/* Image Input (URL Only) */}
                     <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label>Imagem</Label>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 text-xs text-primary"
-                                onClick={() => setUseUrl(!useUrl)}
-                            >
-                                {useUrl ? 'Usar Arquivo' : 'Usar URL'}
-                            </Button>
-                        </div>
-
-                        {useUrl ? (
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <LinkIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="url"
-                                        placeholder="https://exemplo.com/foto.jpg"
-                                        className="pl-9"
-                                        value={imageUrl}
-                                        onChange={(e) => setImageUrl(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex gap-2">
+                        <Label>URL da Imagem</Label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <LinkIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="cursor-pointer"
+                                    type="url"
+                                    placeholder="https://exemplo.com/foto.jpg"
+                                    className="pl-9"
+                                    value={imageUrl}
+                                    onChange={(e) => setImageUrl(e.target.value)}
                                 />
                             </div>
-                        )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                            Use links do Discord, Imgur, Pinterest, etc.
+                        </p>
                     </div>
 
                     {/* Title */}
@@ -165,8 +126,8 @@ export function NewSelfieForm({
                                 type="button"
                                 onClick={() => setType('mood')}
                                 className={`flex flex-col items-center gap-2 p-3 rounded-md border transition-all ${type === 'mood'
-                                        ? 'border-blue-500 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20'
-                                        : 'border-border hover:bg-muted text-muted-foreground'
+                                    ? 'border-blue-500 bg-blue-500/10 text-blue-500 ring-2 ring-blue-500/20'
+                                    : 'border-border hover:bg-muted text-muted-foreground'
                                     }`}
                             >
                                 <Sparkles className="w-5 h-5" />
@@ -177,8 +138,8 @@ export function NewSelfieForm({
                                 type="button"
                                 onClick={() => setType('auge')}
                                 className={`flex flex-col items-center gap-2 p-3 rounded-md border transition-all ${type === 'auge'
-                                        ? 'border-amber-500 bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/20'
-                                        : 'border-border hover:bg-muted text-muted-foreground'
+                                    ? 'border-amber-500 bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/20'
+                                    : 'border-border hover:bg-muted text-muted-foreground'
                                     }`}
                             >
                                 <Trophy className="w-5 h-5" />
@@ -189,8 +150,8 @@ export function NewSelfieForm({
                                 type="button"
                                 onClick={() => setType('mudanca')}
                                 className={`flex flex-col items-center gap-2 p-3 rounded-md border transition-all ${type === 'mudanca'
-                                        ? 'border-red-500 bg-red-500/10 text-red-500 ring-2 ring-red-500/20'
-                                        : 'border-border hover:bg-muted text-muted-foreground'
+                                    ? 'border-red-500 bg-red-500/10 text-red-500 ring-2 ring-red-500/20'
+                                    : 'border-border hover:bg-muted text-muted-foreground'
                                     }`}
                             >
                                 <Heart className="w-5 h-5" />

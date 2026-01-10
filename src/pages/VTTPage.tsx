@@ -19,7 +19,7 @@ import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
 import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ActionType, Character, Token } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -718,6 +718,7 @@ export function VTTPage() {
       {/* Archetype Database Modal */}
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
         <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-background/95 backdrop-blur-sm border-border">
+          <DialogTitle className="sr-only">Base de Arquétipos</DialogTitle>
           <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
             <h2 className="font-display text-xl flex items-center gap-2">
               <Database className="w-5 h-5 text-primary" />

@@ -11,16 +11,20 @@ import {
   Sword,
   Users,
   MapPin,
-  Sparkles
+  Sparkles,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession, GLOBAL_SESSION_ID } from '@/hooks/useSession';
 import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useScenes } from '@/hooks/useScenes';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { userProfile, loading: authLoading, signInWithGoogle, signInAnonymously, signOut } = useAuth();
+  const { userProfile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { claimGmRole, currentSession, joinAsGM } = useSession();
   const { partyCharacters } = usePartyCharacters();
 
@@ -103,6 +107,7 @@ export function LobbyPage() {
                   </div>
                 )}
 
+                {/* Google Login */}
                 <button
                   onClick={async () => {
                     try {
@@ -113,10 +118,10 @@ export function LobbyPage() {
                     }
                   }}
                   className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg
-                           bg-primary text-primary-foreground font-ui
-                           hover:bg-primary/90 transition-colors"
+                           bg-background border border-border text-foreground font-ui
+                           hover:bg-muted transition-colors relative group"
                 >
-                  <LogIn className="w-5 h-5" />
+                  <img src="https://www.google.com/favicon.ico" alt="G" className="w-4 h-4 opacity-70 group-hover:opacity-100" />
                   Entrar com Google
                 </button>
 
@@ -125,26 +130,16 @@ export function LobbyPage() {
                     <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                    <span className="bg-card px-2 text-muted-foreground">ou continue com email</span>
                   </div>
                 </div>
 
-                <button
-                  onClick={async () => {
-                    try {
-                      setAuthError('');
-                      await signInAnonymously();
-                    } catch (e: any) {
-                      setAuthError(e.message || 'Erro ao entrar como visitante');
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg
-                           bg-muted text-foreground font-ui
-                           hover:bg-muted/80 transition-colors"
-                >
-                  <UserCircle className="w-5 h-5" />
-                  Entrar como Visitante
-                </button>
+                {/* Email/Password Form */}
+                <AuthForm
+                  onError={setAuthError}
+                  signInWithEmail={signInWithEmail}
+                  signUpWithEmail={signUpWithEmail}
+                />
               </>
             )}
           </div>
@@ -158,5 +153,117 @@ export function LobbyPage() {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
+  );
+}
+
+// Auth Form Component
+function AuthForm({
+  onError,
+  signInWithEmail,
+  signUpWithEmail
+}: {
+  onError: (msg: string) => void;
+  signInWithEmail: (e: string, p: string) => Promise<void>;
+  signUpWithEmail: (e: string, p: string, n: string) => Promise<void>;
+}) {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      onError('Preencha email e senha.');
+      return;
+    }
+    if (isRegistering && !name) {
+      onError('Preencha seu nome.');
+      return;
+    }
+
+    setLoading(true);
+    onError('');
+
+    try {
+      if (isRegistering) {
+        await signUpWithEmail(email, password, name);
+      } else {
+        await signInWithEmail(email, password);
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/invalid-credential') onError('Email ou senha incorretos.');
+      else if (err.code === 'auth/email-already-in-use') onError('Este email já está em uso.');
+      else if (err.code === 'auth/weak-password') onError('Senha muito fraca (min 6 caracteres).');
+      else onError('Erro na autenticação. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      <div className="space-y-2">
+        {isRegistering && (
+          <div className="space-y-1">
+            <Label htmlFor="name">Nome de Caçador</Label>
+            <Input
+              id="name"
+              placeholder="Como quer ser chamado?"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+              className="bg-background/50"
+            />
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <Label htmlFor="email">Email</Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              className="pl-9 bg-background/50"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="password">Senha</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="******"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+            className="bg-background/50"
+          />
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+        {isRegistering ? 'Criar Conta' : 'Entrar com Email'}
+      </Button>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setIsRegistering(!isRegistering)}
+          className="text-sm text-primary hover:underline"
+        >
+          {isRegistering ? 'Já tenho conta. Fazer Login.' : 'Não tem conta? Cadastre-se.'}
+        </button>
+      </div>
+    </form>
   );
 }
