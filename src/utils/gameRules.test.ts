@@ -19,6 +19,7 @@ const buildCharacter = (overrides: Partial<Character> = {}): Character => {
     },
     skills: {},
     maneuvers: [],
+    selfies: [],
     stress: {
       physical: [false, false],
       mental: [false, false],
