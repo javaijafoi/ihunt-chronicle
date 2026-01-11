@@ -13,6 +13,9 @@ import { CharactersDatabase } from './CharactersDatabase';
 import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
@@ -49,8 +52,9 @@ interface GMPanelProps {
 type PanelSection = 'scenes' | 'active_npcs' | 'archetypes' | 'characters';
 
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 export function GMPanel({
   // ... props
@@ -76,10 +80,25 @@ export function GMPanel({
   const [selectedNPC, setSelectedNPC] = useState<ActiveNPC | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showCharacters, setShowCharacters] = useState(false);
+  const { campaign, currentEpisode } = useCampaign();
+
+  const updateGMFate = async (delta: number) => {
+    if (!currentEpisode) return;
+    const current = currentEpisode.gmFatePool || 0;
+    const newVal = Math.max(0, current + delta);
+    try {
+      await updateDoc(doc(db, 'episodes', currentEpisode.id), { gmFatePool: newVal });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao atualizar Fate do GM", variant: "destructive" });
+    }
+  };
 
   const [charactersViewMode, setCharactersViewMode] = useState<'active' | 'archived'>('active');
   const [characterToArchive, setCharacterToArchive] = useState<{ id: string; name: string } | null>(null);
   const [showArchetypes, setShowArchetypes] = useState(false);
+
+
 
   // Helper to archive/unarchive
   const setCharacterArchived = async (charId: string, archived: boolean) => {
@@ -129,6 +148,14 @@ export function GMPanel({
       <div className="flex items-center justify-between px-2 py-1 bg-secondary/10 border-b border-border mb-2 rounded-md">
         <span className="text-xs font-bold text-secondary uppercase tracking-wider pl-1">Ferramentas do Mestre</span>
         <div className="flex items-center gap-1">
+          {/* GM Fate Pool */}
+          <div className="flex items-center mr-2 bg-background/50 rounded-lg border border-border px-1">
+            <span className="text-[10px] font-bold text-muted-foreground mr-1 uppercase">GM Fate:</span>
+            <button onClick={() => updateGMFate(-1)} className="hover:bg-destructive/10 text-destructive p-1 rounded font-bold text-xs">-</button>
+            <span className="mx-1 font-display min-w-[1ch] text-center text-sm">{currentEpisode?.gmFatePool || 0}</span>
+            <button onClick={() => updateGMFate(1)} className="hover:bg-primary/10 text-primary p-1 rounded font-bold text-xs">+</button>
+          </div>
+
           <button onClick={() => setShowCharacters(true)} className="p-1 hover:bg-secondary/20 rounded text-secondary" title="Gerenciar Personagens">
             <Users className="w-4 h-4" />
           </button>
@@ -159,7 +186,7 @@ export function GMPanel({
         </DialogContent>
       </Dialog>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'scenes' | 'npcs')} className="flex-1 flex flex-col min-h-0">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0">
         <div className="px-2 pt-2 flex-shrink-0">
           <TabsList className="w-full grid grid-cols-2 bg-muted/50">
             {tabs.map((tab) => (
@@ -196,6 +223,8 @@ export function GMPanel({
               onSelectNPC={setSelectedNPC}
             />
           </TabsContent>
+
+
         </div>
       </Tabs>
 

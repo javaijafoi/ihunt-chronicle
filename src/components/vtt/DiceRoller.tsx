@@ -5,6 +5,7 @@ import { ActionType, DiceResult, SceneAspect, Character, Selfie } from '@/types/
 import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
 
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
+import { Slider } from '@/components/ui/slider';
 import { Camera } from 'lucide-react';
 
 interface InvokableAspect {
@@ -543,38 +544,42 @@ export function DiceRoller({
 
             {/* Opposition Selection */}
             <div>
-              <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider mb-1.5 block">
-                Oposição <span className="text-muted-foreground/60">(opcional)</span>
-              </label>
-              <div className="flex flex-wrap gap-1 mb-1.5">
-                {OPPOSITION_PRESETS.map((preset) => (
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs text-muted-foreground font-ui uppercase tracking-wider">
+                  Oposição Passiva
+                </label>
+                <div className="flex items-center gap-2">
+                  {opposition !== null && (
+                    <span className="text-xs font-display text-secondary">
+                      {getLadderLabel(opposition)} ({opposition >= 0 ? '+' : ''}{opposition})
+                    </span>
+                  )}
                   <button
-                    key={preset.value}
-                    onClick={() => {
-                      setOpposition(opposition === preset.value ? null : preset.value);
-                      setCustomOpposition('');
-                    }}
-                    className={`px-2 py-0.5 rounded text-xs font-ui transition-all ${opposition === preset.value
-                      ? 'bg-secondary text-secondary-foreground'
-                      : 'bg-muted hover:bg-muted/80'
-                      }`}
+                    type="button"
+                    onClick={() => setOpposition(opposition === null ? 0 : null)}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted"
                   >
-                    {preset.label}
+                    {opposition === null ? 'Definir Oposição' : 'Remover'}
                   </button>
-                ))}
+                </div>
               </div>
-              <input
-                type="number"
-                value={customOpposition}
-                onChange={(e) => {
-                  setCustomOpposition(e.target.value);
-                  const val = parseInt(e.target.value);
-                  setOpposition(isNaN(val) ? null : val);
-                }}
-                placeholder="Valor customizado..."
-                className="w-full px-2 py-1.5 rounded bg-input border border-border text-sm
-                         focus:border-primary focus:outline-none"
-              />
+
+              {opposition !== null && (
+                <div className="px-1 pt-2 pb-4">
+                  <Slider
+                    value={[opposition]}
+                    min={0}
+                    max={8}
+                    step={1}
+                    onValueChange={(v) => { setOpposition(v[0]); setCustomOpposition(''); }}
+                    className="mb-2"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-ui px-1">
+                    <span>Medíocre (+0)</span>
+                    <span>Lendária (+8)</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Advantage Toggle */}

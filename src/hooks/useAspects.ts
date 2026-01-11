@@ -5,11 +5,13 @@ import { useActiveNPCs } from './useActiveNPCs';
 import { useScenes } from './useScenes';
 import { UnifiedAspect } from '@/types/game';
 import { useAuth } from './useAuth';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { useGameActions } from './useGameActions';
 import { useFirebaseCharacters } from './useFirebaseCharacters';
 
 export function useAspects(campaignId: string, episodeId: string, sceneId?: string) {
     const { user } = useAuth();
+    const { campaign } = useCampaign();
     const { currentSession } = useSession();
     const { partyCharacters } = usePartyCharacters(campaignId);
     const { activeNPCs } = useActiveNPCs(campaignId);
@@ -30,8 +32,8 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
     const allAspects = useMemo((): UnifiedAspect[] => {
         const aspects: UnifiedAspect[] = [];
 
-        // 1. Aspectos de Tema (Campanha) - Mock por enquanto
-        const themeAspects = ['Ser Pobre Custa Caro', 'A Família que Você Escolheu'];
+        // 1. Aspectos de Tema (Campanha)
+        const themeAspects = campaign?.themeAspects || [];
 
         themeAspects.forEach(name => {
             aspects.push({

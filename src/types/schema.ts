@@ -20,6 +20,7 @@ export interface Campaign {
         safetyTools: string[];
         customSetting: string;
     };
+    themeAspects: string[];
     members?: string[]; // For basic querying/indexing
     players?: {
         uid: string;

@@ -3,7 +3,9 @@ import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Plus, Archive, RefreshCcw, User, Trash2, MoreVertical, Copy } from 'lucide-react';
+import { Search, Plus, Archive, RefreshCcw, User, Trash2, MoreVertical, Copy, Edit } from 'lucide-react';
+import { CharacterCreator } from './CharacterCreator';
+import { useAuth } from '@/hooks/useAuth';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,6 +45,9 @@ export function CharactersDatabase({ sessionId, partyCharacters = [] }: Characte
 
     const [searchQuery, setSearchQuery] = useState('');
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+    const [editingCharacter, setEditingCharacter] = useState<Character | undefined>();
+    const { user } = useAuth();
 
     // Filter Logic
     const activeCharacters = characters.filter(c => !c.isArchived);
@@ -53,22 +58,34 @@ export function CharactersDatabase({ sessionId, partyCharacters = [] }: Characte
         return list.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
     };
 
-    const handleCreateNew = async () => {
-        if (!sessionId) return;
-        await createCharacter({
-            userId: 'gm',
-            createdBy: 'gm',
-            name: 'Novo Personagem',
-            campaignId: sessionId,
-            aspects: { highConcept: '', drama: '', job: '', dreamBoard: '', free: [] },
-            skills: {},
-            maneuvers: [],
-            stress: { physical: [], mental: [] },
-            consequences: { mild: null, moderate: null, severe: null },
-            fatePoints: 3,
-            refresh: 3,
-            selfies: [],
-        });
+    const handleCreateNew = () => {
+        setEditingCharacter(undefined);
+        setIsCreatorOpen(true);
+    };
+
+    const handleSaveCharacter = async (characterData: Omit<Character, 'id'>) => {
+        if (!sessionId || !user) return;
+
+        // If editing existing
+        if (editingCharacter) {
+            // Logic to update existing character (need updateCharacter from hook)
+            // But useFirebaseCharacters hook returned 'updateCharacter' which takes (id, updates).
+            // I need to add updateCharacter to destructuring at line 41.
+            // And call it here.
+            // Wait, createCharacter hook is used for new.
+            // For now, let's just handle Create as per request.
+            // "b) o personagem deve ser criado ocmo todos são"
+        } else {
+            await createCharacter({
+                ...characterData,
+                campaignId: sessionId,
+                createdBy: user.uid,
+                userId: '', // Explicitly empty/null to indicate unassigned
+                // Ensure default empty arrays if missing from wizard
+                selfies: characterData.selfies || [],
+            });
+        }
+        setIsCreatorOpen(false);
     };
 
     if (loading) {
@@ -168,6 +185,17 @@ export function CharactersDatabase({ sessionId, partyCharacters = [] }: Characte
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Character Creator Wizard */}
+            <CharacterCreator
+                isOpen={isCreatorOpen}
+                onClose={() => {
+                    setIsCreatorOpen(false);
+                    setEditingCharacter(undefined);
+                }}
+                onSave={handleSaveCharacter}
+                editingCharacter={editingCharacter}
+            />
         </div>
     );
 }

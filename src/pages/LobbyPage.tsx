@@ -79,23 +79,24 @@ export function LobbyPage() {
     console.log("Attempting to join with code:", code);
 
     try {
-      const campaignRef = doc(db, 'campaigns', code);
-      const campaignSnap = await getDocs(query(collection(db, 'campaigns'), where('__name__', '==', code)));
+      // FIX: Query by 'joinCode' field, not Document ID ('__name__')
+      // The user enters 'HUNT-XXXX', which is stored in 'joinCode'.
+      const q = query(collection(db, 'campaigns'), where('joinCode', '==', code));
+      const campaignSnap = await getDocs(q);
 
       if (campaignSnap.empty) {
-        // Fallback: Check if it's a join code logic (if you implemented mapped codes), 
-        // but for now assumining joinCode IS the ID.
-        // Alert user
         alert("Crônica não encontrada com este código.");
         return;
       }
 
       const campaignDoc = campaignSnap.docs[0];
       const campaignData = campaignDoc.data();
+      const campaignId = campaignDoc.id;
+      const campaignRef = doc(db, 'campaigns', campaignId);
 
       // Check if already member
       if (campaignData.members?.includes(userProfile.uid)) {
-        navigate(`/campaign/${code}`);
+        navigate(`/campaign/${campaignId}`);
         return;
       }
 
@@ -109,7 +110,7 @@ export function LobbyPage() {
       console.log("Adding player:", playerData);
 
       // Create member document (Required by CampaignContext)
-      await setDoc(doc(db, `campaigns/${code}/members`, userProfile.uid), {
+      await setDoc(doc(db, `campaigns/${campaignId}/members`, userProfile.uid), {
         userId: userProfile.uid,
         role: 'player',
         characterId: null,
@@ -121,7 +122,7 @@ export function LobbyPage() {
         players: arrayUnion(playerData)
       });
 
-      navigate(`/campaign/${code}`);
+      navigate(`/campaign/${campaignId}`);
     } catch (error) {
       console.error("Error joining campaign:", error);
       alert("Erro ao entrar na crônica. Verifique o código.");

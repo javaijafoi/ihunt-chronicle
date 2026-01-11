@@ -23,6 +23,8 @@ import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
 import { CharacterCreator } from '@/components/vtt/CharacterCreator';
 import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
+import { ActiveNPCSheet } from '@/components/vtt/ActiveNPCSheet';
+import { CompelModal } from '@/components/vtt/CompelModal';
 import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
@@ -76,13 +78,16 @@ export function VTTPage() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
-  // Derived Viewing Character (Reactivity Fix)
-  const viewingCharacter = useMemo(() => {
+  // Derived Viewing Characters
+  const viewingPC = useMemo(() => {
     if (!viewingCharacterId) return null;
-    return partyCharacters.find(c => c.id === viewingCharacterId) ||
-      activeNPCs.find(c => c.id === viewingCharacterId) ||
-      null;
-  }, [viewingCharacterId, partyCharacters, activeNPCs]);
+    return partyCharacters.find(c => c.id === viewingCharacterId) || null;
+  }, [viewingCharacterId, partyCharacters]);
+
+  const viewingNPC = useMemo(() => {
+    if (!viewingCharacterId) return null;
+    return activeNPCs.find(c => c.id === viewingCharacterId) || null;
+  }, [viewingCharacterId, activeNPCs]);
 
   // Merge Tokens
   const mergedTokens = useMemo(() => {
@@ -510,53 +515,60 @@ export function VTTPage() {
 
       <Dialog open={!!viewingCharacterId} onOpenChange={(open) => !open && setViewingCharacterId(null)}>
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background overflow-hidden">
-          {viewingCharacter && (
+          {viewingPC && (
             <div className="flex flex-col h-full bg-card">
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <CharacterSheet
-                  character={viewingCharacter}
+                  character={viewingPC}
                   isOpen={true}
                   onClose={() => setViewingCharacterId(null)}
-                  readOnly={!isGM && viewingCharacter.id !== myCharacter?.id}
+                  readOnly={!isGM && viewingPC.id !== myCharacter?.id}
                   variant="modal"
-                  onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(viewingCharacter.name, aspectName)}
+                  onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(viewingPC.name, aspectName)}
                   onSkillClick={(skill) => {
-                    handleRollDice(viewingCharacter.skills[skill], skill, undefined, 'normal', undefined, false, viewingCharacter.name);
+                    handleRollDice(viewingPC.skills[skill], skill, undefined, 'normal', undefined, false, viewingPC.name);
                   }}
                   onToggleStress={async (track, index) => {
-                    await handleToggleStress(viewingCharacter.id, track, index);
+                    await handleToggleStress(viewingPC.id, track, index);
                   }}
                   onSetConsequence={async (severity, value) => {
-                    await updateFirebaseCharacter(viewingCharacter.id, {
-                      consequences: { ...viewingCharacter.consequences, [severity]: value }
+                    await updateFirebaseCharacter(viewingPC.id, {
+                      consequences: { ...viewingPC.consequences, [severity]: value }
                     });
-                    addLog(`${viewingCharacter.name} definiu consequência ${severity}: ${value || 'Removida'}`, 'fate');
+                    addLog(`${viewingPC.name} definiu consequência ${severity}: ${value || 'Removida'}`, 'fate');
                   }}
                   onSpendFate={async () => {
-                    await updateFate(viewingCharacter.id, -1, true);
-                    addLog(`${viewingCharacter.name} gastou 1 Ponto de Destino`, 'fate');
+                    await updateFate(viewingPC.id, -1, true);
+                    addLog(`${viewingPC.name} gastou 1 Ponto de Destino`, 'fate');
                   }}
                   onGainFate={async () => {
-                    await updateFate(viewingCharacter.id, 1, true);
-                    addLog(`${viewingCharacter.name} ganhou 1 Ponto de Destino`, 'fate');
+                    await updateFate(viewingPC.id, 1, true);
+                    addLog(`${viewingPC.name} ganhou 1 Ponto de Destino`, 'fate');
                   }}
                   onAddSituationalAspect={async (name, freeInvokes) => {
-                    const currentAspects = viewingCharacter.situationalAspects || [];
+                    const currentAspects = viewingPC.situationalAspects || [];
                     const newAspect = { id: crypto.randomUUID(), name, freeInvokes };
-                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: [...currentAspects, newAspect] });
+                    await updateFirebaseCharacter(viewingPC.id, { situationalAspects: [...currentAspects, newAspect] });
                   }}
                   onRemoveSituationalAspect={async (id) => {
-                    const currentAspects = viewingCharacter.situationalAspects || [];
-                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: currentAspects.filter(a => a.id !== id) });
+                    const currentAspects = viewingPC.situationalAspects || [];
+                    await updateFirebaseCharacter(viewingPC.id, { situationalAspects: currentAspects.filter(a => a.id !== id) });
                   }}
                   onUpdateSituationalAspect={async (id, updates) => {
-                    const currentAspects = viewingCharacter.situationalAspects || [];
+                    const currentAspects = viewingPC.situationalAspects || [];
                     const updatedAspects = currentAspects.map(a => a.id === id ? { ...a, ...updates } : a);
-                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: updatedAspects });
+                    await updateFirebaseCharacter(viewingPC.id, { situationalAspects: updatedAspects });
                   }}
                 />
               </div>
             </div>
+          )}
+          {viewingNPC && (
+            <ActiveNPCSheet
+              npc={viewingNPC}
+              sessionId={campaignId || ''}
+              onClose={() => setViewingCharacterId(null)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -564,6 +576,7 @@ export function VTTPage() {
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}><DialogContent><DialogTitle>Base de Arquétipos</DialogTitle><ArchetypeDatabase sessionId={campaign.id} /></DialogContent></Dialog>
 
       {/* Other viewing modals omitted for brevity, add back as needed */}
+      <CompelModal campaignId={campaignId || ''} myCharacterId={myCharacter?.id} />
     </div>
   );
 }

@@ -1,93 +1,122 @@
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter
-} from '@/components/ui/dialog';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, ThumbsUp, ThumbsDown, Coins } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { UnifiedAspect } from '@/types/game';
-import { Zap, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { useGameActions } from '@/hooks/useGameActions';
+import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 
-interface CompelModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    aspect: UnifiedAspect | null;
+interface CompelRequest {
+    id: string;
+    targetCharacterId: string;
+    aspectName: string;
     complication: string;
-    onAccept: () => void;
-    onReject: () => void;
+    source: 'gm';
+    status: 'pending' | 'accepted' | 'rejected';
+    createdAt: Timestamp;
 }
 
-export function CompelModal({
-    isOpen,
-    onClose,
-    aspect,
-    complication,
-    onAccept,
-    onReject
-}: CompelModalProps) {
-    if (!aspect) return null;
+export function CompelModal({ campaignId, myCharacterId }: { campaignId: string; myCharacterId?: string }) {
+    const [request, setRequest] = useState<CompelRequest | null>(null);
+    const { updateFate, addLog } = useGameActions('', campaignId, false); // EpisodeId might be needed?
+    // We'll fetch episodeId dynamically if needed or just pass empty if log doesn't strictly require it (GameLog usually does)
+    // Ideally passed as prop, but let's assume loose coupling for now.
+
+    useEffect(() => {
+        if (!campaignId || !myCharacterId) return;
+
+        const q = query(
+            collection(db, 'campaigns', campaignId, 'pendingCompels'),
+            where('targetCharacterId', '==', myCharacterId),
+            where('status', '==', 'pending')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                // Show the most recent one
+                const data = snapshot.docs[0].data() as CompelRequest;
+                setRequest({ ...data, id: snapshot.docs[0].id });
+            } else {
+                setRequest(null);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [campaignId, myCharacterId]);
+
+    const handleResponse = async (accept: boolean) => {
+        if (!request) return;
+
+        try {
+            if (accept) {
+                await updateFate(request.targetCharacterId, 1, true);
+                await addLog(`Aceitou a forçada em "${request.aspectName}". (+1 FP)`, 'fate');
+                await updateDoc(doc(db, 'campaigns', campaignId, 'pendingCompels', request.id), { status: 'accepted' });
+            } else {
+                await updateFate(request.targetCharacterId, -1, true);
+                await addLog(`Recusou a forçada em "${request.aspectName}". (-1 FP)`, 'fate');
+                await updateDoc(doc(db, 'campaigns', campaignId, 'pendingCompels', request.id), { status: 'rejected' });
+            }
+            // Cleanup happens via status change -> useEffect will see empty or filtered out
+            // Ideally delete the doc after a while or immediately
+            await deleteDoc(doc(db, 'campaigns', campaignId, 'pendingCompels', request.id));
+
+            setRequest(null);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    if (!request) return null;
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[500px] border-amber-500/50 bg-amber-950/20 backdrop-blur-xl">
-                <DialogHeader>
-                    <div className="flex items-center gap-2 mb-2">
-                        <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-                        <span className="text-amber-500 font-bold tracking-wider text-xs uppercase">Chamado de Aspecto</span>
-                    </div>
-                    <DialogTitle className="text-2xl font-display">
-                        O Destino Intervém...
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="py-6 space-y-6">
-                    {/* Aspect Card */}
-                    <div className="bg-background/50 border rounded-lg p-4 flex flex-col items-center text-center space-y-2 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-amber-500/5 z-0" />
-                        <span className="text-xs text-muted-foreground relative z-10">O aspecto chamado é:</span>
-                        <h3 className="text-xl font-bold text-amber-500 relative z-10 font-display">"{aspect.name}"</h3>
-                        {aspect.ownerName && (
-                            <Badge variant="outline" className="relative z-10 bg-background/50">
-                                {aspect.ownerName}
-                            </Badge>
-                        )}
-                    </div>
-
-                    {/* Complication */}
-                    <div className="space-y-2">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">A Complicação</span>
-                        <div className="bg-zinc-950/50 p-4 rounded-md border border-amber-500/20 text-amber-100 italic">
-                            "{complication}"
-                        </div>
-                    </div>
-                </div>
-
-                <DialogFooter className="grid grid-cols-2 gap-4 sm:space-x-0">
-                    <Button
-                        variant="ghost"
-                        onClick={onReject}
-                        className="h-auto py-4 flex flex-col gap-1 hover:bg-red-500/10 hover:text-red-500 border border-transparent hover:border-red-500/50"
+        <AnimatePresence>
+            <Dialog open={!!request} onOpenChange={() => { }}>
+                <DialogContent className="sm:max-w-md border-amber-500/50 bg-amber-950/90 text-amber-50 p-6 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+                    <motion.div
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="flex flex-col items-center text-center space-y-4"
                     >
-                        <div className="flex items-center gap-2 font-bold">
-                            <ThumbsDown className="w-4 h-4" /> REJEITAR
+                        <div className="p-3 bg-amber-500/20 rounded-full">
+                            <Coins className="w-8 h-8 text-amber-400" />
                         </div>
-                        <span className="text-xs font-normal opacity-80">Gastar 1 Ponto de Destino</span>
-                    </Button>
 
-                    <Button
-                        onClick={onAccept}
-                        className="h-auto py-4 flex flex-col gap-1 bg-amber-600 hover:bg-amber-700 text-white border-amber-500"
-                    >
-                        <div className="flex items-center gap-2 font-bold">
-                            <ThumbsUp className="w-4 h-4" /> ACEITAR
+                        <h2 className="font-display text-2xl text-amber-200">Forçar Aspecto</h2>
+
+                        <div className="w-full space-y-2 bg-black/20 p-4 rounded-lg border border-amber-500/20">
+                            <p className="text-xs font-bold uppercase text-amber-400 tracking-wider">Aspecto</p>
+                            <p className="text-lg font-bold">{request.aspectName}</p>
                         </div>
-                        <span className="text-xs font-normal opacity-90">Ganhar 1 Ponto de Destino</span>
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+
+                        <div className="w-full space-y-2">
+                            <p className="text-xs font-bold uppercase text-amber-400 tracking-wider">Complicação</p>
+                            <p className="text-sm leading-relaxed italic opacity-90">"{request.complication}"</p>
+                        </div>
+
+                        <div className="flex gap-4 w-full pt-4">
+                            <Button
+                                variant="outline"
+                                className="flex-1 border-red-500/50 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                                onClick={() => handleResponse(false)}
+                            >
+                                <ThumbsDown className="w-4 h-4 mr-2" />
+                                Recusar (-1 FP)
+                            </Button>
+                            <Button
+                                className="flex-1 bg-amber-600 hover:bg-amber-500 text-black font-bold"
+                                onClick={() => handleResponse(true)}
+                            >
+                                <ThumbsUp className="w-4 h-4 mr-2" />
+                                Aceitar (+1 FP)
+                            </Button>
+                        </div>
+                    </motion.div>
+                </DialogContent>
+            </Dialog>
+        </AnimatePresence>
     );
 }
