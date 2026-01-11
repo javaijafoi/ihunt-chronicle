@@ -15,16 +15,14 @@ interface LeftSidebarProps {
   myCharacterId?: string;
   onViewCharacter: (char: PartyCharacter) => void;
   onInvokeAspect: (characterName: string, aspect: string) => void;
-  // Character HUD
-  selectedCharacter: Character | null;
-  onSpendFate: () => void;
-  onGainFate: () => void;
-  onToggleStress: (track: 'physical' | 'mental', index: number) => void;
-  onOpenFullSheet: () => void;
-  onOpenDice: () => void;
-  onAddCharacterToScene?: () => void;
-  onRemoveCharacterFromScene?: () => void;
-  isCharacterInScene?: boolean;
+  gm?: {
+    id: string;
+    name: string;
+    isOnline: boolean;
+  };
+  onAddCharacterToScene?: (characterId: string) => void;
+  onRemoveCharacterFromScene?: (characterId: string) => void;
+  isCharacterInScene?: (characterId: string) => boolean;
   // GM props
   isGM?: boolean;
   scenes?: Scene[];
@@ -54,7 +52,6 @@ interface WidgetConfig {
 const baseWidgets: WidgetConfig[] = [
   { id: 'gm', icon: Crown, label: 'Painel do GM', gmOnly: true },
   { id: 'party', icon: Users, label: 'Grupo' },
-  { id: 'hud', icon: User, label: 'Personagem' },
 ];
 
 export function LeftSidebar(props: LeftSidebarProps) {
@@ -107,7 +104,6 @@ export function LeftSidebar(props: LeftSidebarProps) {
           />
         ) : null;
       case 'party':
-      case 'party':
         return (
           <PartyPanel
             partyCharacters={props.partyCharacters}
@@ -115,23 +111,12 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onViewCharacter={props.onViewCharacter}
             onInvokeAspect={props.onInvokeAspect}
             inviteCode={props.sessionId}
-          />
-        );
-      case 'hud':
-        return props.selectedCharacter ? (
-          <CharacterHUD
-            character={props.selectedCharacter}
-            onSpendFate={props.onSpendFate}
-            onGainFate={props.onGainFate}
-            onToggleStress={props.onToggleStress}
-            onOpenFullSheet={props.onOpenFullSheet}
-            onOpenDice={props.onOpenDice}
+            gm={props.gm}
+            isGM={props.isGM}
             onAddToScene={props.onAddCharacterToScene}
             onRemoveFromScene={props.onRemoveCharacterFromScene}
-            isInScene={props.isCharacterInScene}
+            isCharacterInScene={props.isCharacterInScene}
           />
-        ) : (
-          <p className="text-sm text-muted-foreground p-2">Selecione um personagem.</p>
         );
       default:
         return null;

@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   query,
   where,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Scene, SceneAspect } from '@/types/game';

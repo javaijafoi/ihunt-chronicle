@@ -30,7 +30,7 @@ type OutcomeType = 'success' | 'failure' | 'tie' | 'style';
 
 const getOutcomeInfo = (outcome?: string): { type: OutcomeType; label: string; icon: typeof CheckCircle; color: string } => {
   if (!outcome) return { type: 'tie', label: 'Resultado', icon: AlertCircle, color: 'text-muted-foreground' };
-  
+
   const lower = outcome.toLowerCase();
   if (lower.includes('estilo')) {
     return { type: 'style', label: 'Sucesso com Estilo!', icon: Sparkles, color: 'text-secondary' };
@@ -54,100 +54,85 @@ function RollCard({ log, rollDetails }: { log: LogEntry; rollDetails: RollLogDet
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="bg-gradient-to-br from-muted/80 to-muted/40 rounded-xl border border-border overflow-hidden"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="bg-background/40 backdrop-blur-sm border border-border/50 rounded-lg p-2 flex items-center gap-3 hover:bg-background/60 transition-colors group"
     >
-      {/* Header with character info */}
-      <div className="flex items-center gap-3 p-3 border-b border-border/50">
-        <div className="w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center shrink-0 overflow-hidden">
-          {rollDetails.avatar ? (
-            <img src={rollDetails.avatar} alt={log.character || 'Jogador'} className="w-full h-full object-cover" />
-          ) : (
-            <User className="w-5 h-5 text-primary" />
+      {/* Avatar */}
+      <div className="w-8 h-8 rounded-full bg-background border border-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+        {rollDetails.avatar ? (
+          <img src={rollDetails.avatar} alt={log.character || 'Jogador'} className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-4 h-4 text-primary/50" />
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        {/* Header Line */}
+        <div className="flex items-baseline gap-2 text-xs">
+          <span className="font-display font-bold text-foreground truncate max-w-[100px]">
+            {log.character || 'Jogador'}
+          </span>
+          <span className="text-muted-foreground truncate">
+            {rollDetails.actionLabel || 'Rolou Dados'}
+          </span>
+          {rollDetails.skill && (
+            <span className="text-primary font-medium">
+              {rollDetails.skill} ({formatModifier(rollDetails.skillBonus ?? 0)})
+            </span>
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-display text-sm text-foreground truncate">
-            {log.character || 'Jogador'}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {rollDetails.actionLabel || 'Rolagem Livre'}
-            {rollDetails.skill && (
-              <span className="text-primary ml-1">
-                • {rollDetails.skill} ({formatModifier(rollDetails.skillBonus ?? 0)})
-              </span>
-            )}
-          </div>
+
+        {/* Dice Row */}
+        <div className="flex items-center gap-1 mt-1 opacity-80 group-hover:opacity-100 transition-opacity">
+          {rollDetails.fateDice.map((face, index) => (
+            <div
+              key={index}
+              className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono border ${getFaceColor(face)}`}
+            >
+              {formatFace(face)}
+            </div>
+          ))}
+          {rollDetails.type === 'advantage' && typeof rollDetails.d6 === 'number' && (
+            <div className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono border border-secondary bg-secondary/10 text-secondary">
+              {rollDetails.d6}
+            </div>
+          )}
+          {/* Opposition if present */}
+          {rollDetails.opposition !== undefined && (
+            <span className="text-[10px] text-muted-foreground ml-1">
+              vs {rollDetails.opposition}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Dice results */}
-      <div className="p-3 space-y-3">
-        {/* Fate dice display */}
-        <div className="flex items-center gap-2 justify-center">
-          {rollDetails.fateDice.map((face, index) => (
-            <motion.div
-              key={index}
-              initial={{ rotateY: 180, opacity: 0 }}
-              animate={{ rotateY: 0, opacity: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center font-mono text-lg font-bold ${getFaceColor(face)}`}
-            >
-              {formatFace(face)}
-            </motion.div>
-          ))}
-          {rollDetails.type === 'advantage' && typeof rollDetails.d6 === 'number' && (
-            <motion.div
-              initial={{ rotateY: 180, opacity: 0 }}
-              animate={{ rotateY: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="w-10 h-10 rounded-lg border-2 border-secondary bg-secondary/20 flex items-center justify-center font-mono text-lg font-bold text-secondary"
-            >
-              {rollDetails.d6}
-            </motion.div>
-          )}
-        </div>
-
-        {/* Total and outcome */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">Total</span>
-            <span className="font-display text-2xl text-foreground">
-              {formatModifier(rollDetails.total)}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({rollDetails.ladderLabel})
-            </span>
-          </div>
-
-          {rollDetails.opposition !== undefined && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">vs</span>
-              <span className="font-display text-lg text-muted-foreground">
-                {formatModifier(rollDetails.opposition)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Outcome badge */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-background/50 ${outcomeInfo.color}`}
-        >
-          <OutcomeIcon className="w-5 h-5" />
-          <span className="font-display text-sm uppercase tracking-wide">
-            {outcomeInfo.label}
+      {/* Result Section */}
+      <div className="flex flex-col items-end justify-center min-w-[60px]">
+        <div className="flex items-center gap-1">
+          <span className={`font-display text-xl leading-none ${outcomeInfo.color}`}>
+            {formatModifier(rollDetails.total)}
           </span>
-          {rollDetails.shifts !== undefined && rollDetails.shifts !== 0 && (
-            <span className="text-xs opacity-80">
-              ({Math.abs(rollDetails.shifts)} virada{Math.abs(rollDetails.shifts) !== 1 ? 's' : ''})
-            </span>
-          )}
-        </motion.div>
+          <div className={`${outcomeInfo.color}`} title={outcomeInfo.label}>
+            <OutcomeIcon className="w-4 h-4" />
+          </div>
+        </div>
+
+        {/* Shifts (Little Badge) */}
+        {rollDetails.shifts !== undefined && rollDetails.shifts > 0 && (
+          <span className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
+            {rollDetails.shifts} shifts
+          </span>
+        )}
+
+        {/* Timestamp */}
+        <span className="text-[9px] text-muted-foreground/40 font-mono">
+          {(() => {
+            const d = log.timestamp instanceof Timestamp ? log.timestamp.toDate() : new Date(log.timestamp);
+            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          })()}
+        </span>
       </div>
     </motion.div>
   );
@@ -224,7 +209,7 @@ export function GameLog({ logs, onSendMessage, currentUserName }: GameLogProps) 
       </div>
 
       {/* Messages */}
-      <div 
+      <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0"
       >
@@ -234,10 +219,10 @@ export function GameLog({ logs, onSendMessage, currentUserName }: GameLogProps) 
 
             if (rollDetails) {
               return (
-                <RollCard 
-                  key={log.id} 
-                  log={log} 
-                  rollDetails={rollDetails} 
+                <RollCard
+                  key={log.id}
+                  log={log}
+                  rollDetails={rollDetails}
                 />
               );
             }
@@ -245,7 +230,7 @@ export function GameLog({ logs, onSendMessage, currentUserName }: GameLogProps) 
             return <ChatMessage key={log.id} log={log} />;
           })}
         </AnimatePresence>
-        
+
         {logs.length === 0 && (
           <div className="text-center py-8 text-muted-foreground text-sm">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />

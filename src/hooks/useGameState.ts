@@ -34,6 +34,9 @@ const createInitialState = (character?: Character): GameState => ({
       { id: '2', name: 'Saída de emergência bloqueada', freeInvokes: 0, createdBy: 'GM', isTemporary: true },
     ],
     isActive: true,
+    order: 0,
+    episodeId: '',
+    campaignId: '',
   },
   characters: character ? [character] : [],
   tokens: [],
@@ -271,7 +274,7 @@ export function useGameState(
   const getAppendLogErrorMessage = useCallback((error: unknown, fallback: string) => {
     if (error instanceof Error) {
       const errorMessage = error.message;
-      
+
       if (isCharacterSelectionError(error)) {
         return 'Selecione um personagem ou reentre na sessão para registrar ações.';
       }
@@ -339,10 +342,10 @@ export function useGameState(
           presenceData.lastSeen instanceof Timestamp
             ? presenceData.lastSeen.toMillis()
             : presenceData.lastSeen instanceof Date
-            ? presenceData.lastSeen.getTime()
-            : typeof presenceData.lastSeen === 'number'
-            ? presenceData.lastSeen
-            : null;
+              ? presenceData.lastSeen.getTime()
+              : typeof presenceData.lastSeen === 'number'
+                ? presenceData.lastSeen
+                : null;
 
         const isRecent = typeof lastSeenMs === 'number' && Date.now() - lastSeenMs <= PRESENCE_STALE_MS;
 
@@ -703,12 +706,12 @@ export function useGameState(
         const updated = characters.map((character) =>
           character.id === characterId
             ? {
-                ...character,
-                consequences: {
-                  ...character.consequences,
-                  [severity]: value,
-                },
-              }
+              ...character,
+              consequences: {
+                ...character.consequences,
+                [severity]: value,
+              },
+            }
             : character
         );
 
@@ -817,13 +820,13 @@ export function useGameState(
             ...prev,
             currentScene: prev.currentScene
               ? {
-                  ...prev.currentScene,
-                  aspects: prev.currentScene.aspects.map((aspect) =>
-                    aspect.name === aspectName && aspect.freeInvokes > 0
-                      ? { ...aspect, freeInvokes: aspect.freeInvokes - 1 }
-                      : aspect
-                  ),
-                }
+                ...prev.currentScene,
+                aspects: prev.currentScene.aspects.map((aspect) =>
+                  aspect.name === aspectName && aspect.freeInvokes > 0
+                    ? { ...aspect, freeInvokes: aspect.freeInvokes - 1 }
+                    : aspect
+                ),
+              }
               : prev.currentScene,
             logs: prev.logs.some((log) => log.id === logEntry.id)
               ? prev.logs

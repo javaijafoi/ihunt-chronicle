@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTim
 import { db } from '@/lib/firebase';
 import { Season, Story, Episode } from '@/types/schema';
 import { toast } from '@/hooks/use-toast';
+import { useSelfieEngine } from '@/hooks/useSelfieEngine';
 
 export function useTimeline(campaignId?: string) {
     const [seasons, setSeasons] = useState<Season[]>([]);
@@ -116,64 +117,58 @@ export function useTimeline(campaignId?: string) {
     const activateEpisode = useCallback(async (episodeId: string) => {
         if (!campaignId) return;
         try {
-            // Set episode to active
-            await updateDoc(doc(db, 'episodes', episodeId), {
+            const batch = writeBatch(db);
+
+            // 1. Set episode to active
+            batch.update(doc(db, 'episodes', episodeId), {
                 status: 'active',
                 startedAt: serverTimestamp()
             });
 
-            // Set campaign current episode
-            await updateDoc(doc(db, 'campaigns', campaignId), {
+            // 2. Set campaign current episode
+            batch.update(doc(db, 'campaigns', campaignId), {
                 currentEpisodeId: episodeId
             });
-            toast({ title: 'Episódio iniciado!' });
+
+            // 3. Reset Selfies Availability for Session
+            // Busca todos os personagens e define isAvailable = true em todas as selfies
+            const charsQuery = query(collection(db, 'characters'), where('campaignId', '==', campaignId));
+            const charsSnap = await getDocs(charsQuery);
+
+            charsSnap.docs.forEach(charDoc => {
+                const charData = charDoc.data();
+                if (charData.selfies && Array.isArray(charData.selfies)) {
+                    const updatedSelfies = charData.selfies.map((s: any) => ({
+                        ...s,
+                        isAvailable: true
+                    }));
+                    batch.update(charDoc.ref, { selfies: updatedSelfies });
+                }
+            });
+
+            await batch.commit();
+            toast({ title: 'Episódio iniciado!', description: 'Selfies recarregadas para a sessão.' });
         } catch (e) {
             console.error(e);
             toast({ title: 'Erro ao iniciar episódio', variant: 'destructive' });
         }
     }, [campaignId]);
 
+    // Usar o hook de engine para lógica complexa
+    const { closeEpisodeAndGrantSlots } = useSelfieEngine();
+
     const closeEpisode = useCallback(async (episodeId: string) => {
         if (!campaignId) return;
         try {
-            const batch = writeBatch(db);
-
-            // 1. Close the episode
-            const epRef = doc(db, 'episodes', episodeId);
-            batch.update(epRef, {
-                status: 'closed',
-                endedAt: serverTimestamp()
-            });
-
-            // 2. Distribute Selfie Slots to all characters in campaign
-            const charsQuery = query(collection(db, 'characters'), where('campaignId', '==', campaignId));
-            const charsSnap = await getDocs(charsQuery);
-
-            charsSnap.docs.forEach(charDoc => {
-                const charData = charDoc.data();
-                const currentSlots = charData.selfieSlots || [];
-
-                const newSlot = {
-                    id: crypto.randomUUID(),
-                    type: 'mood', // Default reward for episode completion
-                    grantedBy: episodeId,
-                    used: false,
-                    createdAt: new Date() // Firestore converts this
-                };
-
-                batch.update(charDoc.ref, {
-                    selfieSlots: [...currentSlots, newSlot]
-                });
-            });
-
-            await batch.commit();
+            // Por padrão, encerramento simples via botão é "final de episódio"
+            // Se precisar de UI para Climax/Season Finale, isso deve ser tratado no componente antes de chamar
+            await closeEpisodeAndGrantSlots(episodeId, 'episode', campaignId);
             toast({ title: 'Episódio finalizado!', description: 'Todos os jogadores receberam um slot de Selfie.' });
-
         } catch (e) {
             console.error(e);
             toast({ title: 'Erro ao finalizar episódio', variant: 'destructive' });
         }
-    }, [campaignId]);
+    }, [campaignId, closeEpisodeAndGrantSlots]);
 
     return {
         seasons,

@@ -1,6 +1,7 @@
 import { Scene, Token, SceneAspect } from '@/types/game';
 import { TokenLayer } from './TokenLayer';
 import { Sparkles } from 'lucide-react';
+import { getOptimizedImageUrl } from '@/utils/images';
 
 interface SceneCanvasProps {
   scene: Scene | null;
@@ -19,6 +20,7 @@ interface SceneCanvasProps {
 
 export function SceneCanvas({
   scene,
+  // ... props
   tokens = [],
   aspects = [],
   onInvokeAspect,
@@ -35,7 +37,7 @@ export function SceneCanvas({
     <div
       className="canvas-layer scanlines"
       style={{
-        backgroundImage: scene?.background ? `url(${scene.background})` : undefined,
+        backgroundImage: scene?.background ? `url("${getOptimizedImageUrl(scene.background)}")` : undefined,
       }}
     >
       {/* Gradient overlay for better UI visibility */}

@@ -62,10 +62,8 @@ export function useFirebaseCharacters(campaignId: string | undefined) {
           return {
             id: doc.id,
             ...data,
-            // Ensure compatibility
-            campaignId: data.campaignId || campaignId,
           };
-        }).filter(char => !char.isArchived) as Character[];
+        }) as Character[];
         setCharacters(chars);
         setLoading(false);
       },

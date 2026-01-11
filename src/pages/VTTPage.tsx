@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEpisode } from '@/hooks/useEpisode';
@@ -12,6 +12,7 @@ import { usePartyCharacters } from '@/hooks/usePartyCharacters';
 import { useGameActions } from '@/hooks/useGameActions';
 import { useSafetyTools } from '@/hooks/useSafetyTools';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
+import { isPresenceRecent } from '@/utils/presence';
 import { toast } from '@/hooks/use-toast';
 
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
@@ -25,6 +26,14 @@ import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SafetyControls } from '@/components/vtt/safety/SafetyControls';
 import { XCardOverlay } from '@/components/vtt/safety/XCardOverlay';
 
@@ -35,7 +44,7 @@ const appVersion = import.meta.env.APP_VERSION;
 
 export function VTTPage() {
   const navigate = useNavigate();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
 
   // New Context Hooks
   const { campaign, currentEpisode, currentScene, isGM, myCharacter, selectCharacter, loading: campaignLoading } = useCampaign();
@@ -113,10 +122,19 @@ export function VTTPage() {
     type: 'normal' | 'advantage' = 'normal',
     opposition?: number
   ) => {
-    const diceResult = rollDice(modifier, skill, action, type, opposition);
-    diceResult.character = activeCharacter?.name || 'GM'; // Patch name
-    await createRollLog(diceResult);
-    return diceResult;
+    try {
+      const diceResult = rollDice(modifier, skill, action, type, opposition);
+      diceResult.character = activeCharacter?.name || 'GM'; // Patch name
+      await createRollLog(diceResult);
+
+      // If it's a fast roll (no skill/action), ensure we don't show toast, user wants chat only
+
+      return diceResult;
+    } catch (e) {
+      console.error("Roll failed:", e);
+      toast({ title: "Erro na rolagem", variant: "destructive" });
+      throw e;
+    }
   };
 
   const spendFatePoint = (charId: string) => updateFate(charId, -1, true);
@@ -184,7 +202,53 @@ export function VTTPage() {
       {/* Header */}
       <motion.header className="h-14 px-4 flex items-center justify-between shrink-0 border-b border-border bg-background/90 backdrop-blur-sm z-10">
         <div className="flex items-center gap-2">
-          <Link to="/" className="p-2 rounded-lg glass-panel hover:bg-muted"><Home className="w-4 h-4" /></Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-2 rounded-lg glass-panel hover:bg-muted focus:outline-none">
+                <Menu className="w-5 h-5 text-primary" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 glass-panel border-border">
+              <DropdownMenuLabel>Menu Principal</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                  <UserCircle className="w-4 h-4" />
+                  <span>Meu Perfil</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/" className="flex items-center gap-2 cursor-pointer">
+                  <Home className="w-4 h-4" />
+                  <span>Voltar para Lobby</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/about" className="flex items-center gap-2 cursor-pointer">
+                  <Info className="w-4 h-4" />
+                  <span>Sobre o #iHunt</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/codex" className="flex items-center gap-2 cursor-pointer">
+                  <Book className="w-4 h-4" />
+                  <span>Códice de Regras</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  signOut();
+                  navigate('/');
+                }}
+                className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sair (Logout)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="glass-panel px-3 py-1.5"><h1 className="font-display text-xl text-primary">#iHUNT</h1></div>
           <div className="glass-panel px-2 py-1.5 text-xs text-muted-foreground">{campaign.title}</div>
 
@@ -212,18 +276,27 @@ export function VTTPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SafetyControls mySettings={mySettings} aggregatedLevels={aggregatedLevels} onUpdateSetting={updateMySetting} onTriggerXCard={triggerXCard} onTogglePause={togglePause} />
-          {/* Dice & Sheet Toggles */}
-          <button onClick={() => setShowDice(!showDice)} className="p-2 glass-panel"><Dices className="w-5 h-5" /></button>
+          {/* Fast Roll */}
+          <button onClick={() => handleRollDice(0, undefined, undefined, 'normal')} className="p-2 glass-panel" title="Rolagem Rápida (4dF)">
+            <Zap className="w-5 h-5" />
+          </button>
+
+          {/* Dice & Sheet */}
+          <button onClick={() => setShowDice(!showDice)} className="p-2 glass-panel" title="Rolador de Dados"><Dices className="w-5 h-5" /></button>
+          <button onClick={() => setShowSheet(!showSheet)} className="p-2 glass-panel" title="Ficha do Personagem"><BookOpen className="w-5 h-5" /></button>
+
+          {/* Selfie */}
           <button onClick={() => setShowSelfieAlbum(!showSelfieAlbum)} className="p-2 glass-panel" title="Álbum de Selfies"><Camera className="w-5 h-5" /></button>
-          <button onClick={() => setShowSheet(!showSheet)} className="p-2 glass-panel"><BookOpen className="w-5 h-5" /></button>
+
+          {/* Safety / Others */}
+          <SafetyControls mySettings={mySettings} aggregatedLevels={aggregatedLevels} onUpdateSetting={updateMySetting} onTriggerXCard={triggerXCard} onTogglePause={togglePause} />
         </div>
       </motion.header>
 
       <XCardOverlay safetyState={safetyState} currentUserId={user?.uid} isGM={isGM} onResolve={resolveXCard} />
 
       <Dialog open={showSelfieAlbum} onOpenChange={setShowSelfieAlbum}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background border-border">
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background">
           <SelfieTimeline
             partyCharacters={partyCharacters}
             myCharacter={myCharacter}
@@ -237,40 +310,59 @@ export function VTTPage() {
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar */}
         <LeftSidebar
+          sessionId={campaign?.joinCode || ''}
           partyCharacters={partyCharacters}
           archivedCharacters={archivedCharacters}
-          myCharacterId={activeCharacter?.id}
-          onViewCharacter={setViewingCharacter}
+          myCharacterId={myCharacter?.id}
+          onViewCharacter={(char) => setViewingCharacter(char)}
           onInvokeAspect={handleInvokeAspectFromSidebar}
-          selectedCharacter={activeCharacter}
-          onSpendFate={() => activeCharacter && spendFatePoint(activeCharacter.id)}
-          onGainFate={() => activeCharacter && gainFatePoint(activeCharacter.id)}
-          onToggleStress={(track, idx) => activeCharacter && handleToggleStress(activeCharacter.id, track, idx)}
-          onOpenFullSheet={() => setShowSheet(true)}
-          onOpenDice={() => setShowDice(true)}
-          onAddCharacterToScene={async () => {
-            if (!activeCharacter || !activeScene) return;
-            await createToken({ type: 'character', characterId: activeCharacter.id, name: activeCharacter.name, x: 100, y: 100, isVisible: true });
-          }}
-          onRemoveCharacterFromScene={async () => {
-            const t = tokens.find(tk => tk.characterId === activeCharacter?.id);
-            if (t) deleteToken(t.id);
-          }}
-          isCharacterInScene={tokens.some(t => t.characterId === activeCharacter?.id)}
+
+          // GM Props
           isGM={isGM}
           scenes={scenes}
           archivedScenes={[]} // TODO
           currentScene={activeScene ?? null}
-          sceneSearchQuery={sceneSearchQuery}
-          onSceneSearchChange={setSceneSearchQuery}
+          onSetActiveScene={setActiveScene}
           onCreateScene={createScene}
           onUpdateScene={updateScene}
           onDeleteScene={deleteScene}
-          onSetActiveScene={setActiveScene}
+
+          // Computed GM Info
+          gm={campaign?.gmId ? {
+            id: campaign.gmId,
+            name: Object.values(presenceMap).find(p => p.ownerId === campaign.gmId)?.ownerName || 'Mestre',
+            isOnline: Object.values(presenceMap).some(p => p.ownerId === campaign.gmId && isPresenceRecent(p.lastSeen))
+          } : undefined}
+
+          onAddCharacterToScene={async (characterId) => {
+            const char = partyCharacters.find(c => c.id === characterId);
+            if (!char || !activeScene) return;
+            // Default position center-ish
+            await createToken({
+              type: 'character',
+              characterId: char.id,
+              name: char.name,
+              avatar: char.avatar,
+              x: 400,
+              y: 300,
+              isVisible: true
+            });
+            toast({ title: "Token adicionado", description: `${char.name} entrou em cena.` });
+          }}
+          onRemoveCharacterFromScene={async (characterId) => {
+            const t = tokens.find(tk => tk.characterId === characterId);
+            if (t) {
+              await deleteToken(t.id);
+              toast({ title: "Token removido", description: "Saiu de cena." });
+            }
+          }}
+          isCharacterInScene={(characterId) => tokens.some(t => t.characterId === characterId)}
+
+          sceneSearchQuery={sceneSearchQuery}
+          onSceneSearchChange={setSceneSearchQuery}
           onArchiveScene={archiveScene}
           onUnarchiveScene={unarchiveScene}
           minAspects={MIN_ASPECTS}
-          sessionId={campaign.id} // Passing campaignId as sessionId for now if needed by component
           onEditCharacter={(c) => setViewingCharacter(c)}
         />
 
@@ -284,7 +376,42 @@ export function VTTPage() {
                     <h2 className="text-2xl font-bold">{activeCharacter.name}</h2>
                     <button onClick={() => setShowSheet(false)}><X /></button>
                   </div>
-                  <CharacterSheet character={activeCharacter} isOpen={true} onClose={() => setShowSheet(false)} readOnly={false} onSkillClick={(s) => { setPresetSkill(s); setShowDice(true); }} />
+                  <CharacterSheet
+                    character={activeCharacter}
+                    isOpen={true}
+                    onClose={() => setShowSheet(false)}
+                    readOnly={false}
+                    onSkillClick={(s) => { setPresetSkill(s); setShowDice(true); }}
+                    onAddSituationalAspect={async (name, freeInvokes) => {
+                      if (!activeCharacter) return;
+                      const newAspect = {
+                        id: crypto.randomUUID(),
+                        name,
+                        freeInvokes
+                      };
+                      const currentAspects = activeCharacter.situationalAspects || [];
+                      await updateFirebaseCharacter(activeCharacter.id, {
+                        situationalAspects: [...currentAspects, newAspect]
+                      });
+                    }}
+                    onRemoveSituationalAspect={async (id) => {
+                      if (!activeCharacter) return;
+                      const currentAspects = activeCharacter.situationalAspects || [];
+                      await updateFirebaseCharacter(activeCharacter.id, {
+                        situationalAspects: currentAspects.filter(a => a.id !== id)
+                      });
+                    }}
+                    onUpdateSituationalAspect={async (id, updates) => {
+                      if (!activeCharacter) return;
+                      const currentAspects = activeCharacter.situationalAspects || [];
+                      const updatedAspects = currentAspects.map(a =>
+                        a.id === id ? { ...a, ...updates } : a
+                      );
+                      await updateFirebaseCharacter(activeCharacter.id, {
+                        situationalAspects: updatedAspects
+                      });
+                    }}
+                  />
                 </div>
               </div>
             ) : (
@@ -322,6 +449,7 @@ export function VTTPage() {
                   myCharacter={activeCharacter}
                   partyCharacters={partyCharacters}
                   onInvokeAspect={handleInvokeAspectFromRoller}
+                  onAddLog={addLog}
                   isGM={isGM}
                 />
               </div>

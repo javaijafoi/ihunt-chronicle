@@ -8,6 +8,9 @@ import { VTTPage } from "./pages/VTTPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { CreateCampaignPage } from "./pages/CreateCampaignPage";
 import NotFound from "./pages/NotFound";
+import { ProfilePage } from "./pages/ProfilePage";
+import { AboutPage } from "./pages/AboutPage";
+import { CodexPage } from "./pages/CodexPage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +40,9 @@ const App = () => (
           {/* <Route path="/vtt" element={<VTTPage />} /> */}
           <Route path="/old" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/codex" element={<CodexPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

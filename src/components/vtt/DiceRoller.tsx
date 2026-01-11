@@ -35,6 +35,7 @@ interface DiceRollerProps {
   partyCharacters?: Array<{ name: string; aspects: Character['aspects'] }>;
   onInvokeAspect?: (aspectName: string, source: string, useFreeInvoke: boolean) => void;
   onUpdateCharacter?: (id: string, updates: Partial<Character>) => Promise<void>;
+  onAddLog?: (message: string, type: 'roll' | 'aspect' | 'fate' | 'system' | 'chat') => Promise<void>;
   variant?: 'modal' | 'window';
   isGM?: boolean;
 }
@@ -78,9 +79,11 @@ export function DiceRoller({
   partyCharacters = [],
   onInvokeAspect,
   onUpdateCharacter,
+  onAddLog,
   variant = 'modal',
   isGM = false,
 }: DiceRollerProps) {
+
   const [result, setResult] = useState<DiceResult | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
@@ -299,8 +302,13 @@ export function DiceRoller({
     }
 
     // 2. Apply Mechanic
+    let bonusApplied = 0;
+    let effectDescription = '';
+
     if (selfie.type === 'mood') {
       // Mood: +1
+      bonusApplied = 1;
+      effectDescription = '(+1)';
       if (result) {
         const newTotal = result.total + 1;
         const newOutcome = calculateOutcome(newTotal, result.opposition ?? null);
@@ -311,6 +319,7 @@ export function DiceRoller({
     } else if (selfie.type === 'auge') {
       if (intent === 'reroll' && result) {
         // Reroll logic
+        effectDescription = '(Reroll)';
         setIsRolling(true);
         setHasUsedReroll(true);
         await sleep(100);
@@ -326,6 +335,8 @@ export function DiceRoller({
         setIsRolling(false);
       } else {
         // Bonus +2
+        bonusApplied = 2;
+        effectDescription = '(+2)';
         if (result) {
           const newTotal = result.total + 2;
           const newOutcome = calculateOutcome(newTotal, result.opposition ?? null);
@@ -336,14 +347,17 @@ export function DiceRoller({
       }
     } else if (selfie.type === 'mudanca') {
       setHasAdvantage(true);
+      effectDescription = '(Vantagem)';
+    }
+
+    // 3. Log
+    if (onAddLog && myCharacter) {
+      await onAddLog(`${myCharacter.name} lembrou de "${selfie.title}" ${effectDescription}`, 'fate');
     }
   };
 
   const onActivateSelfie = (selfie: Selfie) => {
     if (selfie.type === 'auge') {
-      // Create a choice dialog or simple logic
-      // If no result, it must be +2 (cannot reroll pre-roll).
-      // But user might want to "save for later"? No, consume now.
       if (!result) {
         handleApplySelfie(selfie, 'bonus');
       } else {

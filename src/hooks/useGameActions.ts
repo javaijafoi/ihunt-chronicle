@@ -35,8 +35,12 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
                 timestamp: doc.data().timestamp?.toDate() || new Date()
             })) as LogEntry[];
 
-            // Sort by timestamp descending
-            newLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+            // Sort by timestamp ascending (Oldest first, Newest last)
+            newLogs.sort((a, b) => {
+                const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as any).toDate().getTime();
+                const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp as any).toDate().getTime();
+                return timeA - timeB;
+            });
 
             // Optional: Client-side limit if needed, but let's show all for context
             setLogs(newLogs);
@@ -46,7 +50,10 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
     }, [episodeId]);
 
     const addLog = useCallback(async (message: string, type: LogEntry['type'] = 'system', details?: any) => {
-        if (!episodeId) return;
+        if (!episodeId) {
+            console.warn("No episodeId, cannot add log");
+            return;
+        }
         try {
             await addDoc(collection(db, 'episodes', episodeId, 'logs'), {
                 message,
@@ -61,44 +68,37 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
     }, [episodeId]);
 
     const createRollLog = useCallback(async (result: DiceResult) => {
-        if (!episodeId) return;
+        if (!episodeId) {
+            console.warn("No episodeId, cannot log roll");
+            toast.error("Nenhum episódio ativo. A rolagem não foi salva no histórico.");
+            return;
+        }
 
-        // Convert the result details to a plain object and remove undefined values
-        const details = JSON.parse(JSON.stringify({
-            ...result,
-            kind: 'roll',
-            timestamp: result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp
-        }));
+        try {
+            // Sanitize undefined values using JSON serialization
+            // This is safer than manual object manipulation for Firestore
+            const safeDetails = JSON.parse(JSON.stringify({
+                ...result,
+                kind: 'roll',
+                // Ensure timestamps are strings or handled correctly before saving
+                timestamp: result.timestamp instanceof Date
+                    ? result.timestamp.toISOString()
+                    : (result.timestamp as any)?.toDate?.().toISOString() || new Date().toISOString()
+            }));
 
-        // Firestore doesn't accept undefined, but JSON.stringify/parse cleans them.
-        // We need to restore timestamp to serverTimestamp() or Date if needed, 
-        // but here we are sending a separate top-level timestamp.
-        // Let's manually clean just to be safe and efficient without JSON overhead if preferred,
-        // but JSON stringify is the easiest way to strip undefineds recursively.
+            const logEntry = {
+                type: 'roll',
+                message: `${result.character} rolou ${result.action || 'dados'}`,
+                character: result.character,
+                details: safeDetails,
+                timestamp: serverTimestamp()
+            };
 
-        // However, result.timestamp might be a complex object.
-        // Let's just manually construct the safe object.
-
-        const safeDetails: any = {
-            ...result,
-            kind: 'roll'
-        };
-
-        // Remove undefined keys
-        Object.keys(safeDetails).forEach(key => {
-            if (safeDetails[key] === undefined) {
-                delete safeDetails[key];
-            }
-        });
-
-        const logEntry = {
-            type: 'roll',
-            message: `${result.character} rolou ${result.action || 'dados'}`,
-            character: result.character,
-            details: safeDetails,
-            timestamp: serverTimestamp()
-        };
-        await addDoc(collection(db, 'episodes', episodeId, 'logs'), logEntry);
+            await addDoc(collection(db, 'episodes', episodeId, 'logs'), logEntry);
+        } catch (e) {
+            console.error("Error creating roll log:", e);
+            toast.error("Erro ao registrar rolagem");
+        }
     }, [episodeId]);
 
     // Fate Points Logic

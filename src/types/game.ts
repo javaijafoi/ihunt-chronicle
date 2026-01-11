@@ -40,6 +40,11 @@ export interface Character {
   };
   skills: Record<string, number>;
   maneuvers: string[];
+  situationalAspects?: {
+    id: string;
+    name: string;
+    freeInvokes: number;
+  }[];
   selfies: Selfie[];
   selfieSlots?: SelfieSlot[]; // New progression system
   stress: {
@@ -164,6 +169,14 @@ export interface Selfie {
   isAvailable: boolean; // Se pode ser usada na sessão atual
   createdAt: string; // ISO Date
   usedAt?: string; // ISO Date da última utilização
+
+  // NOVOS CAMPOS
+  grantedByEpisodeId: string;    // Qual episódio liberou este slot
+  advancementApplied?: {         // Registro do avanço escolhido
+    type: 'swap_skills' | 'rename_aspect' | 'skill_point' | 'clear_severe' | 'refresh' | 'maneuver_swap';
+    details: Record<string, any>;
+    appliedAt: string;
+  };
 }
 
 export interface SelfieSlot {
@@ -173,6 +186,9 @@ export interface SelfieSlot {
   used: boolean;
   usedAt?: Timestamp | Date;
   createdAt: Timestamp | Date;
+
+  // NOVO: Vincular à selfie criada
+  selfieId?: string;        // ID da selfie quando slot for preenchido
 }
 
 // ========== ARCHETYPE SYSTEM ==========

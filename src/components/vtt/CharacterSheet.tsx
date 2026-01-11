@@ -20,19 +20,25 @@ interface CharacterSheetProps {
   readOnly?: boolean;
   onSkillClick?: (skill: string) => void;
   variant?: 'modal' | 'window';
+  onAddSituationalAspect?: (name: string, freeInvokes: number) => void;
+  onRemoveSituationalAspect?: (id: string) => void;
+  onUpdateSituationalAspect?: (id: string, updates: Partial<{ name: string; freeInvokes: number }>) => void;
 }
 
-export function CharacterSheet({ 
-  character, 
-  isOpen, 
-  onClose, 
+export function CharacterSheet({
+  character,
+  isOpen,
+  onClose,
   onSpendFate,
   onGainFate,
   onToggleStress,
   onSetConsequence,
   readOnly = false,
   onSkillClick,
-  variant = 'modal'
+  variant = 'modal',
+  onAddSituationalAspect,
+  onRemoveSituationalAspect,
+  onUpdateSituationalAspect
 }: CharacterSheetProps) {
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
@@ -159,223 +165,300 @@ export function CharacterSheet({
             </div>
           </div>
 
-          {/* Maneuvers */}
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-secondary mb-3 flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              Manobras
-            </h3>
-            <div className="space-y-1.5">
-              {character.maneuvers.map((maneuverId, i) => {
-                const drive = character.drive ? getDriveById(character.drive) : undefined;
-                let maneuverName = maneuverId;
-                let maneuverDescription = '';
-                let isFree = false;
-                
-                if (drive) {
-                  if (drive.freeManeuver.id === maneuverId) {
-                    maneuverName = drive.freeManeuver.name;
-                    maneuverDescription = drive.freeManeuver.description;
-                    isFree = true;
-                  } else {
-                    const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
-                    if (exclusive) {
-                      maneuverName = exclusive.name;
-                      maneuverDescription = exclusive.description;
-                    }
-                  }
-                }
-                const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
-                if (general) {
-                  maneuverName = general.name;
-                  maneuverDescription = general.description;
-                }
+        </div>
 
-                return (
-                  <Tooltip key={i}>
-                    <TooltipTrigger asChild>
-                      <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${
-                        isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
-                      }`}>
-                        <span className="truncate flex-1">{maneuverName}</span>
-                        {isFree && <span className="text-[10px] opacity-70 shrink-0">(grátis)</span>}
-                        <Info className="w-3 h-3 opacity-50 shrink-0" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
-                      <p className="font-medium mb-1">{maneuverName}</p>
-                      <p className="text-xs text-muted-foreground">{maneuverDescription}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
+        {/* Situational Aspects */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Vantagens / Aspectos Situacionais
+          </h3>
+
+          <div className="space-y-2">
+            {character.situationalAspects?.map((aspect) => (
+              <div key={aspect.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded border border-border/50 group hover:border-primary/30 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate" title={aspect.name}>{aspect.name}</div>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="uppercase tracking-wider">Invocações Grátis:</span>
+                    <span className="font-bold text-primary">{aspect.freeInvokes}</span>
+                  </div>
+                </div>
+
+                {!readOnly && onUpdateSituationalAspect && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: Math.max(0, aspect.freeInvokes - 1) })}
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                    >
+                      -
+                    </button>
+                    <button
+                      onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: aspect.freeInvokes + 1 })}
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+
+                {!readOnly && onRemoveSituationalAspect && (
+                  <button
+                    onClick={() => onRemoveSituationalAspect(aspect.id)}
+                    className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {!readOnly && onAddSituationalAspect && (
+              <div className="flex gap-2 mt-3">
+                <input
+                  type="text"
+                  id="new-situational-aspect"
+                  placeholder="Nova vantagem..."
+                  className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.currentTarget;
+                      if (input.value.trim()) {
+                        onAddSituationalAspect(input.value.trim(), 1); // Default 1 free invoke
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('new-situational-aspect') as HTMLInputElement;
+                    if (input?.value.trim()) {
+                      onAddSituationalAspect(input.value.trim(), 1);
+                      input.value = '';
+                    }
+                  }}
+                  className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-sm font-medium transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Skills */}
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Perícias
-            </h3>
-            <div className="grid grid-cols-3 gap-1.5">
-              {Object.entries(character.skills).map(([skill, value]) => (
-                <button
-                  key={skill}
-                  onClick={() => onSkillClick?.(skill)}
-                  className={`p-1.5 rounded text-center border transition-colors ${
-                    onSkillClick ? 'hover:border-primary/50 hover:text-primary cursor-pointer' : 'cursor-default'
-                  }`}
-                  disabled={!onSkillClick}
-                >
-                  <div className="font-display text-lg leading-none">+{value}</div>
-                  <div className="text-[10px] text-muted-foreground capitalize truncate">{skill}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Maneuvers */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-secondary mb-3 flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            Manobras
+          </h3>
+          <div className="space-y-1.5">
+            {character.maneuvers.map((maneuverId, i) => {
+              const drive = character.drive ? getDriveById(character.drive) : undefined;
+              let maneuverName = maneuverId;
+              let maneuverDescription = '';
+              let isFree = false;
 
-          {/* Stress Tracks */}
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-destructive mb-2 flex items-center gap-2">
-              <Heart className="w-5 h-5" />
-              Estresse & Consequências
-            </h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              {stressTooltip}
-            </p>
+              if (drive) {
+                if (drive.freeManeuver.id === maneuverId) {
+                  maneuverName = drive.freeManeuver.name;
+                  maneuverDescription = drive.freeManeuver.description;
+                  isFree = true;
+                } else {
+                  const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
+                  if (exclusive) {
+                    maneuverName = exclusive.name;
+                    maneuverDescription = exclusive.description;
+                  }
+                }
+              }
+              const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
+              if (general) {
+                maneuverName = general.name;
+                maneuverDescription = general.description;
+              }
 
-            <div className="space-y-3">
-              {/* Physical Stress */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Físico</span>
-                  <span className="text-[10px] text-muted-foreground">Base {character.stress.physical.length}</span>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {physicalStress.map((filled, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onToggleStress?.('physical', index)}
-                      disabled={!canToggleStress}
-                      className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${
-                        filled 
-                          ? 'bg-destructive/20 border-destructive text-destructive glow-destructive' 
-                          : 'bg-muted border-border hover:border-destructive/60'
-                      } ${!canToggleStress ? 'cursor-default' : ''}`}
-                    >
-                      <Heart className="w-4 h-4" />
-                      <span className="text-sm">{index + 1}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mental Stress */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Mental</span>
-                  <span className="text-[10px] text-muted-foreground">Base {character.stress.mental.length}</span>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {mentalStress.map((filled, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onToggleStress?.('mental', index)}
-                      disabled={!canToggleStress}
-                      className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${
-                        filled 
-                          ? 'bg-primary/20 border-primary text-primary glow-primary' 
-                          : 'bg-muted border-border hover:border-primary/60'
-                      } ${!canToggleStress ? 'cursor-default' : ''}`}
-                    >
-                      <Brain className="w-4 h-4" />
-                      <span className="text-sm">{index + 1}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Consequences */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-              {(['mild', 'moderate', 'severe'] as const).map((severity) => (
-                <div key={severity} className="glass-panel p-3 bg-muted/40 border-dashed border-border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-secondary" />
-                    <span className="text-xs font-ui uppercase tracking-wider">
-                      {severity === 'mild' ? 'Suave (2)' : severity === 'moderate' ? 'Moderada (4)' : 'Severa (6)'}
-                    </span>
-                  </div>
-                  <div className={`px-3 py-2 rounded-md text-sm bg-background border ${character.consequences[severity] ? 'border-secondary' : 'border-border'} min-h-[52px]`}>
-                    {character.consequences[severity] || 'Sem consequência'}
-                  </div>
-                  {!consequenceReadOnly && (
-                    <button
-                      onClick={() => onSetConsequence?.(severity, character.consequences[severity] ? null : '')}
-                      className="mt-2 w-full px-3 py-2 rounded-md text-sm border border-secondary/40 text-secondary hover:bg-secondary/10 transition-colors"
-                    >
-                      {character.consequences[severity] ? 'Remover' : 'Adicionar'}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Drives */}
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-accent mb-3 flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              Impulso
-            </h3>
-            {character.drive ? (
-              <div className="space-y-2">
-                <div className="glass-panel p-2.5 bg-muted/30 border-primary/20">
-                  <p className="text-sm text-foreground flex items-center gap-2">
-                    <span className="text-base">{getDriveById(character.drive)?.icon}</span>
-                    <span className="font-display truncate">{getDriveById(character.drive)?.name}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{getDriveById(character.drive)?.summary}</p>
-                </div>
-                
-                <Tooltip>
+              return (
+                <Tooltip key={i}>
                   <TooltipTrigger asChild>
-                    <div className="glass-panel p-2.5 cursor-help">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
-                      <p className="font-display text-sm text-primary truncate">{getDriveById(character.drive)?.freeManeuver.name}</p>
+                    <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                      }`}>
+                      <span className="truncate flex-1">{maneuverName}</span>
+                      {isFree && <span className="text-[10px] opacity-70 shrink-0">(grátis)</span>}
+                      <Info className="w-3 h-3 opacity-50 shrink-0" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-xs">
-                    <p className="font-medium mb-1">{getDriveById(character.drive)?.freeManeuver.name}</p>
-                    <p className="text-xs text-muted-foreground">{getDriveById(character.drive)?.freeManeuver.description}</p>
+                    <p className="font-medium mb-1">{maneuverName}</p>
+                    <p className="text-xs text-muted-foreground">{maneuverDescription}</p>
                   </TooltipContent>
                 </Tooltip>
-                
-                <div className="grid grid-cols-2 gap-1.5">
-                  {getDriveById(character.drive)?.exclusiveManeuvers.map((maneuver) => (
-                    <Tooltip key={maneuver.id}>
-                      <TooltipTrigger asChild>
-                        <div className="glass-panel p-2 bg-muted/50 cursor-help">
-                          <p className="text-[10px] text-muted-foreground uppercase">Exclusiva</p>
-                          <p className="font-display text-sm truncate">{maneuver.name}</p>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        <p className="font-medium mb-1">{maneuver.name}</p>
-                        <p className="text-xs text-muted-foreground">{maneuver.description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum impulso selecionado.</p>
-            )}
+              );
+            })}
           </div>
+        </div>
+      </div>
+
+      {/* Right Column */}
+      <div className="space-y-6">
+        {/* Skills */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Perícias
+          </h3>
+          <div className="grid grid-cols-3 gap-1.5">
+            {Object.entries(character.skills).map(([skill, value]) => (
+              <button
+                key={skill}
+                onClick={() => onSkillClick?.(skill)}
+                className={`p-1.5 rounded text-center border transition-colors ${onSkillClick ? 'hover:border-primary/50 hover:text-primary cursor-pointer' : 'cursor-default'
+                  }`}
+                disabled={!onSkillClick}
+              >
+                <div className="font-display text-lg leading-none">+{value}</div>
+                <div className="text-[10px] text-muted-foreground capitalize truncate">{skill}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stress Tracks */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-destructive mb-2 flex items-center gap-2">
+            <Heart className="w-5 h-5" />
+            Estresse & Consequências
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            {stressTooltip}
+          </p>
+
+          <div className="space-y-3">
+            {/* Physical Stress */}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Físico</span>
+                <span className="text-[10px] text-muted-foreground">Base {character.stress.physical.length}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                {physicalStress.map((filled, index) => (
+                  <button
+                    key={index}
+                    onClick={() => onToggleStress?.('physical', index)}
+                    disabled={!canToggleStress}
+                    className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${filled
+                      ? 'bg-destructive/20 border-destructive text-destructive glow-destructive'
+                      : 'bg-muted border-border hover:border-destructive/60'
+                      } ${!canToggleStress ? 'cursor-default' : ''}`}
+                  >
+                    <Heart className="w-4 h-4" />
+                    <span className="text-sm">{index + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mental Stress */}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Mental</span>
+                <span className="text-[10px] text-muted-foreground">Base {character.stress.mental.length}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                {mentalStress.map((filled, index) => (
+                  <button
+                    key={index}
+                    onClick={() => onToggleStress?.('mental', index)}
+                    disabled={!canToggleStress}
+                    className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${filled
+                      ? 'bg-primary/20 border-primary text-primary glow-primary'
+                      : 'bg-muted border-border hover:border-primary/60'
+                      } ${!canToggleStress ? 'cursor-default' : ''}`}
+                  >
+                    <Brain className="w-4 h-4" />
+                    <span className="text-sm">{index + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Consequences */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+            {(['mild', 'moderate', 'severe'] as const).map((severity) => (
+              <div key={severity} className="glass-panel p-3 bg-muted/40 border-dashed border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-secondary" />
+                  <span className="text-xs font-ui uppercase tracking-wider">
+                    {severity === 'mild' ? 'Suave (2)' : severity === 'moderate' ? 'Moderada (4)' : 'Severa (6)'}
+                  </span>
+                </div>
+                <div className={`px-3 py-2 rounded-md text-sm bg-background border ${character.consequences[severity] ? 'border-secondary' : 'border-border'} min-h-[52px]`}>
+                  {character.consequences[severity] || 'Sem consequência'}
+                </div>
+                {!consequenceReadOnly && (
+                  <button
+                    onClick={() => onSetConsequence?.(severity, character.consequences[severity] ? null : '')}
+                    className="mt-2 w-full px-3 py-2 rounded-md text-sm border border-secondary/40 text-secondary hover:bg-secondary/10 transition-colors"
+                  >
+                    {character.consequences[severity] ? 'Remover' : 'Adicionar'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Drives */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-accent mb-3 flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            Impulso
+          </h3>
+          {character.drive ? (
+            <div className="space-y-2">
+              <div className="glass-panel p-2.5 bg-muted/30 border-primary/20">
+                <p className="text-sm text-foreground flex items-center gap-2">
+                  <span className="text-base">{getDriveById(character.drive)?.icon}</span>
+                  <span className="font-display truncate">{getDriveById(character.drive)?.name}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{getDriveById(character.drive)?.summary}</p>
+              </div>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="glass-panel p-2.5 cursor-help">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
+                    <p className="font-display text-sm text-primary truncate">{getDriveById(character.drive)?.freeManeuver.name}</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <p className="font-medium mb-1">{getDriveById(character.drive)?.freeManeuver.name}</p>
+                  <p className="text-xs text-muted-foreground">{getDriveById(character.drive)?.freeManeuver.description}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {getDriveById(character.drive)?.exclusiveManeuvers.map((maneuver) => (
+                  <Tooltip key={maneuver.id}>
+                    <TooltipTrigger asChild>
+                      <div className="glass-panel p-2 bg-muted/50 cursor-help">
+                        <p className="text-[10px] text-muted-foreground uppercase">Exclusiva</p>
+                        <p className="font-display text-sm truncate">{maneuver.name}</p>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="font-medium mb-1">{maneuver.name}</p>
+                      <p className="text-xs text-muted-foreground">{maneuver.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum impulso selecionado.</p>
+          )}
         </div>
       </div>
     </div>

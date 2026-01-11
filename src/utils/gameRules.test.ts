@@ -6,6 +6,8 @@ import { Character } from '../types/game';
 const buildCharacter = (overrides: Partial<Character> = {}): Character => {
   const base: Character = {
     id: 'character-id',
+    campaignId: 'campaign-id',
+    userId: 'user-id',
     sessionId: 'session-id',
     createdBy: 'user-id',
     name: 'Test Character',
@@ -41,9 +43,9 @@ const buildCharacter = (overrides: Partial<Character> = {}): Character => {
     maneuvers: overrides.maneuvers ?? base.maneuvers,
     stress: overrides.stress
       ? {
-          physical: overrides.stress.physical ?? base.stress.physical,
-          mental: overrides.stress.mental ?? base.stress.mental,
-        }
+        physical: overrides.stress.physical ?? base.stress.physical,
+        mental: overrides.stress.mental ?? base.stress.mental,
+      }
       : base.stress,
     consequences: overrides.consequences
       ? { ...base.consequences, ...overrides.consequences }

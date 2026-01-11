@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Crown, MapPin, Users, Users2, Archive, RefreshCcw, Calendar, BookOpen } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -7,6 +8,7 @@ import { ActiveNPCsPanel } from './ActiveNPCsPanel';
 import { ActiveNPCSheet } from './ActiveNPCSheet';
 import { TimelineManager } from './TimelineManager';
 import { ArchetypeDatabase } from './ArchetypeDatabase';
+import { CharactersDatabase } from './CharactersDatabase';
 // ... imports
 import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
@@ -68,9 +70,10 @@ export function GMPanel({
   archivedCharacters = [],
   onEditCharacter,
 }: GMPanelProps) {
-  const [activeTab, setActiveTab] = useState('scenes');
+  const [activeTab, setActiveTab] = useState<'scenes' | 'npcs'>('scenes');
   const [selectedNPC, setSelectedNPC] = useState<ActiveNPC | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showCharacters, setShowCharacters] = useState(false);
 
   const [charactersViewMode, setCharactersViewMode] = useState<'active' | 'archived'>('active');
   const [characterToArchive, setCharacterToArchive] = useState<{ id: string; name: string } | null>(null);
@@ -116,18 +119,17 @@ export function GMPanel({
   const tabs = [
     { id: 'scenes' as const, label: 'Cenas', icon: MapPin },
     { id: 'npcs' as const, label: 'NPCs Ativos', icon: Users2 },
-    { id: 'characters' as const, label: 'Personagens', icon: Users },
   ];
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-secondary/10 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Crown className="w-4 h-4 text-secondary" />
-          <span className="font-display text-sm text-secondary">Painel do GM</span>
-        </div>
+      <div className="flex items-center justify-between px-2 py-1 bg-secondary/10 border-b border-border mb-2 rounded-md">
+        <span className="text-xs font-bold text-secondary uppercase tracking-wider pl-1">Ferramentas do Mestre</span>
         <div className="flex items-center gap-1">
+          <button onClick={() => setShowCharacters(true)} className="p-1 hover:bg-secondary/20 rounded text-secondary" title="Gerenciar Personagens">
+            <Users className="w-4 h-4" />
+          </button>
           <button onClick={() => setShowArchetypes(true)} className="p-1 hover:bg-secondary/20 rounded" title="Base de Arquétipos">
             <BookOpen className="w-4 h-4 text-secondary" />
           </button>
@@ -147,10 +149,17 @@ export function GMPanel({
         </DialogContent>
       </Dialog>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        {/* ... tabs content */}
+      <Dialog open={showCharacters} onOpenChange={setShowCharacters}>
+        <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <CharactersDatabase sessionId={sessionId} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'scenes' | 'npcs')} className="flex-1 flex flex-col min-h-0">
         <div className="px-2 pt-2 flex-shrink-0">
-          <TabsList className="w-full grid grid-cols-3 bg-muted/50">
+          <TabsList className="w-full grid grid-cols-2 bg-muted/50">
             {tabs.map((tab) => (
               <TabsTrigger key={tab.id} value={tab.id} className="text-xs gap-2">
                 <tab.icon className="w-4 h-4" />
@@ -184,131 +193,6 @@ export function GMPanel({
               currentSceneId={currentScene?.id || null}
               onSelectNPC={setSelectedNPC}
             />
-          </TabsContent>
-
-          <TabsContent value="archetypes" className="m-0 h-full mt-0">
-            <ArchetypeDatabase sessionId={sessionId} />
-          </TabsContent>
-
-          <TabsContent value="characters" className="m-0 h-full mt-0">
-            {/* ... characters content */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex p-0.5 rounded-lg bg-muted text-[10px] w-full">
-                  <button
-                    onClick={() => setCharactersViewMode('active')}
-                    className={`flex-1 py-1 rounded-md transition-all ${charactersViewMode === 'active' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    Ativos ({partyCharacters.length})
-                  </button>
-                  <button
-                    onClick={() => setCharactersViewMode('archived')}
-                    className={`flex-1 py-1 rounded-md transition-all ${charactersViewMode === 'archived' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    Arquivados ({archivedCharacters.length})
-                  </button>
-                </div>
-
-
-
-
-              </div>
-
-              {charactersViewMode === 'active' ? (
-                <>
-                  {partyCharacters.map((character) => (
-                    <div
-                      key={character.id}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                        {character.avatar ? (
-                          <img
-                            src={character.avatar}
-                            alt={character.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Users className="w-4 h-4 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-display text-sm truncate">{character.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">
-                          {character.ownerName || 'Sem jogador'}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${character.isOnline ? 'bg-fate-plus' : 'bg-muted-foreground'
-                          }`} title={character.isOnline ? 'Online' : 'Offline'} />
-
-                        <button
-                          onClick={() => onEditCharacter(character)}
-                          className="px-2 py-1 rounded text-[10px] font-ui bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
-                        >
-                          Ver
-                        </button>
-
-                        <button
-                          onClick={() => setCharacterToArchive({ id: character.id, name: character.name })}
-                          className="p-1 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
-                          title="Arquivar Personagem"
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {partyCharacters.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      <p>Nenhum personagem ativo.</p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {archivedCharacters.map((character) => (
-                    <div
-                      key={character.id}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-muted/10 border border-border/50 opacity-75 hover:opacity-100 transition-opacity"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center shrink-0 grayscale opacity-70">
-                        {character.avatar ? (
-                          <img
-                            src={character.avatar}
-                            alt={character.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-display text-sm truncate text-muted-foreground">{character.name}</div>
-                        <div className="text-[10px] text-muted-foreground/70 truncate">
-                          {character.ownerName || 'Sem jogador'}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => unarchiveCharacter(character.id)}
-                          className="px-2 py-1 rounded text-[10px] font-ui bg-secondary/20 text-secondary hover:bg-secondary/30 transition-colors flex items-center gap-1"
-                          title="Restaurar Personagem"
-                        >
-                          <RefreshCcw className="w-3 h-3" />
-                          Restaurar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {archivedCharacters.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      <p>Nenhum personagem arquivado.</p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
           </TabsContent>
         </div>
       </Tabs>

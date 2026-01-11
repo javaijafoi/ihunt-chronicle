@@ -1,35 +1,18 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Camera,
     Plus,
-    Filter,
-    Sparkles,
-    Trophy,
-    Heart,
-    Lock,
-    CheckCircle2,
-    Trash2,
-    MoreVertical
 } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Character, Selfie, SelfieType } from '@/types/game';
+import { Character, Selfie, SelfieType, SelfieSlot } from '@/types/game';
 import { NewSelfieForm } from './NewSelfieForm';
 import { SelfieAdvancementModal } from './SelfieAdvancementModal';
 import { toast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { SelfieCard } from './SelfieCard';
+import { SelfieSlotPlaceholder } from './SelfieSlotPlaceholder';
 
 interface SelfieAlbumProps {
     character: Character;
@@ -47,15 +30,47 @@ export function SelfieAlbum({
     const [filter, setFilter] = useState<'all' | SelfieType>('all');
     const [showNewSelfie, setShowNewSelfie] = useState(false);
     const [advancementSelfie, setAdvancementSelfie] = useState<Selfie | null>(null);
+    const [selectedSlotType, setSelectedSlotType] = useState<SelfieType>('mood');
+    const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
     const selfies = character.selfies || [];
+    const slots = character.selfieSlots || [];
+
+    // Available slots are those not marked as used
+    // Note: If using subcollection for slots as implemented in hook, 
+    // we assume they are synced to character object or we would need to fetch them.
+    // Given the types update was on Character interface 'selfieSlots?', let's assume they are passed here.
+    // If not, we might need to fallback to just showing "legacy" add button if no slots system used yet for this char.
+
+    const availableSlots = slots.filter(s => !s.used);
+
     const filteredSelfies = selfies.filter(s => filter === 'all' || s.type === filter);
+    const filteredSlots = availableSlots.filter(s => filter === 'all' || s.type === filter);
+
+    const handleCreateSelfieClick = (slotType: SelfieType, slotId?: string) => {
+        setSelectedSlotType(slotType);
+        setActiveSlotId(slotId || null);
+        setShowNewSelfie(true);
+    };
 
     const handleCreateSelfie = async (newSelfie: Selfie) => {
         try {
             // 1. Save the new selfie
+            // If we came from a slot, mark slot as used
+            let updatedSlots = [...(character.selfieSlots || [])];
+            if (activeSlotId) {
+                updatedSlots = updatedSlots.map(s =>
+                    s.id === activeSlotId
+                        ? { ...s, used: true, usedAt: new Date(), selfieId: newSelfie.id }
+                        : s
+                );
+            }
+
             const updatedSelfies = [newSelfie, ...selfies];
-            await onUpdateCharacter(character.id, { selfies: updatedSelfies });
+            await onUpdateCharacter(character.id, {
+                selfies: updatedSelfies,
+                selfieSlots: updatedSlots
+            });
 
             toast({ title: 'Selfie Salva!', description: 'Agora escolha sua evolução.' });
 
@@ -78,55 +93,40 @@ export function SelfieAlbum({
 
     const handleUseSelfie = (selfie: Selfie) => {
         if (!selfie.isAvailable) return;
+
         if (onActivateSelfie) {
             onActivateSelfie(selfie);
+            toast({ title: 'Memória Invocada', description: `Bônus de ${selfie.type === 'mood' ? '+1' : '+2'} aplicado à rolagem!` });
         } else {
-            // If no activator (e.g. just viewing), maybe valid manual usage? 
-            // For now, imply it's only actionable if provided.
             toast({ title: 'Modo de Visualização', description: 'Abra o Rolador de Dados para usar suas memórias.' });
         }
     };
 
-    const getTypeIcon = (type: SelfieType) => {
-        switch (type) {
-            case 'mood': return <Sparkles className="w-3 h-3" />;
-            case 'auge': return <Trophy className="w-3 h-3" />;
-            case 'mudanca': return <Heart className="w-3 h-3" />;
-        }
-    };
-
-    const getTypeColor = (type: SelfieType) => {
-        switch (type) {
-            case 'mood': return 'border-blue-500/50 bg-blue-500/5 text-blue-500';
-            case 'auge': return 'border-amber-500/50 bg-amber-500/5 text-amber-500';
-            case 'mudanca': return 'border-red-500/50 bg-red-500/5 text-red-500';
-        }
-    };
-
     return (
-        <div className="flex flex-col h-full bg-background/50 rounded-lg overflow-hidden border">
+        <div className="flex flex-col h-full bg-zinc-50/50 dark:bg-zinc-950/50 rounded-lg overflow-hidden border">
             {/* Header */}
-            <div className="p-3 border-b flex items-center justify-between bg-muted/30">
+            <div className="p-3 border-b flex items-center justify-between bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                     <Camera className="w-4 h-4 text-primary" />
                     <h3 className="font-display font-medium">Álbum de Memórias</h3>
-                    <Badge variant="secondary" className="text-[10px] h-5">
+                    <Badge variant="secondary" className="text-[10px] h-5 bg-zinc-100 dark:bg-zinc-800">
                         {selfies.filter(s => s.isAvailable).length} Disponíveis
                     </Badge>
                 </div>
 
-                {!readOnly && (
-                    <Button size="sm" onClick={() => setShowNewSelfie(true)} className="h-7 text-xs gap-1">
+                {/* Fallback add button if no slots system or GM override */}
+                {(!readOnly && slots.length === 0) && (
+                    <Button size="sm" onClick={() => handleCreateSelfieClick('mood')} className="h-7 text-xs gap-1">
                         <Plus className="w-3 h-3" />
-                        Nova Selfie
+                        Nova Selfie (Legacy)
                     </Button>
                 )}
             </div>
 
             {/* Filter Tabs */}
-            <div className="px-3 py-2 border-b bg-background">
+            <div className="px-3 py-2 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
                 <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full">
-                    <TabsList className="w-full grid grid-cols-4 h-8">
+                    <TabsList className="w-full grid grid-cols-4 h-8 bg-zinc-100 dark:bg-zinc-900">
                         <TabsTrigger value="all" className="text-xs">Todas</TabsTrigger>
                         <TabsTrigger value="mood" className="text-xs">Mood</TabsTrigger>
                         <TabsTrigger value="auge" className="text-xs">Auge</TabsTrigger>
@@ -137,92 +137,34 @@ export function SelfieAlbum({
 
             {/* Grid */}
             <ScrollArea className="flex-1 p-3">
-                {filteredSelfies.length === 0 ? (
+                {filteredSelfies.length === 0 && filteredSlots.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                        <Camera className="w-8 h-8 opacity-20 mb-2" />
+                        <Camera className="w-12 h-12 opacity-10 mb-2" />
                         <p className="text-sm">Nenhuma memória encontrada.</p>
+                        {!readOnly && (
+                            <p className="text-xs opacity-60 mt-1">Conclua episódios para ganhar slots de selfie.</p>
+                        )}
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {/* 1. Show Available Slots First */}
+                        {!readOnly && filteredSlots.map(slot => (
+                            <SelfieSlotPlaceholder
+                                key={slot.id}
+                                type={slot.type}
+                                onClick={() => handleCreateSelfieClick(slot.type, slot.id)}
+                            />
+                        ))}
+
+                        {/* 2. Show Existing Selfies */}
                         {filteredSelfies.map((selfie) => (
-                            <div
+                            <SelfieCard
                                 key={selfie.id}
-                                className={cn(
-                                    "group relative aspect-[4/5] rounded-md border-2 overflow-hidden transition-all",
-                                    getTypeColor(selfie.type),
-                                    !selfie.isAvailable && "opacity-50 grayscale border-dashed"
-                                )}
-                            >
-                                {/* Image */}
-                                <img
-                                    src={selfie.url}
-                                    alt={selfie.title}
-                                    className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
-                                />
-
-                                {/* Overlay Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
-
-                                {/* Status Indicator */}
-                                <div className="absolute top-2 right-2">
-                                    {selfie.isAvailable ? (
-                                        <Badge className="h-5 px-1.5 bg-green-500 hover:bg-green-600 border-none text-[10px]">
-                                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                                            Ativa
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline" className="h-5 px-1.5 bg-black/50 text-white border-white/20 text-[10px]">
-                                            <Lock className="w-3 h-3 mr-1" />
-                                            Usada
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                {/* Type Icon */}
-                                <div className="absolute top-2 left-2 p-1 rounded-full bg-black/40 text-white backdrop-blur-sm">
-                                    {getTypeIcon(selfie.type)}
-                                </div>
-
-                                {/* Content */}
-                                <div className="absolute bottom-0 left-0 right-0 p-3 pt-6">
-                                    <h4 className="font-display text-white text-sm line-clamp-1 leading-tight">{selfie.title}</h4>
-                                    <p className="text-white/70 text-[10px] line-clamp-2 mt-0.5 font-ui">{selfie.description}</p>
-
-                                    {/* Actions */}
-                                    <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
-                                        {selfie.isAvailable ? (
-                                            <Button
-                                                size="sm"
-                                                variant="default"
-                                                className="w-full h-7 text-[10px] bg-white text-black hover:bg-white/90"
-                                                onClick={() => handleUseSelfie(selfie)}
-                                            >
-                                                Lembrar
-                                            </Button>
-                                        ) : (
-                                            <div className="w-full h-7 flex items-center justify-center text-[10px] text-white/50 italic">
-                                                Renova na próxima sessão
-                                            </div>
-                                        )}
-
-                                        {!readOnly && (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-white hover:bg-white/20">
-                                                        <MoreVertical className="w-4 h-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem onClick={() => handleDeleteSelfie(selfie.id)} className="text-destructive focus:text-destructive">
-                                                        <Trash2 className="w-4 h-4 mr-2" />
-                                                        Apagar
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                                selfie={selfie}
+                                readOnly={readOnly}
+                                onUse={handleUseSelfie}
+                                onDelete={handleDeleteSelfie}
+                            />
                         ))}
                     </div>
                 )}
@@ -235,6 +177,7 @@ export function SelfieAlbum({
                     isOpen={showNewSelfie}
                     onClose={() => setShowNewSelfie(false)}
                     onSubmit={handleCreateSelfie}
+                    type={selectedSlotType} // Pass pre-selected type
                 />
             )}
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit, Trash2, Check, X, Image, MapPin, Archive, Search, RotateCcw, Bookmark, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Check, X, Image, MapPin, Archive, Search, RotateCcw, Bookmark, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Scene, SceneAspect } from '@/types/game';
+import { getOptimizedImageUrl } from '@/utils/images';
 
 interface SceneManagerProps {
   scenes: Scene[];
@@ -327,9 +328,24 @@ export function SceneManager({
 
             {/* Background Image Link if exists */}
             {scene.background && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-7">
-                <Image className="w-3.5 h-3.5" />
-                <span className="truncate max-w-full">{scene.background}</span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pl-7">
+                <div className="relative w-8 h-6 rounded overflow-hidden border border-border bg-black/50 shrink-0 group-hover:border-primary/50 transition-colors">
+                  <img
+                    src={getOptimizedImageUrl(scene.background)}
+                    alt="Background Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback visual if load fails
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted/50" style={{ display: 'none' }}>
+                    <Image className="w-3 h-3" />
+                  </div>
+                </div>
+                <span className="truncate max-w-[200px] hover:text-foreground transition-colors" title={scene.background}>
+                  {scene.background}
+                </span>
               </div>
             )}
 
