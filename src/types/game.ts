@@ -60,6 +60,40 @@ export interface Character {
   refresh: number;
 }
 
+export type AspectSource =
+  | 'theme'           // Campanha/Série
+  | 'character'       // Ficha permanente
+  | 'location'        // Local/Cena recorrente
+  | 'situational'     // Criar Vantagem
+  | 'consequence'     // Dano recebido
+  | 'boost';          // Impulso (uma invocação)
+
+export interface UnifiedAspect {
+  id: string;
+  name: string;
+  source: AspectSource;
+
+  // Contexto
+  ownerId?: string;       // characterId, npcId, ou 'scene'
+  ownerName?: string;     // "João", "Vampiro Capanga", "Bar do Joe"
+  ownerType?: 'character' | 'npc' | 'scene' | 'campaign';
+
+  // Estado de invocações
+  freeInvokes: number;
+  usedThisScene: boolean; // Para impulsos
+
+  // Metadados
+  createdBy: string;      // userId que criou
+  createdAt?: Date | Timestamp;
+  isTemporary: boolean;   // Desaparece ao fim da cena
+
+  // Para consequências
+  severity?: 'mild' | 'moderate' | 'severe';
+
+  // Para temas
+  scope?: 'campaign' | 'season' | 'episode';
+}
+
 export interface SceneAspect {
   id: string;
   name: string;

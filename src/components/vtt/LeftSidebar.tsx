@@ -39,6 +39,7 @@ interface LeftSidebarProps {
   onUnarchiveScene?: (sceneId: string) => void | Promise<void>;
   minAspects?: number;
   onEditCharacter?: (character: Character) => void;
+  onUpdateCharacter?: (id: string, updates: Partial<Character>) => Promise<void>;
 }
 
 type WidgetId = 'gm' | 'party' | 'hud';
@@ -118,6 +119,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
             onAddToScene={props.onAddCharacterToScene}
             onRemoveFromScene={props.onRemoveCharacterFromScene}
             isCharacterInScene={props.isCharacterInScene}
+            onUpdateCharacter={props.onUpdateCharacter}
           />
         );
       default:

@@ -23,6 +23,7 @@ interface CharacterSheetProps {
   onAddSituationalAspect?: (name: string, freeInvokes: number) => void;
   onRemoveSituationalAspect?: (id: string) => void;
   onUpdateSituationalAspect?: (id: string, updates: Partial<{ name: string; freeInvokes: number }>) => void;
+  onInvokeAspect?: (aspect: string) => void;
 }
 
 export function CharacterSheet({
@@ -38,7 +39,8 @@ export function CharacterSheet({
   variant = 'modal',
   onAddSituationalAspect,
   onRemoveSituationalAspect,
-  onUpdateSituationalAspect
+  onUpdateSituationalAspect,
+  onInvokeAspect
 }: CharacterSheetProps) {
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
@@ -132,39 +134,67 @@ export function CharacterSheet({
               Aspectos
             </h3>
             <div className="space-y-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
-                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.highConcept}>
-                  {character.aspects.highConcept}
+              <div className="space-y-2">
+                <div className="group relative">
+                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
+                  <div
+                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
+                    title={character.aspects.highConcept}
+                    onClick={() => onInvokeAspect?.(character.aspects.highConcept)}
+                  >
+                    {character.aspects.highConcept}
+                  </div>
+                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
                 </div>
+                <div className="group relative">
+                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
+                  <div
+                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
+                    title={character.aspects.drama}
+                    onClick={() => onInvokeAspect?.(character.aspects.drama)}
+                  >
+                    {character.aspects.drama}
+                  </div>
+                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
+                </div>
+                <div className="group relative">
+                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
+                  <div
+                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
+                    title={character.aspects.job}
+                    onClick={() => onInvokeAspect?.(character.aspects.job)}
+                  >
+                    {character.aspects.job}
+                  </div>
+                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
+                </div>
+                <div className="group relative">
+                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
+                  <div
+                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
+                    title={character.aspects.dreamBoard}
+                    onClick={() => onInvokeAspect?.(character.aspects.dreamBoard)}
+                  >
+                    {character.aspects.dreamBoard}
+                  </div>
+                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
+                </div>
+                {character.aspects.free.map((aspect, i) => (
+                  <div key={i} className="group relative">
+                    <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
+                    <div
+                      className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
+                      title={aspect}
+                      onClick={() => onInvokeAspect?.(aspect)}
+                    >
+                      {aspect}
+                    </div>
+                    {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
+                  </div>
+                ))}
               </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
-                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.drama}>
-                  {character.aspects.drama}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
-                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.job}>
-                  {character.aspects.job}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
-                <div className="aspect-tag mt-0.5 text-sm truncate" title={character.aspects.dreamBoard}>
-                  {character.aspects.dreamBoard}
-                </div>
-              </div>
-              {character.aspects.free.map((aspect, i) => (
-                <div key={i}>
-                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
-                  <div className="aspect-tag mt-0.5 text-sm truncate" title={aspect}>{aspect}</div>
-                </div>
-              ))}
             </div>
           </div>
-
         </div>
 
         {/* Situational Aspects */}

@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Scene, Token, SceneAspect } from '@/types/game';
 import { TokenLayer } from './TokenLayer';
-import { Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { getOptimizedImageUrl } from '@/utils/images';
+import { Sparkles } from 'lucide-react';
 
 interface SceneCanvasProps {
   scene: Scene | null;
+  episodeId?: string;
   tokens?: Token[];
   aspects?: SceneAspect[];
   onInvokeAspect?: (aspectName: string, useFree?: boolean) => void;
@@ -20,6 +24,7 @@ interface SceneCanvasProps {
 
 export function SceneCanvas({
   scene,
+  episodeId,
   // ... props
   tokens = [],
   aspects = [],
@@ -33,6 +38,7 @@ export function SceneCanvas({
   onToggleVisibility,
   selectedTokenId,
 }: SceneCanvasProps) {
+
   return (
     <div
       className="canvas-layer scanlines"
@@ -46,7 +52,7 @@ export function SceneCanvas({
       {/* Scene name & Aspects */}
       {scene && (
         <div className="absolute top-4 left-4 z-10 flex flex-col items-start gap-2 w-full max-w-md pointer-events-none">
-          <div className="glass-panel px-6 py-2 pointer-events-auto w-fit">
+          <div className="glass-panel px-6 py-2 pointer-events-auto w-fit flex items-center gap-3">
             <h2 className="font-display text-xl text-secondary text-glow-secondary">
               {scene.name}
             </h2>

@@ -29,7 +29,7 @@ interface DiceRollerProps {
   presetSkill?: string | null;
   fatePoints?: number;
   onSpendFate?: () => void;
-  // New props for aspects
+  // Legacy props (kept for backward compatibility, use unifiedAspects if possible)
   sceneAspects?: SceneAspect[];
   myCharacter?: Character | null;
   partyCharacters?: Array<{ name: string; aspects: Character['aspects'] }>;
@@ -38,7 +38,10 @@ interface DiceRollerProps {
   onAddLog?: (message: string, type: 'roll' | 'aspect' | 'fate' | 'system' | 'chat') => Promise<void>;
   variant?: 'modal' | 'window';
   isGM?: boolean;
+  unifiedAspects?: UnifiedAspect[];
 }
+
+import { UnifiedAspect } from '@/types/game';
 
 const FateDie = ({ face, delay }: { face: 'plus' | 'minus' | 'blank'; delay: number }) => {
   const icons = {
@@ -82,6 +85,7 @@ export function DiceRoller({
   onAddLog,
   variant = 'modal',
   isGM = false,
+  unifiedAspects,
 }: DiceRollerProps) {
 
   const [result, setResult] = useState<DiceResult | null>(null);
@@ -107,6 +111,20 @@ export function DiceRoller({
   const buildInvokableAspects = (): InvokableAspect[] => {
     const aspects: InvokableAspect[] = [];
 
+    // If unified aspects are provided, use them preferably
+    if (unifiedAspects && unifiedAspects.length > 0) {
+      unifiedAspects.forEach(ua => {
+        aspects.push({
+          name: ua.name,
+          source: ua.ownerName || 'Desconhecido',
+          sourceType: ua.ownerType === 'scene' ? 'scene' : ua.ownerType === 'character' ? 'self' : 'other', // Simplify sourceType logic
+          freeInvokes: ua.freeInvokes
+        });
+      });
+      return aspects;
+    }
+
+    // Fallback to legacy props if unifiedAspects not present
     // Scene aspects
     sceneAspects.forEach(aspect => {
       aspects.push({

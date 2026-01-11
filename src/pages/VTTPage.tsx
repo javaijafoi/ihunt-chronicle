@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info } from 'lucide-react';
+import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEpisode } from '@/hooks/useEpisode';
@@ -14,7 +14,9 @@ import { useSafetyTools } from '@/hooks/useSafetyTools';
 import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 import { isPresenceRecent } from '@/utils/presence';
 import { toast } from '@/hooks/use-toast';
+import { useAspects } from '@/hooks/useAspects';
 
+import { AspectHub } from '@/components/vtt/AspectHub';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
@@ -58,19 +60,29 @@ export function VTTPage() {
   const { updateCharacter: updateFirebaseCharacter } = useFirebaseCharacters(undefined); // Removed SessionID dependency? need to check implementation
 
   const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(episodeId, campaignId, isGM);
+  const { allAspects, invokeAspect } = useAspects(campaignId || '', episodeId || '', activeScene?.id);
 
   const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(episodeId, campaignId, isGM);
 
   // Local State
-  const [viewingCharacter, setViewingCharacter] = useState<PartyCharacter | Character | null>(null);
-  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
+  const [viewingCharacterId, setViewingCharacterId] = useState<string | null>(null);
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null); // Kept if needed, or remove? Left for safety
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
+  const [showAspects, setShowAspects] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showArchetypes, setShowArchetypes] = useState(false);
   const [showSelfieAlbum, setShowSelfieAlbum] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  // Derived Viewing Character (Reactivity Fix)
+  const viewingCharacter = useMemo(() => {
+    if (!viewingCharacterId) return null;
+    return partyCharacters.find(c => c.id === viewingCharacterId) ||
+      activeNPCs.find(c => c.id === viewingCharacterId) ||
+      null;
+  }, [viewingCharacterId, partyCharacters, activeNPCs]);
 
   // Merge Tokens
   const mergedTokens = useMemo(() => {
@@ -99,12 +111,9 @@ export function VTTPage() {
 
   // Character Selection Force
   if (!myCharacter && !isGM) {
-    // Logic to force selection or creation if player is member but has no char
-    // For now, simple blocker
     return (
       <div className="flex flex-col h-screen items-center justify-center space-y-4">
         <h2 className="text-xl">Selecione seu Personagem</h2>
-        {/* Reuse Character Select Component or build new one */}
         <CharacterSelect onSelectCharacter={async (c) => {
           await selectCharacter(c.id);
         }} />
@@ -120,14 +129,14 @@ export function VTTPage() {
     skill: string | undefined,
     action: ActionType | undefined,
     type: 'normal' | 'advantage' = 'normal',
-    opposition?: number
+    opposition?: number,
+    isHidden?: boolean,
+    characterNameOverride?: string
   ) => {
     try {
       const diceResult = rollDice(modifier, skill, action, type, opposition);
-      diceResult.character = activeCharacter?.name || 'GM'; // Patch name
+      diceResult.character = characterNameOverride || activeCharacter?.name || 'GM';
       await createRollLog(diceResult);
-
-      // If it's a fast roll (no skill/action), ensure we don't show toast, user wants chat only
 
       return diceResult;
     } catch (e) {
@@ -142,35 +151,57 @@ export function VTTPage() {
 
   // Scene Aspects Helper
   const handleInvokeAspectFromSidebar = (characterName: string, aspectName: string) => {
-    addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${characterName}`, 'aspect');
+    // Legacy support or just log if aspect object not found
+    const aspect = allAspects.find(a => a.name === aspectName && (a.ownerName === characterName || a.ownerType === 'character')); // Loose match
+    if (aspect) {
+      invokeAspect(aspect, false);
+    } else {
+      // Fallback
+      addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${characterName}`, 'aspect');
+      updateFate(activeCharacter?.id || '', -1, true);
+    }
   };
 
   const handleInvokeAspectFromRoller = (aspectName: string, source: string, useFreeInvoke: boolean) => {
-    if (useFreeInvoke) {
-      addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" (GRÁTIS)`, 'aspect');
-      // Logic to decrement free invoke
-      if (activeScene) {
+    const aspect = allAspects.find(a => a.name === aspectName);
+    if (aspect) {
+      invokeAspect(aspect, useFreeInvoke);
+    } else {
+      // Fallback logic if aspect not found in unified list
+      if (useFreeInvoke) {
+        addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" (GRÁTIS)`, 'aspect');
+        // Manual decrement logic fallback...
+        if (activeScene) {
+          const aspectIndex = activeScene.aspects.findIndex(a => a.name === aspectName);
+          if (aspectIndex >= 0 && activeScene.aspects[aspectIndex].freeInvokes > 0) {
+            const newAspects = [...activeScene.aspects];
+            newAspects[aspectIndex] = { ...newAspects[aspectIndex], freeInvokes: newAspects[aspectIndex].freeInvokes - 1 };
+            updateScene(activeScene.id, { aspects: newAspects });
+          }
+        }
+      } else {
+        addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${source}`, 'aspect');
+        if (activeCharacter) spendFatePoint(activeCharacter.id);
+      }
+    }
+  };
+
+  const handleInvokeSceneAspect = (aspectName: string, useFreeInvoke: boolean = false) => {
+    const aspect = allAspects.find(a => a.name === aspectName && a.ownerType === 'scene');
+    if (aspect) {
+      invokeAspect(aspect, useFreeInvoke);
+    } else {
+      // Fallback
+      addLog(`${activeCharacter?.name || 'GM'} invocou aspecto de cena "${aspectName}"`, 'aspect');
+      if (useFreeInvoke && activeScene) {
         const aspectIndex = activeScene.aspects.findIndex(a => a.name === aspectName);
         if (aspectIndex >= 0 && activeScene.aspects[aspectIndex].freeInvokes > 0) {
           const newAspects = [...activeScene.aspects];
           newAspects[aspectIndex] = { ...newAspects[aspectIndex], freeInvokes: newAspects[aspectIndex].freeInvokes - 1 };
           updateScene(activeScene.id, { aspects: newAspects });
         }
-      }
-    } else {
-      addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${source}`, 'aspect');
-    }
-  };
-
-  const handleInvokeSceneAspect = (aspectName: string, useFreeInvoke: boolean = false) => {
-    addLog(`${activeCharacter?.name || 'GM'} invocou aspecto de cena "${aspectName}"`, 'aspect');
-    // Logic to decrement free invoke if useFreeInvoke
-    if (useFreeInvoke && activeScene) {
-      const aspectIndex = activeScene.aspects.findIndex(a => a.name === aspectName);
-      if (aspectIndex >= 0 && activeScene.aspects[aspectIndex].freeInvokes > 0) {
-        const newAspects = [...activeScene.aspects];
-        newAspects[aspectIndex] = { ...newAspects[aspectIndex], freeInvokes: newAspects[aspectIndex].freeInvokes - 1 };
-        updateScene(activeScene.id, { aspects: newAspects });
+      } else if (!useFreeInvoke && activeCharacter) {
+        spendFatePoint(activeCharacter.id);
       }
     }
   };
@@ -281,6 +312,11 @@ export function VTTPage() {
             <Zap className="w-5 h-5" />
           </button>
 
+          {/* Aspects - New Button */}
+          <button onClick={() => setShowAspects(!showAspects)} className="p-2 glass-panel" title="Aspectos em Jogo">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+          </button>
+
           {/* Dice & Sheet */}
           <button onClick={() => setShowDice(!showDice)} className="p-2 glass-panel" title="Rolador de Dados"><Dices className="w-5 h-5" /></button>
           <button onClick={() => setShowSheet(!showSheet)} className="p-2 glass-panel" title="Ficha do Personagem"><BookOpen className="w-5 h-5" /></button>
@@ -315,7 +351,7 @@ export function VTTPage() {
           partyCharacters={partyCharacters}
           archivedCharacters={archivedCharacters}
           myCharacterId={myCharacter?.id}
-          onViewCharacter={(char) => setViewingCharacter(char)}
+          onViewCharacter={(char) => setViewingCharacterId(char.id)}
           onInvokeAspect={handleInvokeAspectFromSidebar}
 
           // GM Props
@@ -364,7 +400,8 @@ export function VTTPage() {
           onArchiveScene={archiveScene}
           onUnarchiveScene={unarchiveScene}
           minAspects={MIN_ASPECTS}
-          onEditCharacter={(c) => setViewingCharacter(c)}
+          onEditCharacter={(c) => setViewingCharacterId(c.id)}
+          onUpdateCharacter={updateFirebaseCharacter}
         />
 
         {/* Main Area */}
@@ -412,6 +449,7 @@ export function VTTPage() {
                         situationalAspects: updatedAspects
                       });
                     }}
+                    onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(activeCharacter?.name || 'Personagem', aspectName)}
                   />
                 </div>
               </div>
@@ -449,6 +487,7 @@ export function VTTPage() {
                   sceneAspects={activeScene?.aspects || []}
                   myCharacter={activeCharacter}
                   partyCharacters={partyCharacters}
+                  unifiedAspects={allAspects}
                   onInvokeAspect={handleInvokeAspectFromRoller}
                   onAddLog={addLog}
                   isGM={isGM}
@@ -463,6 +502,65 @@ export function VTTPage() {
       </div>
 
       {/* Modals */}
+      <Dialog open={showAspects} onOpenChange={setShowAspects}>
+        <DialogContent className="max-w-md h-[80vh] p-0 bg-transparent border-none overflow-hidden shadow-2xl">
+          <AspectHub campaignId={campaignId || ''} episodeId={episodeId || ''} onClose={() => setShowAspects(false)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewingCharacterId} onOpenChange={(open) => !open && setViewingCharacterId(null)}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background overflow-hidden">
+          {viewingCharacter && (
+            <div className="flex flex-col h-full bg-card">
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <CharacterSheet
+                  character={viewingCharacter}
+                  isOpen={true}
+                  onClose={() => setViewingCharacterId(null)}
+                  readOnly={!isGM && viewingCharacter.id !== myCharacter?.id}
+                  variant="modal"
+                  onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(viewingCharacter.name, aspectName)}
+                  onSkillClick={(skill) => {
+                    handleRollDice(viewingCharacter.skills[skill], skill, undefined, 'normal', undefined, false, viewingCharacter.name);
+                  }}
+                  onToggleStress={async (track, index) => {
+                    await handleToggleStress(viewingCharacter.id, track, index);
+                  }}
+                  onSetConsequence={async (severity, value) => {
+                    await updateFirebaseCharacter(viewingCharacter.id, {
+                      consequences: { ...viewingCharacter.consequences, [severity]: value }
+                    });
+                    addLog(`${viewingCharacter.name} definiu consequência ${severity}: ${value || 'Removida'}`, 'fate');
+                  }}
+                  onSpendFate={async () => {
+                    await updateFate(viewingCharacter.id, -1, true);
+                    addLog(`${viewingCharacter.name} gastou 1 Ponto de Destino`, 'fate');
+                  }}
+                  onGainFate={async () => {
+                    await updateFate(viewingCharacter.id, 1, true);
+                    addLog(`${viewingCharacter.name} ganhou 1 Ponto de Destino`, 'fate');
+                  }}
+                  onAddSituationalAspect={async (name, freeInvokes) => {
+                    const currentAspects = viewingCharacter.situationalAspects || [];
+                    const newAspect = { id: crypto.randomUUID(), name, freeInvokes };
+                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: [...currentAspects, newAspect] });
+                  }}
+                  onRemoveSituationalAspect={async (id) => {
+                    const currentAspects = viewingCharacter.situationalAspects || [];
+                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: currentAspects.filter(a => a.id !== id) });
+                  }}
+                  onUpdateSituationalAspect={async (id, updates) => {
+                    const currentAspects = viewingCharacter.situationalAspects || [];
+                    const updatedAspects = currentAspects.map(a => a.id === id ? { ...a, ...updates } : a);
+                    await updateFirebaseCharacter(viewingCharacter.id, { situationalAspects: updatedAspects });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}><DialogContent><DialogTitle>Base de Arquétipos</DialogTitle><ArchetypeDatabase sessionId={campaign.id} /></DialogContent></Dialog>
 
       {/* Other viewing modals omitted for brevity, add back as needed */}

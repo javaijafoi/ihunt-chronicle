@@ -22,6 +22,7 @@ interface PartyPanelProps {
   onAddToScene?: (characterId: string) => void;
   onRemoveFromScene?: (characterId: string) => void;
   isCharacterInScene?: (characterId: string) => boolean;
+  onUpdateCharacter?: (id: string, updates: Partial<Character>) => Promise<void>;
 }
 
 export function PartyPanel({
@@ -34,10 +35,13 @@ export function PartyPanel({
   isGM,
   onAddToScene,
   onRemoveFromScene,
-  isCharacterInScene
+  isCharacterInScene,
+  onUpdateCharacter
 }: PartyPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [newAspectName, setNewAspectName] = useState("");
+  const [targetCharId, setTargetCharId] = useState<string | null>(null);
 
   const handleCopyCode = () => {
     if (inviteCode) {
@@ -106,17 +110,21 @@ export function PartyPanel({
           const isMe = character.id === myCharacterId;
           const isExpanded = expandedId === character.id;
           const isOnline = isPresenceRecent(character.lastSeen);
-
-          // Get visible aspects for invocation
-          const visibleAspects = [
-            character.aspects.highConcept,
-            character.aspects.drama,
-            character.aspects.job,
-          ].filter(Boolean);
+          const canEdit = isGM || isMe;
 
           const trackColor = (filled: boolean, type: 'physical' | 'mental') => {
-            if (!filled) return 'bg-muted border-muted-foreground/30';
-            return type === 'physical' ? 'bg-red-500 border-red-600' : 'bg-blue-500 border-blue-600';
+            if (!filled) return 'bg-muted border-muted-foreground/30 hover:bg-muted-foreground/20';
+            return type === 'physical' ? 'bg-red-500 border-red-600 hover:bg-red-600' : 'bg-blue-500 border-blue-600 hover:bg-blue-600';
+          };
+
+          const handleToggleStress = async (type: 'physical' | 'mental', index: number) => {
+            if (!canEdit || !onUpdateCharacter) return;
+            const track = character.stress[type];
+            const newTrack = [...track];
+            newTrack[index] = !newTrack[index];
+            await onUpdateCharacter(character.id, {
+              stress: { ...character.stress, [type]: newTrack }
+            });
           };
 
           return (
@@ -207,7 +215,12 @@ export function PartyPanel({
                           </div>
                           <div className="flex gap-1">
                             {character.stress.physical.map((filled, i) => (
-                              <div key={i} className={`w-4 h-4 rounded-sm border ${trackColor(filled, 'physical')}`} />
+                              <button
+                                key={i}
+                                onClick={() => handleToggleStress('physical', i)}
+                                disabled={!canEdit}
+                                className={`w-4 h-4 rounded-sm border transition-colors ${trackColor(filled, 'physical')} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
+                              />
                             ))}
                           </div>
                         </div>
@@ -218,43 +231,124 @@ export function PartyPanel({
                           </div>
                           <div className="flex gap-1">
                             {character.stress.mental.map((filled, i) => (
-                              <div key={i} className={`w-4 h-4 rounded-sm border ${trackColor(filled, 'mental')}`} />
+                              <button
+                                key={i}
+                                onClick={() => handleToggleStress('mental', i)}
+                                disabled={!canEdit}
+                                className={`w-4 h-4 rounded-sm border transition-colors ${trackColor(filled, 'mental')} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
+                              />
                             ))}
                           </div>
                         </div>
                       </div>
 
+                      {/* Consequences Section */}
+                      <div className="space-y-1">
+                        <div className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1 px-1">Consequências</div>
+                        {(['mild', 'moderate', 'severe'] as const).map((severity) => {
+                          const value = character.consequences[severity];
+                          return (
+                            <div key={severity} className="text-xs flex items-center gap-2 p-1.5 bg-background rounded border border-border/50">
+                              <span className="text-[10px] font-bold uppercase text-muted-foreground w-12 shrink-0">
+                                {severity === 'mild' ? 'Suave' : severity === 'moderate' ? 'Mod.' : 'Severa'}
+                              </span>
+                              {canEdit ? (
+                                <input
+                                  className="flex-1 bg-transparent border-none outline-none min-w-0"
+                                  placeholder="Nenhuma"
+                                  value={value || ''}
+                                  onChange={(e) => onUpdateCharacter?.(character.id, {
+                                    consequences: { ...character.consequences, [severity]: e.target.value }
+                                  })}
+                                />
+                              ) : (
+                                <span className="flex-1 text-muted-foreground italic truncate">{value || 'Nenhuma'}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+
+
                       {/* Situational Aspects List */}
-                      {(character.situationalAspects?.length || 0) > 0 ? (
-                        <div className="space-y-1">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1 px-1">Aspectos Situacionais</div>
-                          {character.situationalAspects?.map((aspect) => (
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center px-1 mb-1">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Aspectos Situacionais</div>
+                        </div>
+
+                        {character.situationalAspects?.map((aspect) => (
+                          <div key={aspect.id} className="flex items-center gap-1 group">
                             <button
-                              key={aspect.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onInvokeAspect?.(character.name, aspect.name);
                               }}
-                              className="w-full text-left text-xs p-2 rounded bg-background hover:bg-accent/10 hover:text-accent border border-border/50 hover:border-accent/30 transition-all flex items-center justify-between gap-2 group shadow-sm"
+                              className="flex-1 text-left text-xs p-2 rounded bg-background hover:bg-accent/10 hover:text-accent border border-border/50 hover:border-accent/30 transition-all flex items-center justify-between gap-2 shadow-sm"
                               title={`Clique para invocar: ${aspect.name}`}
                             >
-                              <div className="flex items-center gap-2">
-                                <Sparkles className="w-3 h-3 text-muted-foreground group-hover:text-accent mt-0.5" />
-                                <span className="leading-snug">{aspect.name}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Sparkles className="w-3 h-3 text-muted-foreground group-hover:text-accent mt-0.5 shrink-0" />
+                                <span className="leading-snug truncate">{aspect.name}</span>
                               </div>
                               {aspect.freeInvokes > 0 && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-accent/20 text-accent rounded-full">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-accent/20 text-accent rounded-full shrink-0">
                                   {aspect.freeInvokes}
                                 </span>
                               )}
                             </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground text-center py-2 italic">
-                          Sem aspectos situacionais.
-                        </div>
-                      )}
+                            {canEdit && (
+                              <button
+                                onClick={() => {
+                                  const newAspects = character.situationalAspects?.filter(a => a.id !== aspect.id);
+                                  onUpdateCharacter?.(character.id, { situationalAspects: newAspects });
+                                }}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+                              >
+                                <Check className="w-3 h-3 rotate-45" /> {/* Use X icon if imported, Check rotate is hacky. Let's assume I can import X or reused logic. */}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        {!character.situationalAspects?.length && (
+                          <div className="text-xs text-muted-foreground text-center py-2 italic">
+                            Sem aspectos situacionais.
+                          </div>
+                        )}
+
+                        {canEdit && (
+                          <div className="flex gap-1 mt-2">
+                            <input
+                              className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs"
+                              placeholder="Novo aspecto..."
+                              value={targetCharId === character.id ? newAspectName : ''}
+                              onChange={(e) => {
+                                setTargetCharId(character.id);
+                                setNewAspectName(e.target.value);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newAspectName.trim()) {
+                                  const newAspect = { id: crypto.randomUUID(), name: newAspectName.trim(), freeInvokes: 1 };
+                                  const current = character.situationalAspects || [];
+                                  onUpdateCharacter?.(character.id, { situationalAspects: [...current, newAspect] });
+                                  setNewAspectName("");
+                                }
+                              }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                              if (targetCharId === character.id && newAspectName.trim()) {
+                                const newAspect = { id: crypto.randomUUID(), name: newAspectName.trim(), freeInvokes: 1 };
+                                const current = character.situationalAspects || [];
+                                onUpdateCharacter?.(character.id, { situationalAspects: [...current, newAspect] });
+                                setNewAspectName("");
+                              }
+                            }}>
+                              <Check className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
 
                       {/* View Sheet Button */}
                       <div className="flex gap-2">

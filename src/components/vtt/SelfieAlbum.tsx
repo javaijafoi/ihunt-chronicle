@@ -177,7 +177,7 @@ export function SelfieAlbum({
                     isOpen={showNewSelfie}
                     onClose={() => setShowNewSelfie(false)}
                     onSubmit={handleCreateSelfie}
-                    type={selectedSlotType} // Pass pre-selected type
+                    type={selectedSlotType}
                 />
             )}
 
