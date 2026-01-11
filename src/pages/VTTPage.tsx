@@ -257,14 +257,14 @@ export function VTTPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(campaign.id);
+                  navigator.clipboard.writeText(campaign.joinCode);
                   toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
                 }}
                 className="glass-panel px-2 py-1.5 flex items-center gap-1.5 hover:bg-muted/50 transition-colors group"
               >
                 <div className="text-[10px] uppercase font-bold text-muted-foreground">Sala:</div>
                 <code className="text-xs font-mono font-bold text-accent group-hover:text-accent/80 transition-colors">
-                  {campaign.id.slice(0, 8)}...
+                  {campaign.joinCode}
                 </code>
                 <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
               </button>
@@ -311,6 +311,7 @@ export function VTTPage() {
         {/* Left Sidebar */}
         <LeftSidebar
           sessionId={campaign?.joinCode || ''}
+          campaignId={campaign?.id || ''}
           partyCharacters={partyCharacters}
           archivedCharacters={archivedCharacters}
           myCharacterId={myCharacter?.id}

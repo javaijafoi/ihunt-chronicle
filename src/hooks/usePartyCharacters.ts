@@ -4,6 +4,7 @@ import {
   query,
   where,
   onSnapshot,
+  doc,
   documentId,
   type FirestoreError,
 } from 'firebase/firestore';
@@ -18,12 +19,10 @@ export function usePartyCharacters(campaignId: string | undefined) {
   const { user } = useAuth();
   const [partyCharacters, setPartyCharacters] = useState<PartyCharacter[]>([]);
   const [presenceMap, setPresenceMap] = useState<Record<string, SessionPresence>>({});
+  const [playerMap, setPlayerMap] = useState<Record<string, { displayName: string }>>({});
   const [loading, setLoading] = useState(true);
 
-  // Listen to presence (Campaign Level for now, or could be Episode level if passed)
-  // For simplicity, let's assume we track presence at Campaign level relative to "active" status
-  // or actually, VTTPage usually tracks "Session Presence".
-  // Let's use `campaigns/{id}/presence` for now.
+  // 1. Listen to presence (Active Sessions)
   useEffect(() => {
     if (!campaignId) {
       setPresenceMap({});
@@ -46,14 +45,33 @@ export function usePartyCharacters(campaignId: string | undefined) {
       },
       (error: FirestoreError) => {
         console.error('Erro ao escutar presença:', error);
-        setLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, [campaignId]);
 
-  // Listen to members and then their characters
+  // 2. Listen to Campaign Players (for offline name resolution)
+  useEffect(() => {
+    if (!campaignId) return;
+
+    const unsubCampaign = onSnapshot(doc(db, 'campaigns', campaignId), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const players = data.players || [];
+        const map: Record<string, { displayName: string }> = {};
+        players.forEach((p: any) => {
+          if (p.uid) map[p.uid] = { displayName: p.displayName };
+        });
+        setPlayerMap(map);
+      }
+    });
+
+    return () => unsubCampaign();
+  }, [campaignId]);
+
+
+  // 3. Listen to Characters and Map Names
   useEffect(() => {
     if (!campaignId) {
       setPartyCharacters([]);
@@ -61,82 +79,34 @@ export function usePartyCharacters(campaignId: string | undefined) {
       return;
     }
 
-    // 1. Listen to members collection to get character IDs
-    const membersRef = collection(db, 'campaigns', campaignId, 'members');
-    const unsubscribeMembers = onSnapshot(membersRef, async (snapshot) => {
-      const characterIds: string[] = [];
-      const memberMap: Record<string, any> = {};
-
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.characterId) {
-          characterIds.push(data.characterId);
-          memberMap[data.characterId] = {
-            userId: data.userId,
-            role: data.role
-          };
-        }
-      });
-
-      if (characterIds.length === 0) {
-        setPartyCharacters([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch Characters
-      // Batch query due to `in` limit of 10
-      // We will just do one batch for now or simple loop if small
-      const chunks = [];
-      for (let i = 0; i < characterIds.length; i += 10) {
-        chunks.push(characterIds.slice(i, i + 10));
-      }
-
-      try {
-        const allChars: any[] = [];
-
-        // Note: Since we need real-time updates for attributes (Stress etc), we should subscribe directly to characters
-        // A collection group query might be better: `characters` where `campaignId` == current?
-        // Yes! schema says Character has `campaignId`.
-
-        // Let's use that instead of double query if possible.
-        // But legacy characters might not have campaignId set?
-        // We assume migration handled it or we rely on ids.
-        // Let's stick to IDs for safety if we haven't migrated data.
-        // But `activePartyCharacters` depends on `characterIds` in `currentSession` previously.
-        // Using `where(documentId(), 'in', ids)` is standard.
-
-        // We can't do parallel onSnapshot easily in a loop without managing unsubs carefully.
-        // Alternative: snapshot the `characters` collection where `campaignId` == `campaignId`.
-        // This assumes all party characters have `campaignId` field set correctly.
-        // If they are brought from "Global", they might not.
-        // But Step 1 of Schema said `Character` has `campaignId`.
-
-        // Let's try Query by CampaignID first.
-        const charQ = query(collection(db, 'characters'), where('campaignId', '==', campaignId));
-        // Wait, we can't listen inside this listener easily.
-        // Let's just return to the main useEffect structure.
-
-      } catch (e) {
-        console.error(e);
-      }
-    });
-
-    // Better Approach:
-    // Just listen to `characters` with `campaignId`.
-    // If a member brings an external character, we assume it gets tagged with `campaignId` or copied?
-    // Plan says "References to characters".
-    // Using `where('campaignId', '==', campaignId)` is cleanest.
     const q = query(collection(db, 'characters'), where('campaignId', '==', campaignId));
 
     const unsubscribeChars = onSnapshot(q, (snapshot) => {
       const chars = snapshot.docs.map(doc => {
         const data = doc.data() as Character;
         const ownerPresence = Object.values(presenceMap).find(p => p.characterId === doc.id);
+
+        let ownerName = 'Desconhecido';
+
+        // Try Presence first (most up to date for session)
+        if (ownerPresence?.ownerName) {
+          ownerName = ownerPresence.ownerName;
+        }
+        // Fallback to Player Map using createdBy or userId
+        else if (data.createdBy && playerMap[data.createdBy]) {
+          ownerName = playerMap[data.createdBy].displayName;
+        }
+        else if (data.userId && playerMap[data.userId]) {
+          ownerName = playerMap[data.userId].displayName;
+        }
+        else if (data.createdBy === 'gm') {
+          ownerName = 'GM';
+        }
+
         return {
           ...data,
           id: doc.id,
-          ownerName: ownerPresence?.ownerName || 'Desconhecido',
+          ownerName: ownerName,
           isOnline: isPresenceRecent(ownerPresence?.lastSeen),
           lastSeen: ownerPresence?.lastSeen || null,
         } as PartyCharacter;
@@ -145,11 +115,8 @@ export function usePartyCharacters(campaignId: string | undefined) {
       setLoading(false);
     });
 
-    return () => {
-      unsubscribeMembers(); // We actually don't need members listener if we use `campaignId` on characters
-      unsubscribeChars();
-    };
-  }, [campaignId, presenceMap]);
+    return () => unsubscribeChars();
+  }, [campaignId, presenceMap, playerMap]);
 
   // Separate active and archived characters
   const activePartyCharacters = partyCharacters.filter(c => !c.isArchived);

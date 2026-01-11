@@ -9,6 +9,7 @@ import { PartyCharacter } from '@/types/session';
 
 interface LeftSidebarProps {
   sessionId: string;
+  campaignId: string;
   // Party
   partyCharacters: PartyCharacter[];
   archivedCharacters?: PartyCharacter[];
@@ -83,6 +84,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
         return props.isGM ? (
           <GMPanel
             sessionId={props.sessionId}
+            campaignId={props.campaignId}
             scenes={props.scenes}
             archivedScenes={props.archivedScenes}
             currentScene={props.currentScene || null}

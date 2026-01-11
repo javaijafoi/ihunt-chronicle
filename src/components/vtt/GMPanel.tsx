@@ -27,6 +27,7 @@ import {
 
 interface GMPanelProps {
   sessionId: string;
+  campaignId: string;
   scenes: Scene[];
   archivedScenes?: Scene[];
   currentScene: Scene | null;
@@ -54,6 +55,7 @@ import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
 export function GMPanel({
   // ... props
   sessionId,
+  campaignId,
   scenes,
   archivedScenes = [],
   currentScene,
@@ -152,7 +154,7 @@ export function GMPanel({
       <Dialog open={showCharacters} onOpenChange={setShowCharacters}>
         <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
           <div className="flex-1 min-h-0 overflow-hidden">
-            <CharactersDatabase sessionId={sessionId} />
+            <CharactersDatabase sessionId={campaignId} partyCharacters={partyCharacters} />
           </div>
         </DialogContent>
       </Dialog>

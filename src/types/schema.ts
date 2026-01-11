@@ -21,6 +21,12 @@ export interface Campaign {
         customSetting: string;
     };
     members?: string[]; // For basic querying/indexing
+    players?: {
+        uid: string;
+        displayName: string;
+        photoURL?: string | null;
+        email?: string | null;
+    }[];
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

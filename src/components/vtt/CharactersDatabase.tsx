@@ -23,12 +23,14 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Character } from '@/types/game';
+import { PartyCharacter } from '@/types/session';
 
 interface CharactersDatabaseProps {
     sessionId?: string;
+    partyCharacters?: PartyCharacter[];
 }
 
-export function CharactersDatabase({ sessionId }: CharactersDatabaseProps) {
+export function CharactersDatabase({ sessionId, partyCharacters = [] }: CharactersDatabaseProps) {
     const {
         characters,
         loading,
@@ -76,7 +78,7 @@ export function CharactersDatabase({ sessionId }: CharactersDatabaseProps) {
     return (
         <div className="flex flex-col h-full bg-background">
             {/* Header Section */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/10">
+            <div className="flex items-center justify-between p-4 pr-12 border-b border-border bg-muted/10">
                 <div>
                     <h2 className="text-lg font-bold font-display text-foreground">Gerenciar Personagens</h2>
                     <p className="text-xs text-muted-foreground">Total: {characters.length} personagens na crônica</p>
@@ -123,6 +125,7 @@ export function CharactersDatabase({ sessionId }: CharactersDatabaseProps) {
                     <TabsContent value="active" className="flex-1 overflow-y-auto p-4 m-0">
                         <CharacterGrid
                             characters={filterList(activeCharacters)}
+                            partyCharacters={partyCharacters}
                             onArchive={(id) => archiveCharacter(id)}
                             onDuplicate={(id) => duplicateCharacter(id)}
                             onDelete={(c) => setCharacterToDelete(c)}
@@ -132,6 +135,7 @@ export function CharactersDatabase({ sessionId }: CharactersDatabaseProps) {
                     <TabsContent value="archived" className="flex-1 overflow-y-auto p-4 m-0">
                         <CharacterGrid
                             characters={filterList(archivedCharacters)}
+                            partyCharacters={partyCharacters}
                             isArchived
                             onUnarchive={(id) => unarchiveCharacter(id)}
                             onDelete={(c) => setCharacterToDelete(c)}
@@ -170,6 +174,7 @@ export function CharactersDatabase({ sessionId }: CharactersDatabaseProps) {
 
 function CharacterGrid({
     characters,
+    partyCharacters = [],
     isArchived = false,
     onArchive,
     onUnarchive,
@@ -177,6 +182,7 @@ function CharacterGrid({
     onDelete
 }: {
     characters: Character[],
+    partyCharacters?: PartyCharacter[],
     isArchived?: boolean,
     onArchive?: (id: string) => void,
     onUnarchive?: (id: string) => void,
@@ -194,74 +200,80 @@ function CharacterGrid({
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
-            {characters.map(char => (
-                <div key={char.id} className="relative group bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all shadow-sm hover:shadow-md flex flex-col">
-                    <div className="h-32 bg-muted relative">
-                        {char.avatar ? (
-                            <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                <User className="w-10 h-10 opacity-20" />
+            {characters.map(char => {
+                const partyChar = partyCharacters.find(pc => pc.id === char.id);
+                const ownerName = partyChar?.ownerName
+                    ? `Jogador: ${partyChar.ownerName.split(' ')[0]}`
+                    : (char.createdBy === 'gm' ? 'GM' : 'Desconhecido');
+
+                return (
+                    <div key={char.id} className="relative group bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all shadow-sm hover:shadow-md flex flex-col">
+                        <div className="h-32 bg-muted relative">
+                            {char.avatar ? (
+                                <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                    <User className="w-10 h-10 opacity-20" />
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                            <div className="absolute bottom-2 left-3 right-3 text-white">
+                                <h3 className="font-display font-bold text-base truncate">{char.name}</h3>
+                                <p className="text-[10px] opacity-80 truncate">{char.aspects.highConcept || "Sem conceito"}</p>
                             </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
-                        <div className="absolute bottom-2 left-3 right-3 text-white">
-                            <h3 className="font-display font-bold text-base truncate">{char.name}</h3>
-                            <p className="text-[10px] opacity-80 truncate">{char.aspects.highConcept || "Sem conceito"}</p>
+                        </div>
+
+                        <div className="p-2 flex items-center justify-between text-xs bg-card">
+                            <span className={`truncate max-w-[120px] ${partyChar ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                                {ownerName}
+                            </span>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                        <MoreVertical className="w-3.5 h-3.5" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {onDuplicate && (
+                                        <DropdownMenuItem onClick={() => onDuplicate(char.id)}>
+                                            <Copy className="w-4 h-4 mr-2" />
+                                            Duplicar
+                                        </DropdownMenuItem>
+                                    )}
+                                    {isArchived ? (
+                                        onUnarchive && (
+                                            <DropdownMenuItem onClick={() => onUnarchive(char.id)}>
+                                                <RefreshCcw className="w-4 h-4 mr-2" />
+                                                Restaurar
+                                            </DropdownMenuItem>
+                                        )
+                                    ) : (
+                                        onArchive && (
+                                            <DropdownMenuItem onClick={() => onArchive(char.id)}>
+                                                <Archive className="w-4 h-4 mr-2" />
+                                                Arquivar
+                                            </DropdownMenuItem>
+                                        )
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    {onDelete && (
+                                        <DropdownMenuItem
+                                            onClick={() => onDelete(char)}
+                                            className="text-destructive focus:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Excluir
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
-
-                    <div className="p-2 flex items-center justify-between text-xs bg-card">
-                        <span className="text-muted-foreground truncate max-w-[120px]">
-                            {/* Can add player name here if available */}
-                            GM Controlled
-                        </span>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                    <MoreVertical className="w-3.5 h-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {onDuplicate && (
-                                    <DropdownMenuItem onClick={() => onDuplicate(char.id)}>
-                                        <Copy className="w-4 h-4 mr-2" />
-                                        Duplicar
-                                    </DropdownMenuItem>
-                                )}
-                                {isArchived ? (
-                                    onUnarchive && (
-                                        <DropdownMenuItem onClick={() => onUnarchive(char.id)}>
-                                            <RefreshCcw className="w-4 h-4 mr-2" />
-                                            Restaurar
-                                        </DropdownMenuItem>
-                                    )
-                                ) : (
-                                    onArchive && (
-                                        <DropdownMenuItem onClick={() => onArchive(char.id)}>
-                                            <Archive className="w-4 h-4 mr-2" />
-                                            Arquivar
-                                        </DropdownMenuItem>
-                                    )
-                                )}
-                                <DropdownMenuSeparator />
-                                {onDelete && (
-                                    <DropdownMenuItem
-                                        onClick={() => onDelete(char)}
-                                        className="text-destructive focus:text-destructive"
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Excluir
-                                    </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

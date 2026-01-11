@@ -62,19 +62,22 @@ export function PartyPanel({
     <div className="w-full space-y-4">
       {/* Invite Code */}
       {inviteCode && (
-        <div className="p-2 bg-muted/40 rounded-lg border border-border flex items-center justify-between">
-          <code className="text-[10px] font-mono select-all">
-            {inviteCode}
-          </code>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={handleCopyCode}
-            title="Copiar Código"
-          >
-            {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-          </Button>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Código da Campanha</span>
+          <div className="p-2 bg-muted/40 rounded-lg border border-border flex items-center justify-between">
+            <code className="text-[10px] font-mono select-all">
+              {inviteCode}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleCopyCode}
+              title="Copiar Código"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -279,8 +282,8 @@ export function PartyPanel({
                               }
                             }}
                             className={`flex-1 flex items-center justify-center gap-2 p-2 rounded border transition-all text-xs font-bold uppercase tracking-wide opacity-80 hover:opacity-100 ${isCharacterInScene(character.id)
-                                ? 'bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/20 hover:border-destructive/40'
-                                : 'bg-green-500/10 hover:bg-green-500/20 text-green-500 border-green-500/20 hover:border-green-500/40'
+                              ? 'bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/20 hover:border-destructive/40'
+                              : 'bg-green-500/10 hover:bg-green-500/20 text-green-500 border-green-500/20 hover:border-green-500/40'
                               }`}
                           >
                             {isCharacterInScene(character.id) ? (
