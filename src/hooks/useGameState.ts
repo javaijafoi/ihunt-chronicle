@@ -157,12 +157,22 @@ const normalizeScene = (scene: GameState['currentScene']): GameState['currentSce
     background: scene.background,
     aspects: scene.aspects || [],
     isActive: scene.isActive ?? true,
+    order: scene.order ?? 0,
+    episodeId: scene.episodeId || '',
+    campaignId: scene.campaignId || ''
   };
 };
 
 const isCharacterSelectionError = (error: unknown): error is Error =>
   error instanceof Error && error.message === CHARACTER_SELECTION_ERROR;
 
+/**
+ * @deprecated Este hook é do sistema de sessão única.
+ * Para o novo sistema de campanhas, use:
+ * - CampaignContext para estado de campanha
+ * - useGameActions para logs e rolagens
+ * - useScenes para gerenciamento de cenas
+ */
 export function useGameState(
   sessionId: string = GLOBAL_SESSION_ID,
   initialCharacter?: Character,

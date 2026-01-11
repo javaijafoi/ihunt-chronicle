@@ -13,6 +13,7 @@ import { SelfieAdvancementModal } from './SelfieAdvancementModal';
 import { toast } from '@/hooks/use-toast';
 import { SelfieCard } from './SelfieCard';
 import { SelfieSlotPlaceholder } from './SelfieSlotPlaceholder';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 interface SelfieAlbumProps {
     character: Character;
@@ -32,6 +33,7 @@ export function SelfieAlbum({
     const [advancementSelfie, setAdvancementSelfie] = useState<Selfie | null>(null);
     const [selectedSlotType, setSelectedSlotType] = useState<SelfieType>('mood');
     const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+    const { currentEpisode } = useCampaign();
 
     const selfies = character.selfies || [];
     const slots = character.selfieSlots || [];
@@ -178,6 +180,7 @@ export function SelfieAlbum({
                     onClose={() => setShowNewSelfie(false)}
                     onSubmit={handleCreateSelfie}
                     type={selectedSlotType}
+                    episodeId={currentEpisode?.id}
                 />
             )}
 

@@ -51,7 +51,7 @@ export function useSelfieEngine() {
                     type: slotType,
                     grantedBy: episodeId,
                     used: false,
-                    createdAt: new Date() // Firestore ok com Date em clients modernos ou converter se necessário
+                    createdAt: serverTimestamp() // Firestore ok com Date em clients modernos ou converter se necessário
                 };
 
                 batch.update(charDoc.ref, {

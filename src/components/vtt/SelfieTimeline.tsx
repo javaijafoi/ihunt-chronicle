@@ -18,6 +18,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 interface SelfieTimelineProps {
     myCharacter?: Character | null; // The current user's character (for creation/permissions)
@@ -45,6 +46,7 @@ export function SelfieTimeline({
     const [filter, setFilter] = useState<'all' | SelfieType>('all');
     const [showNewSelfie, setShowNewSelfie] = useState(false);
     const [advancementSelfie, setAdvancementSelfie] = useState<Selfie | null>(null);
+    const { currentEpisode } = useCampaign();
 
     // Aggregate all selfies into a single timeline
     const timelineItems = useMemo(() => {
@@ -300,6 +302,7 @@ export function SelfieTimeline({
                     isOpen={showNewSelfie}
                     onClose={() => setShowNewSelfie(false)}
                     onSubmit={handleCreateSelfie}
+                    episodeId={currentEpisode?.id}
                 />
             )}
 
