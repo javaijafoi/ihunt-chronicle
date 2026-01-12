@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, Crown, Skull } from "lucide-react";
+import { ArrowRight, BookOpen, Crown, Skull, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 export const HomePage = () => {
@@ -17,7 +17,7 @@ export const HomePage = () => {
                 />
             </div>
 
-            <div className="relative z-10 max-w-4xl w-full space-y-12">
+            <div className="relative z-10 max-w-6xl w-full space-y-12">
                 {/* Hero Section */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -37,7 +37,7 @@ export const HomePage = () => {
                 </motion.div>
 
                 {/* Cards Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Card 1: Lobby/Login */}
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -68,7 +68,37 @@ export const HomePage = () => {
                         </Link>
                     </motion.div>
 
-                    {/* Card 2: Monsters */}
+                    {/* Card 2: Character Creator (NEW) */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                    >
+                        <Link to="/characters" className="group block h-full">
+                            <div className="bg-neutral-900/50 border border-neutral-800 p-8 rounded-2xl h-full transition-all group-hover:bg-neutral-900 group-hover:border-blue-900/50 group-hover:shadow-[0_0_30px_rgba(37,99,235,0.1)] relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <User className="w-32 h-32" />
+                                </div>
+
+                                <div className="relative z-10 space-y-4">
+                                    <div className="w-12 h-12 bg-neutral-800 rounded-lg flex items-center justify-center group-hover:bg-blue-900/20 group-hover:text-blue-500 transition-colors">
+                                        <User className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white mb-2">Criar Caçador</h3>
+                                        <p className="text-neutral-400">
+                                            Crie seus caçadores com o assistente interativo. Visualize, exporte e imprima.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center text-sm font-bold text-neutral-500 group-hover:text-blue-500 transition-colors pt-4">
+                                        CRIAR PERSONAGEM <ArrowRight className="w-4 h-4 ml-2" />
+                                    </div>
+                                </div>
+                            </div>
+                        </Link>
+                    </motion.div>
+
+                    {/* Card 3: Monsters */}
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -85,9 +115,9 @@ export const HomePage = () => {
                                         <Skull className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">Criador de Monstros</h3>
+                                        <h3 className="text-2xl font-bold text-white mb-2">Criador de Ameaças</h3>
                                         <p className="text-neutral-400">
-                                            Ferramenta pública para criar fichas de ameaças com visual moderno e exportação em PDF.
+                                            Ferramenta pública para criar fichas de monstros com visual moderno e exportação.
                                         </p>
                                     </div>
                                     <div className="flex items-center text-sm font-bold text-neutral-500 group-hover:text-orange-500 transition-colors pt-4">

@@ -17,6 +17,7 @@ const queryClient = new QueryClient();
 import { useParams } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { MonsterCreatorPage } from "./pages/MonsterCreatorPage";
+import { CharacterCreatorPage } from "./pages/CharacterCreatorPage";
 import { CampaignProvider } from "@/contexts/CampaignContext";
 
 const CampaignRoute = () => {
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/" element={<HomePage />} />
           <Route path="/lobby" element={<LobbyPage />} />
           <Route path="/monsters" element={<MonsterCreatorPage />} />
+          <Route path="/characters" element={<CharacterCreatorPage />} />
           <Route path="/campaigns/new" element={<CreateCampaignPage />} />
           <Route path="/campaign/:campaignId" element={<CampaignRoute />} />
           {/* Legacy VTT currently broken/unsupported without campaignId. Redirect or specific handler? */}
