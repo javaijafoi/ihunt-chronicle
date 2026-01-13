@@ -3,6 +3,8 @@ import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye, Info } from 'lucide-
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
 import { GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
+import { SKILL_MANEUVERS, SkillManeuver } from '@/data/skillManeuvers';
+import { BOOK_GIFTS, Gift } from '@/data/gifts';
 import { calculateStressTracks } from '@/utils/gameRules';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -24,6 +26,7 @@ interface CharacterSheetProps {
   onRemoveSituationalAspect?: (id: string) => void;
   onUpdateSituationalAspect?: (id: string, updates: Partial<{ name: string; freeInvokes: number }>) => void;
   onInvokeAspect?: (aspect: string) => void;
+  onUpdateNotes?: (notes: string) => void;
 }
 
 export function CharacterSheet({
@@ -40,7 +43,8 @@ export function CharacterSheet({
   onAddSituationalAspect,
   onRemoveSituationalAspect,
   onUpdateSituationalAspect,
-  onInvokeAspect
+  onInvokeAspect,
+  onUpdateNotes
 }: CharacterSheetProps) {
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
@@ -284,36 +288,58 @@ export function CharacterSheet({
             Manobras
           </h3>
           <div className="space-y-1.5">
-            {character.maneuvers.map((maneuverId, i) => {
+            {[...(character.maneuvers || []), ...(character.skillManeuvers || [])].map((maneuverId, i) => {
               const drive = character.drive ? getDriveById(character.drive) : undefined;
               let maneuverName = maneuverId;
               let maneuverDescription = '';
               let isFree = false;
+              let type = 'general';
 
+              // Check Drive
               if (drive) {
                 if (drive.freeManeuver.id === maneuverId) {
                   maneuverName = drive.freeManeuver.name;
                   maneuverDescription = drive.freeManeuver.description;
                   isFree = true;
+                  type = 'drive';
                 } else {
                   const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
                   if (exclusive) {
                     maneuverName = exclusive.name;
                     maneuverDescription = exclusive.description;
+                    type = 'drive';
                   }
                 }
               }
+
+              // Check General
               const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
               if (general) {
                 maneuverName = general.name;
                 maneuverDescription = general.description;
+                type = 'general';
+              }
+
+              // Check Skill Maneuvers
+              if (type === 'general' && !general) { // If not found yet
+                for (const [skillName, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+                  const found = maneuvers.find(m => m.id === maneuverId);
+                  if (found) {
+                    maneuverName = found.name;
+                    maneuverDescription = found.description;
+                    type = 'skill';
+                    break;
+                  }
+                }
               }
 
               return (
-                <Tooltip key={i}>
+                <Tooltip key={`${maneuverId}-${i}`}>
                   <TooltipTrigger asChild>
-                    <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${isFree ? 'bg-primary/20 text-primary' : 'bg-muted'
+                    <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${isFree ? 'bg-primary/20 text-primary' : type === 'skill' ? 'bg-blue-500/10 text-blue-400' : 'bg-muted'
                       }`}>
+                      {type === 'skill' && <Target className="w-3 h-3 opacity-50" />}
+                      {type === 'drive' && <Zap className="w-3 h-3 opacity-50" />}
                       <span className="truncate flex-1">{maneuverName}</span>
                       {isFree && <span className="text-[10px] opacity-70 shrink-0">(grátis)</span>}
                       <Info className="w-3 h-3 opacity-50 shrink-0" />
@@ -328,6 +354,35 @@ export function CharacterSheet({
             })}
           </div>
         </div>
+
+        {/* Gifts */}
+        {character.gifts && character.gifts.length > 0 && (
+          <div className="glass-panel p-4">
+            <h3 className="font-display text-xl text-purple-400 mb-3 flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Dons Sobrenaturais
+            </h3>
+            <div className="space-y-1.5">
+              {character.gifts.map((gift, i) => (
+                <Tooltip key={i}>
+                  <TooltipTrigger asChild>
+                    <div className="px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                      <Sparkles className="w-3 h-3 opacity-50" />
+                      <span className="truncate flex-1">{gift.name}</span>
+                      <Info className="w-3 h-3 opacity-50 shrink-0" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    <p className="font-medium mb-1">{gift.name}</p>
+                    <p className="text-xs text-muted-foreground">{gift.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </div>
+        )}
+
+
       </div>
 
       {/* Right Column */}
@@ -491,8 +546,31 @@ export function CharacterSheet({
           )}
         </div>
       </div>
-    </div>
+
+
+      {/* Notes Section - Full Width */}
+      <div className="mt-6 glass-panel p-4 col-span-1 md:col-span-2">
+        <div className="font-display text-xl text-muted-foreground mb-3 flex items-center gap-2">
+          <Brain className="w-5 h-5" />
+          Anotações
+        </div>
+        {readOnly ? (
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[100px] p-2 bg-muted/20 rounded">
+            {character.notes || 'Sem anotações.'}
+          </div>
+        ) : (
+          <textarea
+            className="w-full min-h-[150px] bg-background/50 border border-border rounded p-3 text-sm focus:outline-none focus:border-primary resize-y font-ui"
+            placeholder="Anotações da campanha, inventário, contatos..."
+            value={character.notes || ''}
+            onChange={(e) => onUpdateNotes?.(e.target.value)}
+          />
+        )}
+      </div>
+
+    </div >
   );
+
 
   if (variant === 'window') {
     return (

@@ -1,5 +1,6 @@
 import { Character } from '@/types/game';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
+import { SKILL_MANEUVERS } from '@/data/skillManeuvers';
 
 interface PrintableSheetProps {
     character: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'>;
@@ -9,27 +10,31 @@ interface PrintableSheetProps {
 export function PrintableSheet({ character, maneuvers }: PrintableSheetProps) {
     const currentDrive = character.drive ? getDriveById(character.drive) : undefined;
 
-    // Need to recalculate selected maneuvers/refresh locally or pass props if we want perfect sync.
-    // For simplicity, we assume we want to print what is currently "saved" or passed.
-    // But wait, the standard PrintableSheet usually doesn't take 'selectedManeuvers' as a prop in the user request description?
-    // Ah, the user request B5 description didn't specify props, but B5 example content implies calculating/showing them.
-    // Re-reading user request B5.4: "Criar componente PrintableSheet.tsx otimizado.. Manobras... +4, +3... Estresse...".
-    // It needs the data. Let's assume we pass character object which contains everything interesting? 
-    // Wait, the character object in PublicCharacterWizard state *includes* skills and aspects, but DOES NOT include 'maneuvers' (ids) directly in the typed 'character' state object until export/save time?
-    // Actually, 'character' state in Wizard does NOT have 'maneuvers' array populated with IDs, that is kept in 'selectedManeuverIds'!
-    // So we MUST pass selectedManeuverIds to this component too, or merge them.
-    // Let's update props to accept maneuvers.
+    // Combine general/drive maneuvers with skill maneuvers
+    const allManeuvers = [
+        ...maneuvers,
+        ...(character.skillManeuvers || [])
+    ];
 
-    const getManeuverName = (id: string) => {
-        // Check drive first
+    const getManeuverInfo = (id: string) => {
+        // Check drive
         if (currentDrive) {
-            if (currentDrive.freeManeuver.id === id) return currentDrive.freeManeuver.name;
+            if (currentDrive.freeManeuver.id === id) return { name: currentDrive.freeManeuver.name, type: 'drive' };
             const exclusive = currentDrive.exclusiveManeuvers.find(m => m.id === id);
-            if (exclusive) return exclusive.name;
+            if (exclusive) return { name: exclusive.name, type: 'drive' };
         }
+
+        // Check general
         const general = GENERAL_MANEUVERS.find(m => m.id === id);
-        if (general) return general.name;
-        return id;
+        if (general) return { name: general.name, type: 'general' };
+
+        // Check skill
+        for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+            const found = maneuvers.find(m => m.id === id);
+            if (found) return { name: found.name, type: 'skill' };
+        }
+
+        return { name: id, type: 'unknown' };
     };
 
     return (
@@ -101,10 +106,8 @@ export function PrintableSheet({ character, maneuvers }: PrintableSheetProps) {
                                             ) : (
                                                 <>
                                                     <div className="border-b border-gray-300 h-5 w-full"></div>
-                                                    {/* Add more lines for lower levels base on pyramid limits? */}
                                                 </>
                                             )}
-                                            {/* Ensure enough lines for the level capacity */}
                                             {Array.from({ length: Math.max(0, (level === 1 ? 4 : level === 2 ? 3 : level === 3 ? 2 : 1) - skills.length) }).map((_, i) => (
                                                 <div key={`empty-${level}-${i}`} className="border-b border-gray-300 h-5 w-full"></div>
                                             ))}
@@ -113,20 +116,38 @@ export function PrintableSheet({ character, maneuvers }: PrintableSheetProps) {
                                 );
                             })}
                         </div>
+
+                        {/* Gifts (Bottom of Left Column) */}
+                        {character.gifts && character.gifts.length > 0 && (
+                            <div className="mt-8">
+                                <h2 className="text-xl font-bold border-b-2 border-black mb-2 text-purple-900 print:text-black">DONS SOBRENATURAIS</h2>
+                                <div className="space-y-2">
+                                    {character.gifts.map((gift, i) => (
+                                        <div key={i} className="text-sm border-b border-gray-300 pb-1">
+                                            <span className="font-bold mr-1">★</span>
+                                            {gift.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Maneuvers */}
                     <div>
                         <h2 className="text-xl font-bold border-b-2 border-black mb-2">MANOBRAS</h2>
                         <div className="space-y-2">
-                            {maneuvers.map(id => (
-                                <div key={id} className="text-sm border-b border-gray-300 pb-1">
-                                    <span className="font-bold mr-1">◆</span>
-                                    {getManeuverName(id)}
-                                </div>
-                            ))}
+                            {allManeuvers.map(id => {
+                                const info = getManeuverInfo(id);
+                                return (
+                                    <div key={id} className="text-sm border-b border-gray-300 pb-1">
+                                        <span className="font-bold mr-1">{info.type === 'skill' ? '◎' : '◆'}</span>
+                                        {info.name}
+                                    </div>
+                                );
+                            })}
                             {/* Empty lines */}
-                            {Array.from({ length: Math.max(0, 5 - maneuvers.length) }).map((_, i) => (
+                            {Array.from({ length: Math.max(0, 10 - allManeuvers.length) }).map((_, i) => (
                                 <div key={i} className="border-b border-gray-300 h-6 w-full flex items-end">
                                     <span className="text-gray-300 mr-1">◆</span>
                                 </div>
@@ -178,6 +199,14 @@ export function PrintableSheet({ character, maneuvers }: PrintableSheetProps) {
                             <span className="font-bold w-32">SEVERA (6)</span>
                             <div className="flex-1 border-b border-black h-6"></div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Notes Section */}
+                <div className="mt-8 border-2 border-black p-4 rounded-lg h-[150px]">
+                    <h2 className="text-xl font-bold border-b border-black mb-2 uppercase">ANOTAÇÕES</h2>
+                    <div className="text-sm whitespace-pre-wrap">
+                        {character.notes}
                     </div>
                 </div>
             </div>

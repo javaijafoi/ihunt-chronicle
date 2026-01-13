@@ -12,6 +12,13 @@ export interface Maneuver {
   cost: number; // 0 = free, 1 = costs 1 refresh
 }
 
+export interface CharacterGift {
+  id: string;           // ID do dom ou 'custom-{uuid}'
+  name: string;         // Nome
+  description: string;  // Descrição
+  isCustom: boolean;    // true = criado pelo usuário
+}
+
 export interface Drive {
   id: DriveName;
   name: string;
@@ -58,6 +65,10 @@ export interface Character {
   };
   fatePoints: number;
   refresh: number;
+  // NOVOS CAMPOS
+  skillManeuvers?: string[];  // IDs de manobras de habilidade selecionadas
+  gifts?: CharacterGift[];    // Dons sobrenaturais
+  notes?: string;             // Campo de anotações (apenas para fichas de campanha)
 }
 
 export type AspectSource =

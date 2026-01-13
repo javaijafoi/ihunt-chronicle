@@ -444,6 +444,10 @@ export function VTTPage() {
                         situationalAspects: currentAspects.filter(a => a.id !== id)
                       });
                     }}
+                    onUpdateNotes={async (notes) => {
+                      if (!activeCharacter) return;
+                      await updateFirebaseCharacter(activeCharacter.id, { notes });
+                    }}
                     onUpdateSituationalAspect={async (id, updates) => {
                       if (!activeCharacter) return;
                       const currentAspects = activeCharacter.situationalAspects || [];
@@ -455,6 +459,7 @@ export function VTTPage() {
                       });
                     }}
                     onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(activeCharacter?.name || 'Personagem', aspectName)}
+
                   />
                 </div>
               </div>
@@ -558,6 +563,9 @@ export function VTTPage() {
                     const currentAspects = viewingPC.situationalAspects || [];
                     const updatedAspects = currentAspects.map(a => a.id === id ? { ...a, ...updates } : a);
                     await updateFirebaseCharacter(viewingPC.id, { situationalAspects: updatedAspects });
+                  }}
+                  onUpdateNotes={async (notes) => {
+                    await updateFirebaseCharacter(viewingPC.id, { notes });
                   }}
                 />
               </div>

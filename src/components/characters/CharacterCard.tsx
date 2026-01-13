@@ -1,6 +1,8 @@
 import { Character } from '@/types/game';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
-import { User, Zap, Circle } from 'lucide-react';
+import { User, Zap, Circle, Target, Sparkles } from 'lucide-react';
+import { SKILL_MANEUVERS } from '@/data/skillManeuvers';
+import { BOOK_GIFTS } from '@/data/gifts';
 
 interface CharacterCardProps {
     character: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'>;
@@ -11,28 +13,31 @@ interface CharacterCardProps {
 export function CharacterCard({ character, selectedManeuvers, refresh }: CharacterCardProps) {
     const currentDrive = character.drive ? getDriveById(character.drive) : undefined;
 
-    const getManeuverName = (id: string) => {
-        // Check drive first
+    // Combine general maneuvers with skill maneuvers for display
+    const allManeuverIds = [
+        ...selectedManeuvers,
+        ...(character.skillManeuvers || [])
+    ];
+
+    const getManeuverInfo = (id: string) => {
+        // Check drive
         if (currentDrive) {
-            if (currentDrive.freeManeuver.id === id) return currentDrive.freeManeuver.name;
+            if (currentDrive.freeManeuver.id === id) return { name: currentDrive.freeManeuver.name, desc: currentDrive.freeManeuver.description, type: 'drive' };
             const exclusive = currentDrive.exclusiveManeuvers.find(m => m.id === id);
-            if (exclusive) return exclusive.name;
+            if (exclusive) return { name: exclusive.name, desc: exclusive.description, type: 'drive' };
         }
+
         // Check general
         const general = GENERAL_MANEUVERS.find(m => m.id === id);
-        if (general) return general.name;
-        return id;
-    };
+        if (general) return { name: general.name, desc: general.description, type: 'general' };
 
-    const getManeuverDesc = (id: string) => {
-        if (currentDrive) {
-            if (currentDrive.freeManeuver.id === id) return currentDrive.freeManeuver.description;
-            const exclusive = currentDrive.exclusiveManeuvers.find(m => m.id === id);
-            if (exclusive) return exclusive.description;
+        // Check skill
+        for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+            const found = maneuvers.find(m => m.id === id);
+            if (found) return { name: found.name, desc: found.description, type: 'skill' };
         }
-        const general = GENERAL_MANEUVERS.find(m => m.id === id);
-        if (general) return general.description;
-        return "";
+
+        return { name: id, desc: '', type: 'unknown' };
     };
 
     return (
@@ -115,23 +120,47 @@ export function CharacterCard({ character, selectedManeuvers, refresh }: Charact
                 {/* Right Column: Maneuvers & Stress */}
                 <div className="space-y-8">
                     {/* Maneuvers */}
+                    {/* Maneuvers */}
                     <section>
                         <h3 className="font-display text-xl border-b border-black mb-3 uppercase">Manobras</h3>
                         <div className="space-y-3">
-                            {selectedManeuvers.map(id => (
-                                <div key={id} className="text-sm">
-                                    <div className="flex items-center gap-1 font-bold">
-                                        <Zap className="w-3 h-3 text-black" />
-                                        {getManeuverName(id)}
+                            {allManeuverIds.map(id => {
+                                const info = getManeuverInfo(id);
+                                return (
+                                    <div key={id} className="text-sm">
+                                        <div className="flex items-center gap-1 font-bold">
+                                            {info.type === 'skill' ? <Target className="w-3 h-3 text-blue-600" /> : <Zap className="w-3 h-3 text-black" />}
+                                            {info.name}
+                                        </div>
+                                        <p className="text-gray-600 leading-tight pl-4">
+                                            {info.desc}
+                                        </p>
                                     </div>
-                                    <p className="text-gray-600 leading-tight pl-4">
-                                        {getManeuverDesc(id)}
-                                    </p>
-                                </div>
-                            ))}
-                            {selectedManeuvers.length === 0 && <p className="text-gray-400 italic">Nenhuma manobra selecionada</p>}
+                                );
+                            })}
+                            {allManeuverIds.length === 0 && <p className="text-gray-400 italic">Nenhuma manobra selecionada</p>}
                         </div>
                     </section>
+
+                    {/* Gifts */}
+                    {character.gifts && character.gifts.length > 0 && (
+                        <section>
+                            <h3 className="font-display text-xl border-b border-black mb-3 uppercase text-purple-900 border-purple-900">Dons Sobrenaturais</h3>
+                            <div className="space-y-3">
+                                {character.gifts.map((gift, i) => (
+                                    <div key={i} className="text-sm">
+                                        <div className="flex items-center gap-1 font-bold text-purple-900">
+                                            <Sparkles className="w-3 h-3" />
+                                            {gift.name}
+                                        </div>
+                                        <p className="text-gray-600 leading-tight pl-4">
+                                            {gift.description}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* Stress & Consequences */}
                     <section>
@@ -177,6 +206,14 @@ export function CharacterCard({ character, selectedManeuvers, refresh }: Charact
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Notes Section */}
+            <div className="mt-8 pt-6 border-t-2 border-dashed border-gray-300">
+                <h3 className="font-display text-xl mb-3 uppercase text-gray-500">Anotações</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[100px] text-sm whitespace-pre-wrap font-ui">
+                    {character.notes || <span className="text-gray-400 italic">Sem anotações.</span>}
+                </div>
+            </div>
+        </div >
     );
 }
