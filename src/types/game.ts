@@ -1,6 +1,7 @@
 // iHUNT VTT Core Types
 
 import { Timestamp } from 'firebase/firestore';
+import { CharacterGift } from '@/data/gifts';
 
 export type DriveName = 'malina' | 'cavalo' | 'fui' | 'os66';
 
@@ -29,6 +30,7 @@ export interface Character {
   createdBy: string; // Keep for legacy or alias to userId
   name: string;
   avatar?: string;
+  avatarUrl?: string; // Alias for avatar (public wizard compatibility)
   isArchived?: boolean; // Soft delete
   drive?: DriveName;
   aspects: {
@@ -40,6 +42,12 @@ export interface Character {
   };
   skills: Record<string, number>;
   maneuvers: string[];
+  // NEW: Skill-specific maneuvers
+  skillManeuvers?: string[];
+  // NEW: Supernatural gifts
+  gifts?: CharacterGift[];
+  // NEW: Notes field for campaign characters
+  notes?: string;
   situationalAspects?: {
     id: string;
     name: string;
