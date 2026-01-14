@@ -17,6 +17,8 @@ export interface CharacterGift {
   name: string;         // Nome
   description: string;  // Descrição
   isCustom: boolean;    // true = criado pelo usuário
+  level?: number;       // Nível do dom (1-5)
+  essenceCost?: number; // Custo em essência (se aplicável ao nível)
 }
 
 export interface Drive {

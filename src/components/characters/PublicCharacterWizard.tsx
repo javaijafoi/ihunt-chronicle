@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Check, User, Target, Zap, Sparkles, Plus, Trash2, Heart, Search, Eye, Brain } from 'lucide-react';
+import { User, Zap, Circle, Target, ChevronRight, ChevronLeft, Check, Sparkles, Brain, Search, Eye, Download, Trash2, Plus, X, AlertTriangle, Heart } from 'lucide-react';
 import { CharacterCard } from './CharacterCard';
 import { PrintableSheet } from './PrintableSheet';
 import { SkillPyramid } from '@/components/vtt/SkillPyramid';
@@ -58,7 +58,24 @@ export function PublicCharacterWizard() {
     const [character, setCharacter] = useState({ ...INITIAL_CHARACTER });
     const [selectedManeuverIds, setSelectedManeuverIds] = useState<string[]>([]);
     const [selectedSkillManeuvers, setSelectedSkillManeuvers] = useState<string[]>([]);
-    const [selectedGifts, setSelectedGifts] = useState<string[]>([]);
+    const [selectedGifts, setSelectedGifts] = useState<CharacterGift[]>([]); // Changed to store objects with levels
+
+    // Auto-cleanup: remove skill maneuvers if skill level drops to 0
+    const [prevSkills, setPrevSkills] = useState(character.skills);
+    if (JSON.stringify(prevSkills) !== JSON.stringify(character.skills)) {
+        setPrevSkills(character.skills);
+        setSelectedSkillManeuvers(prev => {
+            return prev.filter(id => {
+                for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+                    if (maneuvers.find(m => m.id === id)) {
+                        return (character.skills[skill] || 0) > 0;
+                    }
+                }
+                return true;
+            });
+        });
+    }
+    const [consistencyState, setConsistencyState] = useState<{ show: boolean, warnings: string[], success: boolean }>({ show: false, warnings: [], success: false });
 
     // UI Filters
     const [maneuverSearch, setManeuverSearch] = useState('');
@@ -74,33 +91,40 @@ export function PublicCharacterWizard() {
         return character.drive ? getDriveById(character.drive) : undefined;
     }, [character.drive]);
 
+    const hasEmbruxacao = useMemo(() => {
+        return selectedManeuverIds.includes('embruxacao');
+    }, [selectedManeuverIds]);
+
     const purchasedManeuversCount = useMemo(() => {
         let count = selectedManeuverIds.length;
         if (currentDrive && selectedManeuverIds.includes(currentDrive.freeManeuver.id)) {
             count -= 1;
         }
 
-        // Add skill maneuvers cost (some might be free if we implement that logic later, currently all cost 1 unless specified)
-        // SKILL_MANEUVERS entries have a 'cost' field.
-        const skillManeuverCost = selectedSkillManeuvers.reduce((acc, id) => {
-            // Find the maneuver
-            for (const skill of Object.values(SKILL_MANEUVERS)) {
-                const found = skill.find(m => m.id === id);
-                if (found) return acc + found.cost;
-            }
-            return acc;
-        }, 0);
+        // Skill maneuvers cost 1 refresh each
+        // SKILL_MANEUVERS entries have a 'cost' field, usually 1 or 0 (free).
+        // We assume cost 1 unless specified otherwise in the future
+        const skillManeuverCost = selectedSkillManeuvers.length; // Simplified: each costs 1 refresh
+
+        // Gifts Cost Calculation
+        // Rule: 
+        // - Without Embruxacao: 1 Level = 1 Refresh
+        // - With Embruxacao: 2 Levels = 1 Refresh
+        const totalGiftLevels = selectedGifts.reduce((acc, g) => acc + (g.level || 1), 0);
+        const giftsCost = hasEmbruxacao
+            ? Math.ceil(totalGiftLevels / 2)
+            : totalGiftLevels;
 
         count += skillManeuverCost;
-        count += selectedGifts.length;
+        count += giftsCost;
 
-        // Base free maneuver allowance (2 free maneuvers regardless of source? 
-        // The original logic was: count -= 2. 
-        // "Base 5 (+2 Grátis + 1 Tara) - extras"
-        // So we subtract 2 from the TOTAL cost.
+        // Base free maneuver allowance (5 Base + 2 Free + 1 Drive Free is handled above by removing drive free from count)
+        // Actually, the UI says: "Base 5 (+2 Grátis + 1 Tara)". 
+        // Logic: Total Refresh = Base (5) - (TotalPaidManeuvers - 2Free).
+        // So we subtract 2 from the "Paid" count.
         count -= 2;
         return Math.max(0, count);
-    }, [selectedManeuverIds, selectedSkillManeuvers, currentDrive, selectedGifts]);
+    }, [selectedManeuverIds, selectedSkillManeuvers, currentDrive, selectedGifts, hasEmbruxacao]);
 
     // Calculate available refresh
     const availableRefresh = BASE_REFRESH - purchasedManeuversCount;
@@ -152,11 +176,8 @@ export function PublicCharacterWizard() {
                     setSelectedManeuverIds(migrated.maneuvers);
                     setSelectedSkillManeuvers(migrated.skillManeuvers || []);
 
-                    // Gifts are objects in Character, but we might just store IDs in state for wizard simplicity, 
-                    // OR we map them. The wizard state uses `selectedGifts` as string[] (IDs).
-                    // The Character type has `gifts: CharacterGift[]`.
                     if (migrated.gifts) {
-                        setSelectedGifts(migrated.gifts.map(g => g.id));
+                        setSelectedGifts(migrated.gifts);
                     }
                 }
             } catch (err) {
@@ -168,26 +189,15 @@ export function PublicCharacterWizard() {
     };
 
     const handleExportJson = () => {
-        // Map selected gift IDs back to CharacterGift objects
-        const finalGifts: CharacterGift[] = selectedGifts.map(id => {
-            const bookGift = BOOK_GIFTS.find(g => g.id === id);
-            if (bookGift) {
-                return {
-                    id: bookGift.id,
-                    name: bookGift.name,
-                    description: bookGift.description,
-                    isCustom: false
-                };
-            }
-            // Handle custom gifts if we implement them
-            return { id, name: 'Unknown Gift', description: '', isCustom: true };
-        });
+        // selectedGifts is already CharacterGift[], no need to map from IDs
+        // But we might want to ensure names/descriptions are up to date from BOOK_GIFTS if they are not custom?
+        // For now, assume state is correct.
 
         const finalCharacter: Omit<Character, 'id'> = {
             ...character,
             maneuvers: selectedManeuverIds,
             skillManeuvers: selectedSkillManeuvers,
-            gifts: finalGifts,
+            gifts: selectedGifts,
             refresh: availableRefresh,
             fatePoints: availableRefresh,
             campaignId: 'offline',
@@ -497,17 +507,9 @@ export function PublicCharacterWizard() {
                     </div>
                 );
             case 'maneuvers':
-                // Check for Embruxacao (Unlock Gifts)
-                // Assuming 'Embruxação' is a maneuver with a specific ID or name. 
-                // Let's assume ID 'embruxacao' or check name. 
-                // Quick check: In drives.ts or general maneuvers, is there one? 
-                // For now, let's assume if any selected maneuver has name "Embruxação"
-                const hasEmbruxacao = selectedManeuverIds.some(id => {
-                    const mName = GENERAL_MANEUVERS.find(m => m.id === id)?.name
-                        || (currentDrive?.exclusiveManeuvers.find(m => m.id === id)?.name)
-                        || (currentDrive?.freeManeuver.id === id ? currentDrive?.freeManeuver.name : '');
-                    return mName?.toLowerCase().includes('embruxação');
-                });
+                // Embruxacao Logic derived from memo
+                // const hasEmbruxacao = ... (already defined in scope)
+
 
                 const toggleManeuver = (maneuver: Maneuver) => {
                     // Can't remove free maneuver from drive
@@ -568,27 +570,71 @@ export function PublicCharacterWizard() {
                     });
                 };
 
-                const toggleGift = (gift: Gift) => {
+                const toggleGift = (gift: Gift, level: number = 1) => {
+                    // Check if we should default to level 2 (Embruxação optimization)
+                    const effectiveLevel = (hasEmbruxacao && level === 1) ? 2 : level;
+
                     setSelectedGifts(prev => {
-                        const isSelected = prev.includes(gift.id);
-                        if (isSelected) return prev.filter(id => id !== gift.id);
-                        return [...prev, gift.id];
+                        const existingIndex = prev.findIndex(g => g.id === gift.id);
+
+                        // If already has this gift
+                        if (existingIndex >= 0) {
+                            const existing = prev[existingIndex];
+                            // If clicking same level (and it wasn't an auto-upgrade from 1->2 click), remove
+                            // If we clicked "Add" (level 1 default) and got upgraded to 2, check if we already have 2.
+                            if (existing.level === effectiveLevel) {
+                                return prev.filter((_, i) => i !== existingIndex);
+                            } else {
+                                // Update level
+                                const newGifts = [...prev];
+                                newGifts[existingIndex] = { ...existing, level: effectiveLevel };
+                                return newGifts;
+                            }
+                        }
+
+                        // Add new
+                        return [...prev, {
+                            ...gift,
+                            level: effectiveLevel,
+                            isCustom: false
+                        }];
                     });
+                };
+
+                // Helper to change level directly
+                const updateGiftLevel = (giftId: string, level: number) => {
+                    setSelectedGifts(prev => prev.map(g => {
+                        if (g.id === giftId) return { ...g, level };
+                        return g;
+                    }));
+                };
+
+                const removeGift = (giftId: string) => {
+                    setSelectedGifts(prev => prev.filter(g => g.id !== giftId));
                 };
 
                 return (
                     <div className="space-y-6">
                         {/* Refresh Counter */}
-                        <div className="flex items-center justify-between p-4 rounded-lg bg-accent/10 border border-accent/30">
+                        <div className={`p-4 rounded-lg border flex flex-col sm:flex-row items-center justify-between gap-4 ${availableRefresh < 1
+                            ? 'bg-amber-50 border-amber-200'
+                            : 'bg-accent/10 border-accent/30'
+                            }`}>
                             <div>
-                                <span className="font-ui text-sm uppercase tracking-wider text-muted-foreground">
+                                <span className={`font-ui text-sm uppercase tracking-wider ${availableRefresh < 1 ? 'text-amber-700' : 'text-muted-foreground'
+                                    }`}>
                                     Refresh Disponível
                                 </span>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     Base 5 (+2 Grátis + 1 Tara)
                                 </p>
+                                {availableRefresh < 0 && (
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        ⚠️ Atenção: Refresh negativo é permitido, mas incomum.
+                                    </p>
+                                )}
                             </div>
-                            <span className={`font-display text-4xl ${availableRefresh <= 0 ? 'text-destructive' : 'text-accent'
+                            <span className={`font-display text-4xl ${availableRefresh < 0 ? 'text-destructive' : availableRefresh === 0 ? 'text-amber-500' : 'text-accent'
                                 }`}>
                                 {availableRefresh}
                             </span>
@@ -791,80 +837,112 @@ export function PublicCharacterWizard() {
                             )}
 
                             {maneuverTab === 'gifts' && (
-                                <div className="space-y-4 animation-fade-in">
-                                    {!hasEmbruxacao && (
-                                        <div className="flex flex-col items-center justify-center py-12 px-4 bg-muted/20 border border-border rounded-lg text-center">
-                                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                                                <Sparkles className="w-6 h-6 text-muted-foreground opacity-50" />
-                                            </div>
-                                            <h4 className="font-ui text-sm font-bold text-muted-foreground mb-2">
-                                                Dons Bloqueados
-                                            </h4>
-                                            <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                                                Para acessar os Dons Sobrenaturais, você precisa selecionar a manobra <strong>Embruxação</strong> (exclusiva da Tara Malinas).
-                                            </p>
-                                            {currentDrive?.id === 'malina' ? (
-                                                <button
-                                                    onClick={() => {
-                                                        const embruxacao = currentDrive.exclusiveManeuvers.find(m => m.id === 'embruxacao');
-                                                        if (embruxacao) {
-                                                            toggleManeuver(embruxacao);
-                                                        }
-                                                    }}
-                                                    className="text-primary text-sm font-medium hover:underline"
-                                                >
-                                                    Adicionar Embruxação agora
-                                                </button>
-                                            ) : (
-                                                <p className="text-xs text-muted-foreground/70">
-                                                    (Você precisa escolher a Tara Malinas primeiro)
+                                <div className="space-y-6 animation-fade-in">
+                                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                        <div className="flex items-start gap-3">
+                                            <Sparkles className="w-5 h-5 text-purple-600 mt-1" />
+                                            <div>
+                                                <h4 className="font-bold text-purple-900">Dons Sobrenaturais</h4>
+                                                <p className="text-sm text-purple-800 mt-1">
+                                                    Dons são poderes especiais. Qualquer um pode ter, mas "Malinas" com Embruxação pagam menos.
                                                 </p>
-                                            )}
+                                                <div className="mt-2 text-xs font-medium uppercase tracking-wider bg-purple-200 text-purple-900 inline-block px-2 py-1 rounded">
+                                                    Custo Atual: {hasEmbruxacao ? '2 Níveis = 1 Refresh' : '1 Nível = 1 Refresh'}
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
+                                    </div>
 
-                                    {hasEmbruxacao && (
-                                        <>
-                                            <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-lg mb-4">
-                                                <h4 className="flex items-center gap-2 text-purple-400 font-bold mb-1">
-                                                    <Sparkles className="w-4 h-4" />
-                                                    Dons Sobrenaturais
-                                                </h4>
-                                                <p className="text-sm text-purple-200/80">
-                                                    Você tem acesso a poderes além da compreensão humana. Dons custam <strong>Essência</strong> (Stress) para serem ativados.
-                                                </p>
-                                            </div>
+                                    <div className="space-y-4">
+                                        {BOOK_GIFTS.map(gift => {
+                                            const selected = selectedGifts.find(g => g.id === gift.id);
+                                            const currentLevel = selected?.level || 1; // Default to 1 for display
+                                            const isSelected = !!selected;
 
-                                            <div className="grid grid-cols-1 gap-2">
-                                                {BOOK_GIFTS.map(gift => {
-                                                    const isSelected = selectedGifts.includes(gift.id);
-                                                    return (
-                                                        <button
-                                                            key={gift.id}
-                                                            onClick={() => toggleGift(gift)}
-                                                            className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
-                                                                ? 'border-purple-500 bg-purple-500/10'
-                                                                : 'border-border bg-muted/50 hover:border-purple-500/50'
-                                                                }`}
-                                                        >
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <span className={`font-medium ${isSelected ? 'text-purple-400' : 'text-foreground'}`}>
-                                                                    {gift.name}
+                                            return (
+                                                <div
+                                                    key={gift.id}
+                                                    className={`p-4 rounded-lg border transition-all ${isSelected
+                                                        ? 'border-purple-500 bg-purple-50'
+                                                        : 'border-border bg-card'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-lg">{gift.name}</h4>
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase">
+                                                                {gift.category}
+                                                            </span>
+                                                        </div>
+                                                        {isSelected ? (
+                                                            <button
+                                                                onClick={() => removeGift(gift.id)}
+                                                                className="text-red-500 hover:text-red-700 p-1"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => toggleGift(gift, 1)}
+                                                                className="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center gap-1"
+                                                            >
+                                                                <Plus className="w-4 h-4" />
+                                                                Adicionar
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="text-sm text-muted-foreground mb-4">
+                                                        {gift.description}
+                                                    </p>
+
+                                                    {isSelected && (
+                                                        <div className="flex items-center gap-4 bg-white/50 p-2 rounded border border-purple-100">
+                                                            <div className="flex-1">
+                                                                <label className="text-xs uppercase font-bold text-purple-900 block mb-1">
+                                                                    Nível do Poder
+                                                                </label>
+                                                                <div className="flex gap-1">
+                                                                    {[1, 2, 3, 4, 5].map(lvl => {
+                                                                        const disabledLevel1 = hasEmbruxacao && lvl === 1;
+                                                                        return (
+                                                                            <button
+                                                                                key={lvl}
+                                                                                onClick={() => !disabledLevel1 && updateGiftLevel(gift.id, lvl)}
+                                                                                type="button"
+                                                                                disabled={disabledLevel1}
+                                                                                title={disabledLevel1 ? "Com Embruxação, o nível 2 custa o mesmo que o nível 1 (1 Refresh). Melhor começar do 2!" : ""}
+                                                                                className={`w-8 h-8 rounded flex items-center justify-center font-bold text-sm transition-colors ${currentLevel === lvl
+                                                                                    ? 'bg-purple-600 text-white shadow-sm'
+                                                                                    : disabledLevel1
+                                                                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                                                                        : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
+                                                                                    }`}
+                                                                            >
+                                                                                {lvl}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-xs uppercase font-bold text-purple-900 block">
+                                                                    Custo (Refresh)
                                                                 </span>
-                                                                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                                                    Custo: {gift.essenceCost} Essência
+                                                                <span className="font-display text-2xl text-purple-700">
+                                                                    {hasEmbruxacao ? Math.ceil(currentLevel / 2) : currentLevel}
                                                                 </span>
                                                             </div>
-                                                            <p className="text-sm text-muted-foreground">{gift.description}</p>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </>
-                                    )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
-                        </div>
+
+                        </div >
                     </div >
                 );
             case 'notes':
@@ -896,29 +974,16 @@ export function PublicCharacterWizard() {
                     ...character,
                     maneuvers: selectedManeuverIds,
                     skillManeuvers: selectedSkillManeuvers,
-                    gifts: selectedGifts.map(id => {
-                        const bookGift = BOOK_GIFTS.find(g => g.id === id);
-                        return bookGift
-                            ? { ...bookGift, isCustom: false }
-                            : { id, name: 'Unknown', description: '', isCustom: true };
-                    })
+                    gifts: selectedGifts
                 };
+
 
                 return (
                     <div className="space-y-6">
-                        <div className="bg-muted/50 p-4 rounded-lg text-center mb-6 flex flex-col items-center gap-4">
-                            <p className="text-muted-foreground">
-                                Revise seu personagem. Quando estiver pronto, você poderá exportar a ficha.
+                        <div className="bg-muted/50 p-4 rounded-lg text-center mb-6">
+                            <p className="text-muted-foreground text-sm">
+                                Revise todos os detalhes abaixo. Se precisar corrigir algo, use o botão <strong>Voltar</strong> ou clique nas abas acima.
                             </p>
-                            <button onClick={handleExportJson} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors">
-                                <span>💾 Exportar JSON</span>
-                            </button>
-                            <button onClick={handleExportPdf} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
-                                <span>📄 Exportar PDF</span>
-                            </button>
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-border hover:bg-muted transition-colors text-foreground">
-                                <span>🖨️ Imprimir</span>
-                            </button>
                         </div>
                         <CharacterCard
                             character={previewCharacter}
@@ -959,16 +1024,130 @@ export function PublicCharacterWizard() {
                 </div>
             </div>
 
+            {/* Consistency Alert Banner */}
+            {consistencyState.show && (
+                <div className={`mb-4 rounded-lg border p-4 flex items-start justify-between animation-fade-in ${consistencyState.success
+                    ? 'bg-green-50 border-green-200 text-green-900'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}>
+                    <div className="flex gap-3">
+                        {consistencyState.success ? (
+                            <div className="mt-0.5 bg-green-200 p-1 rounded-full text-green-700">
+                                <Check className="w-4 h-4" />
+                            </div>
+                        ) : (
+                            <div className="mt-0.5 bg-amber-200 p-1 rounded-full text-amber-700">
+                                <AlertTriangle className="w-4 h-4" />
+                            </div>
+                        )}
+                        <div>
+                            <h4 className="font-bold text-sm mb-1">
+                                {consistencyState.success ? 'Tudo Coerente!' : 'Atenção aos Detalhes Mecânicos'}
+                            </h4>
+                            {consistencyState.success ? (
+                                <p className="text-sm opacity-90">
+                                    Seu personagem parece seguir uma lógica matemática sólida. Boa caçada!
+                                </p>
+                            ) : (
+                                <ul className="text-sm space-y-1 list-disc pl-4 opacity-90">
+                                    {consistencyState.warnings.map((w, i) => (
+                                        <li key={i}>{w}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setConsistencyState(prev => ({ ...prev, show: false }))}
+                        className={`p-1 rounded hover:bg-black/5 transition-colors ${consistencyState.success ? 'text-green-800' : 'text-amber-800'
+                            }`}
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Main Card */}
             <div className="bg-card glass-panel border border-border rounded-xl shadow-lg min-h-[500px] flex flex-col">
                 {/* Header */}
                 <div className="p-6 border-b border-border">
-                    <h2 className="font-display text-2xl text-foreground">
-                        {currentStepData.title}
-                    </h2>
-                    <p className="text-muted-foreground">
-                        Configure os detalhes do seu personagem
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <h2 className="font-display text-2xl text-foreground">
+                                    {currentStepData.title}
+                                </h2>
+                                {currentStepData.id === 'review' && (
+                                    <button
+                                        onClick={() => {
+                                            const warnings: string[] = [];
+                                            const totalGiftLevels = selectedGifts.reduce((acc, g) => acc + (g.level || 1), 0);
+
+                                            // 1. Math Check: Embruxação Efficiency
+                                            // Embruxação costs 1 Refresh. It halves gift costs (ceil).
+                                            // Threshold: If Total Levels >= 4, Cost with Embruxacao = 1 + 2 = 3. Cost without = 4. Savings!
+                                            // If has Embruxacao and Total Levels == 0: Wasted maneuver?
+                                            if (hasEmbruxacao && totalGiftLevels === 0) {
+                                                warnings.push("Você tem a manobra 'Embruxação' mas não escolheu nenhum Dom. Você está gastando 1 Refresh sem benefício.");
+                                            }
+                                            if (!hasEmbruxacao && totalGiftLevels >= 4) {
+                                                warnings.push(`Você tem ${totalGiftLevels} níveis de Dons. Se pegar 'Embruxação' (Tara Malinas), gastaria menos Refresh total.`);
+                                            }
+                                            // Check for inefficient Level 1 gifts with Embruxação
+                                            if (hasEmbruxacao && selectedGifts.some(g => (g.level || 1) === 1)) {
+                                                warnings.push("Você tem 'Embruxação' e pelo menos um Dom Nível 1. Com Embruxação, o Nível 2 custa o mesmo (1 Refresh). Aumente o nível!");
+                                            }
+
+                                            // 2. Math Check: Maneuvers vs Drive
+                                            if (currentDrive && !selectedManeuverIds.includes(currentDrive.freeManeuver.id)) {
+                                                warnings.push(`Você não selecionou a manobra gratuita da sua Tara (${currentDrive.freeManeuver.name}). É um recurso grátis!`);
+                                            }
+
+                                            // 3. Math Check: Skill Maneuvers usage
+                                            // Invalid Skill Maneuvers (orphaned)
+                                            const orphanedManeuvers = selectedSkillManeuvers.filter(id => {
+                                                // Find which skill owns this maneuver
+                                                for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+                                                    if (maneuvers.find(m => m.id === id)) {
+                                                        return (character.skills[skill] || 0) <= 0;
+                                                    }
+                                                }
+                                                return false;
+                                            });
+                                            if (orphanedManeuvers.length > 0) {
+                                                warnings.push(`Você possui ${orphanedManeuvers.length} manobra(s) de habilidades que você não tem mais (Nível 0). Remova-as.`);
+                                            }
+
+                                            const hasSkills = Object.values(character.skills).some(v => v > 0);
+                                            // Only warn about missing maneuvers if we don't have orphaned ones (priority)
+                                            if (hasSkills && selectedSkillManeuvers.length === 0 && orphanedManeuvers.length === 0) {
+                                                warnings.push("Você tem perícias mas não escolheu nenhuma Manobra de Habilidade. Elas custam 1 Refresh e são muito úteis.");
+                                            }
+
+                                            // 4. Refresh Warning
+                                            if (availableRefresh < 0) {
+                                                warnings.push(`Seu Refresh é ${availableRefresh}. Isso é permitido, mas você começará as sessões devendo Pontos de Destino ao GM.`);
+                                            }
+
+                                            setConsistencyState({
+                                                show: true,
+                                                warnings,
+                                                success: warnings.length === 0
+                                            });
+                                        }}
+                                        className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded border border-border transition-colors flex items-center gap-1"
+                                        title="Verificar se a ficha tem problemas comuns"
+                                    >
+                                        <Sparkles className="w-3 h-3" />
+                                        Verificar Coerência
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-muted-foreground">
+                                Configure os detalhes do seu personagem
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content Area */}
@@ -998,7 +1177,19 @@ export function PublicCharacterWizard() {
                         Voltar
                     </button>
 
-                    {currentStep < STEPS.length - 1 ? (
+                    {STEPS[currentStep].id === 'review' ? (
+                        <div className="flex items-center gap-2">
+                            <button onClick={handleExportJson} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors text-sm font-medium shadow-sm">
+                                <span>💾 <span className="hidden sm:inline">JSON</span></span>
+                            </button>
+                            <button onClick={handleExportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-sm">
+                                <span>📄 <span className="hidden sm:inline">PDF</span></span>
+                            </button>
+                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-border hover:bg-muted transition-colors text-foreground text-sm font-medium shadow-sm">
+                                <span>🖨️ <span className="hidden sm:inline">Imprimir</span></span>
+                            </button>
+                        </div>
+                    ) : currentStep < STEPS.length - 1 ? (
                         <button
                             onClick={() => setCurrentStep(prev => prev + 1)}
                             disabled={!canProceed()}

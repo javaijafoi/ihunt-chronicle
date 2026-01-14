@@ -123,9 +123,14 @@ export function PrintableSheet({ character, maneuvers }: PrintableSheetProps) {
                                 <h2 className="text-xl font-bold border-b-2 border-black mb-2 text-purple-900 print:text-black">DONS SOBRENATURAIS</h2>
                                 <div className="space-y-2">
                                     {character.gifts.map((gift, i) => (
-                                        <div key={i} className="text-sm border-b border-gray-300 pb-1">
-                                            <span className="font-bold mr-1">★</span>
-                                            {gift.name}
+                                        <div key={i} className="text-sm border-b border-gray-300 pb-1 flex justify-between">
+                                            <div>
+                                                <span className="font-bold mr-1">★</span>
+                                                {gift.name}
+                                            </div>
+                                            {gift.level && gift.level > 1 && (
+                                                <span className="font-bold text-xs">[NV {gift.level}]</span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

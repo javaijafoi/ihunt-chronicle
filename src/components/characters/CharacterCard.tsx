@@ -1,4 +1,4 @@
-import { Character } from '@/types/game';
+import { Character, CharacterGift } from '@/types/game';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 import { User, Zap, Circle, Target, Sparkles } from 'lucide-react';
 import { SKILL_MANEUVERS } from '@/data/skillManeuvers';
@@ -7,6 +7,8 @@ import { BOOK_GIFTS } from '@/data/gifts';
 interface CharacterCardProps {
     character: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'>;
     selectedManeuvers: string[];
+    skillManeuvers?: string[];
+    gifts?: CharacterGift[];
     refresh: number;
 }
 
@@ -152,6 +154,11 @@ export function CharacterCard({ character, selectedManeuvers, refresh }: Charact
                                         <div className="flex items-center gap-1 font-bold text-purple-900">
                                             <Sparkles className="w-3 h-3" />
                                             {gift.name}
+                                            {gift.level && gift.level > 1 && (
+                                                <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 rounded-full">
+                                                    Nível {gift.level}
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-gray-600 leading-tight pl-4">
                                             {gift.description}
