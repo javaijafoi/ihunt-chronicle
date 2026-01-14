@@ -1,102 +1,426 @@
+/**
+ * Manobras de Habilidade - #iHunt
+ * Manobras específicas para cada habilidade do jogo
+ * Baseado no livro oficial
+ */
 
 export interface SkillManeuver {
-    id: string;
-    name: string;
-    description: string;
-    skillId: string;
-    cost: number; // 0 = free, 1 = costs 1 refresh
+  id: string;
+  name: string;
+  description: string;
+  skillId: string;
 }
 
 export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
-    'Acadêmico': [
-        { id: 'conhecimento-inutil', name: 'Conhecimento Inútil', description: 'Gaste 1 PD para usar Acadêmico no lugar de qualquer outra habilidade.', skillId: 'Acadêmico', cost: 1 },
-        { id: 'raciocinio-frio', name: 'Raciocínio Frio', description: 'Pode usar Acadêmico para se Defender contra influências mentais sobrenaturais.', skillId: 'Acadêmico', cost: 1 },
-        { id: 'disciplina-especifica', name: 'Disciplina Específica', description: 'Escolha uma aplicação restrita (Ciência, História, etc). +2 quando usar Acadêmico dentro dessa disciplina.', skillId: 'Acadêmico', cost: 1 },
-    ],
-    'Atleta': [
-        { id: 'segue-o-fluxo', name: 'Segue o Fluxo', description: 'Depois da primeira ação de parkour na cena, todas as outras ganham +2.', skillId: 'Atleta', cost: 1 },
-        { id: 'cara-muito-liso', name: 'O Cara É Muito Liso', description: 'Sempre que usar Atleta para desviar de um ataque, +2.', skillId: 'Atleta', cost: 1 },
-        { id: 'vence-pelo-cansaco', name: 'Vence Pelo Cansaço', description: 'Ao vencer uma perseguição, o oponente ganha a condição EXAUSTA.', skillId: 'Atleta', cost: 1 },
-        { id: 'sem-paredes-sem-mestres', name: 'Sem Paredes, Sem Mestres', description: 'Mova-se por uma zona adicional por conflito. +2 para superar obstáculos entre zonas.', skillId: 'Atleta', cost: 1 },
-    ],
-    'Assassino': [
-        { id: 'all-access', name: 'Acesso Total', description: 'Gaste 1 PD para entrar em qualquer lugar que você absolutamente não deveria estar.', skillId: 'Assassino', cost: 1 },
-        { id: 'face-audience', name: 'Um Rosto na Multidão', description: '+2 para Criar Vantagem para se misturar ou desaparecer em uma multidão.', skillId: 'Assassino', cost: 1 },
-        { id: 'scout', name: 'Batedor', description: 'Você sempre age primeiro em um conflito físico se estiver atacando de surpresa.', skillId: 'Assassino', cost: 1 },
-    ],
-    'Lutador': [
-        { id: 'brawler', name: 'Brigão de Bar', description: '+2 para Atacar com Lutador quando estiver em um ambiente confinado e cheio de objetos improvisados.', skillId: 'Lutador', cost: 1 },
-        { id: 'heavy-hitter', name: 'Bata com Força', description: 'Quando tiver sucesso com estilo em um ataque de Lutador, você pode reduzir o valor do impulso para aumentar o dano em 1.', skillId: 'Lutador', cost: 1 },
-        { id: 'bodyguard', name: 'Guarda-Costas', description: 'Você pode usar Lutador para Defender outra pessoa que esteja na mesma zona.', skillId: 'Lutador', cost: 1 },
-    ],
-    'Trambiqueiro': [
-        { id: 'silver-tongue', name: 'Língua de Prata', description: '+2 para Superar usando Trambiqueiro quando estiver mentindo para alguém em uma posição de autoridade.', skillId: 'Trambiqueiro', cost: 1 },
-        { id: 'sticky-fingers', name: 'Mãos Leves', description: 'Você pode bater carteiras ou plantar objetos pequenos sem ser notado se tiver sucesso em um teste de Trambiqueiro.', skillId: 'Trambiqueiro', cost: 1 },
-        { id: 'connection', name: 'Eu Conheço um Cara', description: 'Uma vez por sessão, declare que você conhece alguém útil na situação atual.', skillId: 'Trambiqueiro', cost: 1 },
-    ],
-    'Guerrilheiro': [
-        { id: 'demolitions', name: 'Demolições', description: '+2 para Atacar ou Criar Vantagem usando explosivos ou sabotagem.', skillId: 'Guerrilheiro', cost: 1 },
-        { id: 'ambush', name: 'Emboscada', description: '+2 para Atacar com Guerrilheiro se o alvo não souber que você está lá.', skillId: 'Guerrilheiro', cost: 1 },
-        { id: 'scavenger', name: 'Sucateiro', description: 'Você sempre consegue encontrar munição ou suprimentos básicos em qualquer lugar urbano.', skillId: 'Guerrilheiro', cost: 1 },
-    ],
-    'Hacker': [
-        { id: 'backdoor', name: 'Backdoor', description: '+2 para Superar segurança digital se você tiver tempo para preparar.', skillId: 'Hacker', cost: 1 },
-        { id: 'drone-pilot', name: 'Piloto de Drone', description: 'Você pode usar Hacker para pilotar drones para reconhecimento ou ataque remoto.', skillId: 'Hacker', cost: 1 },
-        { id: 'black-hat', name: 'Chapéu Preto', description: 'Ganhe +2 para Ataques mentais usando Hacker para expor segredos ou destruir reputações online.', skillId: 'Hacker', cost: 1 },
-    ],
-    'Influencer': [
-        { id: 'viral', name: 'Viralizar', description: 'Uma vez por sessão, você pode fazer uma informação (verdadeira ou falsa) se espalhar rapidamente pela cidade.', skillId: 'Influencer', cost: 1 },
-        { id: 'fanbase', name: 'Fandom', description: 'Você pode usar sua fama para obter favores pequenos ou acesso a lugares exclusivos.', skillId: 'Influencer', cost: 1 },
-        { id: 'cancel-culture', name: 'Cancelamento', description: 'Use Influencer para atacar a reputação de alguém. Sucesso com estilo causa uma consequência social imediata.', skillId: 'Influencer', cost: 1 },
-    ],
-    'Investigador': [
-        { id: 'cold-read', name: 'Leitura Fria', description: '+2 para Criar Vantagem ao tentar descobrir o Aspecto de alguém observando-o.', skillId: 'Investigador', cost: 1 },
-        { id: 'scene-crime', name: 'Cena do Crime', description: 'Você nunca falha em encontrar as pistas básicas em uma cena de crime. Rolle apenas para ver quão rápido ou detalhado é.', skillId: 'Investigador', cost: 1 },
-        { id: 'interrogation', name: 'Interrogatório', description: '+2 para Superar a resistência de alguém em responder perguntas.', skillId: 'Investigador', cost: 1 },
-    ],
-    'Criador': [
-        { id: 'macgyver', name: 'Gambiarra', description: 'Você pode criar ferramentas ou armas improvisadas com materiais disponíveis. Elas duram uma cena.', skillId: 'Criador', cost: 1 },
-        { id: 'repair', name: 'Reparos de Campo', description: 'Gaste 1 PD para remover uma consequência Moderada de um veículo ou equipamento imediatamente (mas temporariamente).', skillId: 'Criador', cost: 1 },
-        { id: 'artist', name: 'Obra Prima', description: '+2 para Criar Vantagem ao criar algo que evoque emoções fortes.', skillId: 'Criador', cost: 1 },
-    ],
-    'Médico': [
-        { id: 'first-aid', name: 'Primeiros Socorros', description: 'Você pode usar Médico para iniciar a recuperação de consequências Físicas.', skillId: 'Médico', cost: 1 },
-        { id: 'combat-medic', name: 'Médico de Combate', description: 'Você não sofre penalidades por tentar tratar alguém em meio a um conflito.', skillId: 'Médico', cost: 1 },
-        { id: 'forensics', name: 'Medicina Legal', description: '+2 para Investigar causas de morte ou patologias.', skillId: 'Médico', cost: 1 },
-    ],
-    'Ocultista': [
-        { id: 'warding', name: 'Proteção Mágica', description: 'Você pode usar Ocultismo para Defender contra ataques sobrenaturais.', skillId: 'Ocultista', cost: 1 },
-        { id: 'ritual', name: 'Ritualista', description: '+2 para Criar Vantagem quando tiver tempo e materiais para realizar um ritual mágico.', skillId: 'Ocultista', cost: 1 },
-        { id: 'lore', name: 'Conhecimento Proibido', description: 'Você sabe os pontos fracos de monstros (Vampiros, Lobisomens, etc). Gaste 1 PD para revelar um Aspecto de monstro.', skillId: 'Ocultista', cost: 1 },
-    ],
-    'Organizador': [
-        { id: 'logistics', name: 'Logística', description: 'Você sempre tem o equipamento certo para o trabalho. Gaste 1 PD para produzir um item comum instantaneamente.', skillId: 'Organizador', cost: 1 },
-        { id: 'plan', name: 'O Plano', description: '+2 para Criar Vantagem "Bem Preparado" para o grupo antes de uma missão.', skillId: 'Organizador', cost: 1 },
-        { id: 'network', name: 'Rede de Contatos', description: 'Você sabe quem chamar. +2 para Superar obstáculos burocráticos.', skillId: 'Organizador', cost: 1 },
-    ],
-    'Profissional': [
-        { id: 'corporate', name: 'Mundo Corporativo', description: '+2 em disputas verbais dentro de um ambiente de escritório ou negócios.', skillId: 'Profissional', cost: 1 },
-        { id: 'resources', name: 'Orçamento', description: 'Use Profissional no lugar de Recursos para adquirir bens ou serviços relacionados ao seu trabalho.', skillId: 'Profissional', cost: 1 },
-        { id: 'cool', name: 'Sangue Frio', description: '+2 para Defender contra medo ou intimidação em situações profissionais.', skillId: 'Profissional', cost: 1 },
-    ],
-    'Socialite': [
-        { id: 'party-animal', name: 'Alma da Festa', description: '+2 para Criar Vantagem em situações sociais festivas ou de gala.', skillId: 'Socialite', cost: 1 },
-        { id: 'gossip', name: 'Fofoca', description: 'Você sempre ouve os rumores. +2 para descobrir Aspectos sociais.', skillId: 'Socialite', cost: 1 },
-        { id: 'vip', name: 'VIP', description: 'Gaste 1 PD para entrar em qualquer evento exclusivo ou clube.', skillId: 'Socialite', cost: 1 },
-    ],
-    'Assistente Social': [
-        { id: 'empathy', name: 'Empatia', description: 'Use Assistente Social para Defender contra ataques mentais/emocionais, ajudando outros a processarem traumas.', skillId: 'Assistente Social', cost: 1 },
-        { id: 'de-escalate', name: 'Desescalar', description: '+2 para Superar tensão em uma situação hostil antes que vire violência.', skillId: 'Assistente Social', cost: 1 },
-        { id: 'system', name: 'O Sistema', description: '+2 para navegar na burocracia governamental e encontrar ajuda para os necessitados.', skillId: 'Assistente Social', cost: 1 },
-    ],
-    'Espião': [
-        { id: 'cover-id', name: 'Identidade Falsa', description: 'Você tem uma identidade falsa estabelecida. Gaste 1 PD para que ela resista a um escrutínio intenso.', skillId: 'Espião', cost: 1 },
-        { id: 'surveillance', name: 'Vigilância', description: '+2 para Criar Vantagem ao observar um alvo sem ser visto.', skillId: 'Espião', cost: 1 },
-        { id: 'lip-reading', name: 'Leitura Labial', description: 'Você pode "ouvir" conversas à distância se puder ver os lábios de quem fala.', skillId: 'Espião', cost: 1 },
-    ],
-    'Sobrevivente': [
-        { id: 'tough', name: 'Duro de Matar', description: 'Ganhe uma caixa extra de Stress Físico leve (1).', skillId: 'Sobrevivente', cost: 1 },
-        { id: 'tracker', name: 'Rastreador', description: '+2 para Superar testes para seguir alguém ou encontrar rastros.', skillId: 'Sobrevivente', cost: 1 },
-        { id: 'danger-sense', name: 'Sentido de Perigo', description: '+2 para Defender contra armadilhas ou emboscadas.', skillId: 'Sobrevivente', cost: 1 },
-    ],
+  'Acadêmico': [
+    {
+      id: 'conhecimento-inutil',
+      name: 'Conhecimento Inútil',
+      description: 'Você sabe um pouquinho sobre muitas coisas. Desde que consiga justificar com um factoide bizarramente relevante, pode gastar um ponto de destino para usar Acadêmico no lugar de qualquer outra habilidade.',
+      skillId: 'Acadêmico'
+    },
+    {
+      id: 'raciocinio-frio',
+      name: 'Raciocínio Frio',
+      description: 'Você entende como o mundo funciona e consegue usar a lógica frente a uma influência sobrenatural. Pode usar Acadêmico para se Defender contra influências mentais sobrenaturais.',
+      skillId: 'Acadêmico'
+    },
+    {
+      id: 'disciplina-especifica',
+      name: 'Disciplina Específica',
+      description: 'Escolha uma aplicação restrita para Acadêmico, como Ciência, História, Matemática ou Arte. Sempre que usar Acadêmico dentro dessa disciplina, você ganha +2.',
+      skillId: 'Acadêmico'
+    }
+  ],
+  'Assassino': [
+    {
+      id: 'tiro-incapacitante',
+      name: 'Tiro Incapacitante',
+      description: 'Às vezes só um tiro não é suficiente, você precisa tirar um membro, um olho, um tentáculo. Gaste um ponto de destino quando tiver sucesso em um ataque para aplicar um aspecto situacional ao alvo além dos efeitos normais.',
+      skillId: 'Assassino'
+    },
+    {
+      id: 'tiro-para-matar',
+      name: 'Tiro para Matar',
+      description: 'Contra um alvo completamente indefeso ou desatento, adicione +2 às suas ações de ataque de Assassino.',
+      skillId: 'Assassino'
+    },
+    {
+      id: 'choque-e-pavor',
+      name: 'Choque e Pavor',
+      description: 'Você tem uma invocação grátis adicional para qualquer consequência causada com a sua habilidade Assassino, desde que você a use para aterrorizar, intimidar ou distrair.',
+      skillId: 'Assassino'
+    }
+  ],
+  'Atleta': [
+    {
+      id: 'segue-o-fluxo',
+      name: 'Segue o Fluxo',
+      description: 'Você é um mestre de parkour. Depois da primeira ação de Atleta baseada em parkour ou movimento na cena, todas as outras ganham +2.',
+      skillId: 'Atleta'
+    },
+    {
+      id: 'cara-muito-liso',
+      name: 'O Cara É Muito Liso',
+      description: 'Ninguém consegue encostar em você se você não quiser. Sempre que usar Atleta para desviar de um ataque, adicione +2.',
+      skillId: 'Atleta'
+    },
+    {
+      id: 'vence-pelo-cansaco',
+      name: 'Vence Pelo Cansaço',
+      description: 'Depois que você começa, você não para mais. Sempre que ganhar de outro personagem em uma perseguição, você dá a essa pessoa a condição situacional de EXAUSTA.',
+      skillId: 'Atleta'
+    },
+    {
+      id: 'sem-paredes-sem-mestres',
+      name: 'Sem Paredes, Sem Mestres',
+      description: 'Você pode se mover livremente por uma zona adicional por conflito. Qualquer rolagem para superar obstáculos entre zonas físicas ganha +2.',
+      skillId: 'Atleta'
+    }
+  ],
+  'Lutador': [
+    {
+      id: 'ma-reputacao',
+      name: 'Má Reputação',
+      description: 'Você só traz problemas, e todo mundo sabe disso. Ao gastar um ponto de destino, você pode substituir qualquer habilidade por Lutador, desde que esteja usando sua reputação como alguém que sabe meter porrada.',
+      skillId: 'Lutador'
+    },
+    {
+      id: 'finta',
+      name: 'Finta',
+      description: 'Você dá um drible nos seus oponentes antes de dar o golpe final. Quando criar uma vantagem dando um ataque em falso para deixar seu oponente desprotegido, ganhe uma invocação grátis adicional.',
+      skillId: 'Lutador'
+    },
+    {
+      id: 'venca-a-dor',
+      name: 'Vença a Dor',
+      description: 'Uma vez por capítulo você pode gastar um ponto de destino para reduzir uma consequência moderada para uma leve, se tiver espaço, ou simplesmente apagar uma consequência leve.',
+      skillId: 'Lutador'
+    }
+  ],
+  'Trambiqueiro': [
+    {
+      id: 'jogo-da-confianca',
+      name: 'O Jogo da Confiança',
+      description: 'Em aspectos que você criou com Trambiqueiro, você pode usar invocações grátis para chamar esses aspectos sem gastar pontos de destino, além de invocá-los normalmente.',
+      skillId: 'Trambiqueiro'
+    },
+    {
+      id: 'calunia-difamacao',
+      name: 'Calúnia e Difamação',
+      description: 'Você pode usar Trambiqueiro para atacar personagens mentalmente, agredindo suas reputações e imagens públicas. Isso entra no lugar da ação de ataque de Influencer.',
+      skillId: 'Trambiqueiro'
+    },
+    {
+      id: 'identidade-secreta-perfeita',
+      name: 'Identidade Secreta Perfeita',
+      description: 'Você criou e aperfeiçoou uma identidade alternativa específica, e treinou como interpretá-la perfeitamente. Quando estiver usando essa identidade, todas as suas ações de Trambiqueiro são nível +2.',
+      skillId: 'Trambiqueiro'
+    }
+  ],
+  'Guerrilheiro': [
+    {
+      id: 'taticas-pequenas-unidades',
+      name: 'Táticas de Pequenas Unidades',
+      description: 'Uma vez por cena, quando criar uma vantagem refletindo táticas de equipe, adicione uma invocação grátis extra. Dois personagens diferentes precisam usar essas invocações.',
+      skillId: 'Guerrilheiro'
+    },
+    {
+      id: 'violencia-desmedida',
+      name: 'Violência Desmedida',
+      description: 'Sempre que apostar um personagem com um aspecto de Guerrilheiro, aumente o dano causado pela escolha em +2.',
+      skillId: 'Guerrilheiro'
+    },
+    {
+      id: 'sacrificio-pela-equipe',
+      name: 'Faça Esse Sacrifício Pela Equipe',
+      description: 'Sempre que um colega próximo estiver sofrendo stress, você pode gastar um ponto de destino para pegar para você qualquer quantidade desse stress. Você precisa explicar como seu plano diminuiu o dano.',
+      skillId: 'Guerrilheiro'
+    },
+    {
+      id: 'movimento-de-equipe',
+      name: 'Movimento de Equipe',
+      description: 'Quando usar uma ação de superar para se mover através de zonas múltiplas ou obstruídas, sua equipe inteira pode fazer o mesmo sem rolar e sem usarem suas ações.',
+      skillId: 'Guerrilheiro'
+    }
+  ],
+  'Hacker': [
+    {
+      id: 'anonimidade',
+      name: 'Anonimidade',
+      description: 'Você pode usar Hacker para se defender contra ataques eletrônicos ou baseados na sua identidade, e em ações de criar vantagem. Adicione +2 à oposição ativa ou passiva nesses ataques contra você.',
+      skillId: 'Hacker'
+    },
+    {
+      id: 'tem-um-aplicativo',
+      name: 'Tem um Aplicativo Para Isso',
+      description: 'Desde que consiga justificar digitalmente, você pode gastar um ponto de destino para usar Hacker no lugar de outra habilidade.',
+      skillId: 'Hacker'
+    },
+    {
+      id: 'forca-bruta',
+      name: 'Força Bruta',
+      description: 'Quando tiver falhado ao tentar invadir um sistema com Hacker, seja digital ou social, a sua próxima tentativa tem +2.',
+      skillId: 'Hacker'
+    },
+    {
+      id: 'porta-dos-fundos',
+      name: 'Porta dos Fundos',
+      description: 'Quando estiver explorando zonas no espaço digital, você não precisa rolar para se mover uma zona extra por interação, e rolagens para se mover por zonas obstruídas ganham +2.',
+      skillId: 'Hacker'
+    }
+  ],
+  'Influencer': [
+    {
+      id: 'vestida-para-sucesso',
+      name: 'Vestida(o) para o Sucesso',
+      description: 'Quando criar uma vantagem baseada em montar seu look ou sua apresentação pública antes de um evento, você ganha uma invocação grátis adicional para esse aspecto.',
+      skillId: 'Influencer'
+    },
+    {
+      id: 'participe-da-minha-live',
+      name: 'Participe da Minha Live',
+      description: 'Se você permitir, outros jogadores podem usar a sua habilidade de Influencer em vez de suas próprias. Mas se eles falharem, você também sofre as consequências.',
+      skillId: 'Influencer'
+    },
+    {
+      id: 'meia-volta',
+      name: 'Meia-Volta',
+      description: 'Uma vez por sessão, quando enfrentar um chamado de um dos seus aspectos, você pode escolher mudar seu aspecto. Se fizer isso, invalida o chamado e quaisquer pontos de destino são devolvidos. O aspecto nunca mais voltará ao que era.',
+      skillId: 'Influencer'
+    }
+  ],
+  'Investigador': [
+    {
+      id: 'percepcao-de-entropia',
+      name: 'Percepção de Entropia',
+      description: 'Você é muito bom em encontrar pontos fracos. Quando cria uma vantagem ao indicar um ponto fraco, você ganha uma invocação grátis que só pode ser usada em ações de ataque.',
+      skillId: 'Investigador'
+    },
+    {
+      id: 'desmascarando',
+      name: 'Desmascarando',
+      description: 'Você consegue perceber o que é besteira rapidinho. Qualquer ação de Investigador para desmascarar (ou confirmar) uma fraude ou teoria da conspiração ganha +2.',
+      skillId: 'Investigador'
+    },
+    {
+      id: 'elementar',
+      name: 'Elementar',
+      description: 'Você é muito bom em anunciar detalhes aparentemente nada a ver que vão se tornar realidade. Ao gastar um ponto de destino para declarar um detalhe, também pode criar um aspecto com invocação grátis que só pode ser usado em ações de Investigador.',
+      skillId: 'Investigador'
+    }
+  ],
+  'Criador': [
+    {
+      id: 'plano-reserva',
+      name: 'Plano Reserva',
+      description: 'Você sempre tem um plano alternativo. Quando criar uma vantagem com Criador, você pode criar dois aspectos, mas só tem uma invocação grátis para usar entre eles.',
+      skillId: 'Criador'
+    },
+    {
+      id: 'manufatura-de-qualidade',
+      name: 'Manufatura de Qualidade',
+      description: 'Você tem orgulho do seu trabalho e qualquer objeto que você tenha criado é mais difícil de destruir. Ele ganha +2 de defesa ou oposição passiva contra qualquer tentativa de desmontá-lo ou destruí-lo.',
+      skillId: 'Criador'
+    },
+    {
+      id: 'tendencias-de-design',
+      name: 'Tendências de Design',
+      description: 'Quando estiver lidando com tendências conhecidas de tecnologia e design, você pode usar sua habilidade Criador no lugar de qualquer outra habilidade.',
+      skillId: 'Criador'
+    },
+    {
+      id: 'drone-utilitario',
+      name: 'Drone Utilitário',
+      description: 'Quando criar um drone para propósitos utilitários, você pode gastar um ponto de destino para dar a ele uma habilidade de nível igual à sua habilidade Criador.',
+      skillId: 'Criador'
+    }
+  ],
+  'Médico': [
+    {
+      id: 'primeiros-socorros',
+      name: 'Primeiros Socorros',
+      description: 'Qualquer rolagem de Médico para intervir e diagnosticar ou impedir que um problema médico piore ganha +2.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'melhorar-o-desempenho',
+      name: 'Melhorar o Desempenho',
+      description: 'Se você adaptar a dosagem de uma droga especialmente para um indivíduo e criar uma vantagem, ele ganha uma invocação grátis adicional.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'primeiro-cause-dano',
+      name: 'Primeiro, Cause Dano',
+      description: 'Se você não tiver medo de jogar a ética fora, você pode usar a sua habilidade Médico no lugar de Assassino quando estiver tentando causar dano a alguém.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'medico-de-combate',
+      name: 'Médico de Combate',
+      description: 'Uma vez por sessão, você pode tratar feridas rapidamente. Gaste um ponto de destino para reduzir uma consequência moderada de dano físico para leve, se houver espaço, ou remover uma consequência leve.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'deixa-comigo',
+      name: 'Deixa Comigo',
+      description: 'Você pode ignorar a penalidade normal de dificuldade +2 ao tratar suas próprias consequências.',
+      skillId: 'Médico'
+    }
+  ],
+  'Ocultista': [
+    {
+      id: 'amuletos-de-defesa',
+      name: 'Amuletos de Defesa',
+      description: 'Se você sabe contra o que está lutando e tem pelo menos dez minutos para se preparar antes de um encontro, você pode se defender contra habilidades sobrenaturais com Ocultista.',
+      skillId: 'Ocultista'
+    },
+    {
+      id: 'especializacao-ocultista',
+      name: 'Especialização',
+      description: 'Escolha um tipo de monstro ou tradição de magia. Você ganha +2 em todas as rolagens de Ocultista relacionadas à sua especialidade.',
+      skillId: 'Ocultista'
+    },
+    {
+      id: 'cacador-de-conhecimento',
+      name: 'Caçador de Conhecimento',
+      description: 'Seu conhecimento sobre tradições sobrenaturais é profundo. Uma vez por sessão, quando criar uma vantagem com base em um factoide sobre o sobrenatural, você ganha uma invocação grátis adicional.',
+      skillId: 'Ocultista'
+    }
+  ],
+  'Organizador': [
+    {
+      id: 'discurso-impressionante',
+      name: 'Discurso Impressionante',
+      description: 'Uma vez por sessão, antes de um grande confronto, se você der um discurso motivacional, o aspecto que criar ganha uma invocação grátis adicional.',
+      skillId: 'Organizador'
+    },
+    {
+      id: 'tamo-junto',
+      name: 'Tamo Junto',
+      description: 'Se um membro da equipe estiver sofrendo stress mental, ele pode usar sua habilidade de Organizador em vez da original, ou ganhar +2. Se falhar, você ganha o mesmo stress.',
+      skillId: 'Organizador'
+    },
+    {
+      id: 'fardo-dividido',
+      name: 'Fardo Dividido',
+      description: 'Uma vez por sessão, quando um membro da equipe ganha stress, você pode mover 2 pontos para outro membro que concorde.',
+      skillId: 'Organizador'
+    }
+  ],
+  'Profissional': [
+    {
+      id: 'especialidade-interdisciplinar',
+      name: 'Especialidade Interdisciplinar',
+      description: 'Escolha uma área secundária relacionada à sua área de trabalho. Você pode usar as duas áreas com Profissional.',
+      skillId: 'Profissional'
+    },
+    {
+      id: 'especializacao-profissional',
+      name: 'Especialização',
+      description: 'Escolha uma especialidade mais restrita dentro da sua área. Ganhe +2 quando essa especialidade for utilizada.',
+      skillId: 'Profissional'
+    },
+    {
+      id: 'amigos-do-trabalho',
+      name: 'Amigos do Trabalho',
+      description: 'Quando gastar um ponto de destino para adicionar um detalhe à história, pode criar um personagem ligado à sua história de trabalho que te deve algo.',
+      skillId: 'Profissional'
+    }
+  ],
+  'Socialite': [
+    {
+      id: 'blase',
+      name: 'Blasé',
+      description: 'Você é imperturbável. Pode usar Socialite para se Defender contra esforços para perturbar ou influenciar seu comportamento, sobrenaturais ou não. Se já usava Socialite, ganhe +2.',
+      skillId: 'Socialite'
+    },
+    {
+      id: 'queridinho-de-todos',
+      name: 'O(A) Queridinho(a) de Todos',
+      description: 'Você é universalmente adorado. A primeira vez que alguém tentar atacar sua reputação, essa pessoa ganha 2 de stress independente do resultado.',
+      skillId: 'Socialite'
+    },
+    {
+      id: 'camaleao-social',
+      name: 'Camaleão Social',
+      description: 'Em meia hora você consegue disfarçar uma equipe para se encaixar onde não pertence. Eles usam suas habilidades de Socialite para Trambiqueiro, e você ganha +2 enquanto disfarçado.',
+      skillId: 'Socialite'
+    }
+  ],
+  'Assistente Social': [
+    {
+      id: 'agenda-telefonica',
+      name: 'Agenda Telefônica',
+      description: 'Quando gastar um ponto de destino para adicionar um detalhe à história, pode criar um personagem que você ajudou no passado e que deve seu sucesso a você.',
+      skillId: 'Assistente Social'
+    },
+    {
+      id: 'palavras-certas',
+      name: 'As Palavras Certas',
+      description: 'Uma vez por sessão, depois de conversar com alguém por uma hora, pode gastar um ponto de destino para reduzir uma consequência moderada mental para leve.',
+      skillId: 'Assistente Social'
+    },
+    {
+      id: 'apelar-para-empatia',
+      name: 'Apelar para a Empatia',
+      description: 'Ao apelar para o lado bom de alguém (se possível), pode se defender de seus ataques com Assistente Social.',
+      skillId: 'Assistente Social'
+    }
+  ],
+  'Espião': [
+    {
+      id: 'fuga-impressionante',
+      name: 'Fuga Impressionante',
+      description: 'Quando usar Espião para criar uma distração para fuga, ela também pode funcionar como ação de ataque.',
+      skillId: 'Espião'
+    },
+    {
+      id: 'local-seguro',
+      name: 'Local Seguro',
+      description: 'Quando gastar um ponto de destino para estabelecer um esconderijo, pode usar Espião para se defender de qualquer ataque dentro desse local. Se já usaria Espião, ganhe +2.',
+      skillId: 'Espião'
+    },
+    {
+      id: 'inspecionar-ambiente',
+      name: 'Inspecionar o Ambiente',
+      description: 'Uma vez por sessão, quando criar uma vantagem de mobilidade e fuga, pode criar dois aspectos com uma invocação grátis entre eles.',
+      skillId: 'Espião'
+    }
+  ],
+  'Sobrevivente': [
+    {
+      id: 'deixa-pra-la',
+      name: 'Deixa Pra Lá',
+      description: 'Uma vez por sessão, pode gastar um ponto de destino para reduzir uma consequência mental para leve, ou remover uma consequência leve.',
+      skillId: 'Sobrevivente'
+    },
+    {
+      id: 'ignore-a-dor',
+      name: 'Ignore a Dor',
+      description: 'Você consegue ignorar as coisas que te machucam. Pode usar Sobrevivente para se defender contra stress físico, além de mental.',
+      skillId: 'Sobrevivente'
+    },
+    {
+      id: 'insensivel',
+      name: 'Insensível',
+      description: 'Contra habilidades de monstros que influenciam mente e emoções, pode se defender com Sobrevivente, ou ganha +2 se já podia usar.',
+      skillId: 'Sobrevivente'
+    }
+  ]
 };
+
+// Helper para obter todas as manobras como array flat
+export function getAllSkillManeuvers(): SkillManeuver[] {
+  return Object.values(SKILL_MANEUVERS).flat();
+}
+
+// Helper para obter manobras por skill
+export function getManeuversBySkill(skillId: string): SkillManeuver[] {
+  return SKILL_MANEUVERS[skillId] || [];
+}
+
+// Helper para encontrar uma manobra por ID
+export function findSkillManeuver(id: string): SkillManeuver | undefined {
+  return getAllSkillManeuvers().find(m => m.id === id);
+}

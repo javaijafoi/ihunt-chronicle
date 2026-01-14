@@ -1,6 +1,9 @@
 // iHUNT VTT Core Types
 
 import { Timestamp } from 'firebase/firestore';
+// CharacterGift is exported from @/data/gifts via the import/export below
+import { CharacterGift } from '@/data/gifts';
+export type { CharacterGift };
 
 export type DriveName = 'malina' | 'cavalo' | 'fui' | 'os66';
 
@@ -10,15 +13,6 @@ export interface Maneuver {
   description: string;
   driveExclusive?: DriveName; // undefined = available for all
   cost: number; // 0 = free, 1 = costs 1 refresh
-}
-
-export interface CharacterGift {
-  id: string;           // ID do dom ou 'custom-{uuid}'
-  name: string;         // Nome
-  description: string;  // Descrição
-  isCustom: boolean;    // true = criado pelo usuário
-  level?: number;       // Nível do dom (1-5)
-  essenceCost?: number; // Custo em essência (se aplicável ao nível)
 }
 
 export interface Drive {
@@ -38,6 +32,7 @@ export interface Character {
   createdBy: string; // Keep for legacy or alias to userId
   name: string;
   avatar?: string;
+  avatarUrl?: string; // Alias for avatar (public wizard compatibility)
   isArchived?: boolean; // Soft delete
   drive?: DriveName;
   aspects: {
@@ -49,6 +44,12 @@ export interface Character {
   };
   skills: Record<string, number>;
   maneuvers: string[];
+  // NEW: Skill-specific maneuvers
+  skillManeuvers?: string[];
+  // NEW: Supernatural gifts
+  gifts?: CharacterGift[];
+  // NEW: Notes field for campaign characters
+  notes?: string;
   situationalAspects?: {
     id: string;
     name: string;
@@ -67,10 +68,7 @@ export interface Character {
   };
   fatePoints: number;
   refresh: number;
-  // NOVOS CAMPOS
-  skillManeuvers?: string[];  // IDs de manobras de habilidade selecionadas
-  gifts?: CharacterGift[];    // Dons sobrenaturais
-  notes?: string;             // Campo de anotações (apenas para fichas de campanha)
+
 }
 
 export type AspectSource =
