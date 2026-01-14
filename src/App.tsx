@@ -18,7 +18,9 @@ import { useParams } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { MonsterCreatorPage } from "./pages/MonsterCreatorPage";
 import { CharacterCreatorPage } from "./pages/CharacterCreatorPage";
+import { AdminPage } from "./pages/AdminPage";
 import { CampaignProvider } from "@/contexts/CampaignContext";
+import { RulesProvider } from "@/contexts/RulesContext";
 
 const CampaignRoute = () => {
   const { campaignId } = useParams();
@@ -31,28 +33,28 @@ const CampaignRoute = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/lobby" element={<LobbyPage />} />
-          <Route path="/monsters" element={<MonsterCreatorPage />} />
-          <Route path="/characters" element={<CharacterCreatorPage />} />
-          <Route path="/campaigns/new" element={<CreateCampaignPage />} />
-          <Route path="/campaign/:campaignId" element={<CampaignRoute />} />
-          {/* Legacy VTT currently broken/unsupported without campaignId. Redirect or specific handler? */}
-          {/* <Route path="/vtt" element={<VTTPage />} /> */}
-          <Route path="/old" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/codex" element={<CodexPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <RulesProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/lobby" element={<LobbyPage />} />
+            <Route path="/monsters" element={<MonsterCreatorPage />} />
+            <Route path="/characters" element={<CharacterCreatorPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/campaigns/new" element={<CreateCampaignPage />} />
+            <Route path="/campaign/:campaignId" element={<CampaignRoute />} />
+            <Route path="/old" element={<Index />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/codex" element={<CodexPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </RulesProvider>
   </QueryClientProvider>
 );
 
