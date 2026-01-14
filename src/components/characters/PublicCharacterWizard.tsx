@@ -1,8 +1,16 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Zap, Circle, Target, ChevronRight, ChevronLeft, Check, Sparkles, Brain, Search, Eye, Download, Trash2, Plus, X, AlertTriangle, Heart } from 'lucide-react';
+import { Printer, Layout, FileText, Grid, Type, Sidebar, User, Zap, Circle, Target, ChevronRight, ChevronLeft, Check, Sparkles, Brain, Search, Eye, Download, Trash2, Plus, X, AlertTriangle, Heart } from 'lucide-react';
 import { CharacterCard } from './CharacterCard';
-import { PrintableSheet } from './PrintableSheet';
+// import { PrintableSheet } from './PrintableSheet'; // Substituted by Layouts
+import { LayoutStandard } from './prints/LayoutStandard';
+import { LayoutClassic } from './prints/LayoutClassic';
+import { LayoutLandscape } from './prints/LayoutLandscape';
+import { LayoutDossier } from './prints/LayoutDossier';
+import { LayoutNarrative } from './prints/LayoutNarrative';
+import { LayoutMinimal } from './prints/LayoutMinimal';
+import { getCharacterPrintData } from './prints/printUtils';
+
 import { SkillPyramid } from '@/components/vtt/SkillPyramid';
 import { Character, DriveName, Maneuver, CharacterGift } from '@/types/game';
 import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
@@ -84,6 +92,20 @@ export function PublicCharacterWizard() {
     // Derived state for refresh
     const [newFreeAspect, setNewFreeAspect] = useState('');
     const [maneuverTab, setManeuverTab] = useState<'drive' | 'skills' | 'general' | 'gifts'>('drive');
+
+    // Print Layout State
+    const [printLayout, setPrintLayout] = useState<'standard' | 'classic' | 'landscape' | 'dossier' | 'narrative' | 'minimal'>('standard');
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+    const printLayouts = [
+        { id: 'standard', name: 'Padrão', icon: Layout, rotateIcon: false, Component: LayoutStandard },
+        { id: 'classic', name: 'Clássico', icon: FileText, rotateIcon: false, Component: LayoutClassic },
+        { id: 'landscape', name: 'Tático (Paisagem)', icon: Sidebar, rotateIcon: true, Component: LayoutLandscape },
+        { id: 'dossier', name: 'Dossiê', icon: Grid, rotateIcon: false, Component: LayoutDossier },
+        { id: 'narrative', name: 'Narrativo', icon: Type, rotateIcon: false, Component: LayoutNarrative },
+        { id: 'minimal', name: 'Minimalista', icon: FileText, rotateIcon: false, Component: LayoutMinimal },
+    ] as const;
+
 
     // --- Derived State ---
     // Get current drive info
@@ -215,34 +237,49 @@ export function PublicCharacterWizard() {
     };
 
     const handleExportPdf = async () => {
+        setIsExportingPdf(true);
+        // Wait for render
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         try {
             const html2canvas = (await import('html2canvas')).default;
             const jsPDF = (await import('jspdf')).default;
 
-            const element = document.getElementById('character-card-export');
-            if (!element) return;
+            const element = document.getElementById('pdf-export-target');
+            if (!element) {
+                console.error("PDF export target not found");
+                setIsExportingPdf(false);
+                return;
+            }
 
             const canvas = await html2canvas(element, {
                 scale: 2, // Higher resolution
                 useCORS: true,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: 210 * 3.7795275591, // A4 width in pixels (approx)
             });
 
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
+            // A4 dimensions in mm
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            // const pdfHeight = pdf.internal.pageSize.getHeight();
 
-            const imgWidth = 210; // A4 width
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            // Calculate height maintaining aspect ratio
+            const imgProps = pdf.getImageProperties(imgData);
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            // If height exceeds A4, we might need multi-page or fit. 
+            // For now, let's just add the image. Most layouts are designed for single A4.
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+
             pdf.save(`${character.name || 'hunter'}-sheet.pdf`);
-        } catch (err) {
-            console.error("PDF Export failed", err);
-            alert("Erro ao gerar PDF. Tente novamente.");
+        } catch (error) {
+            console.error("Error exporting PDF:", error);
+            alert("Erro ao gerar PDF.");
+        } finally {
+            setIsExportingPdf(false);
         }
     };
 
@@ -985,12 +1022,71 @@ export function PublicCharacterWizard() {
                                 Revise todos os detalhes abaixo. Se precisar corrigir algo, use o botão <strong>Voltar</strong> ou clique nas abas acima.
                             </p>
                         </div>
-                        <CharacterCard
-                            character={previewCharacter}
-                            selectedManeuvers={selectedManeuverIds}
-                            refresh={availableRefresh}
-                        />
-                        <PrintableSheet character={previewCharacter} maneuvers={selectedManeuverIds} />
+                        {/* Layout Selector for Print */}
+                        <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 mb-6 print:hidden">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                                <Printer className="w-4 h-4" />
+                                Layout de Impressão
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                {printLayouts.map(layout => {
+                                    const Icon = layout.icon;
+                                    return (
+                                        <button
+                                            key={layout.id}
+                                            onClick={() => setPrintLayout(layout.id)}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all border ${printLayout === layout.id
+                                                ? 'bg-white border-primary text-primary shadow-sm'
+                                                : 'bg-white border-border text-gray-600 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <Icon className={`w-4 h-4 ${layout.rotateIcon ? 'rotate-90' : ''}`} />
+                                            {layout.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                O modelo escolhido altera a visualização prévia abaixo e a versão impressa.
+                            </p>
+                        </div>
+
+                        {/* Preview Area */}
+                        {printLayout === 'standard' ? (
+                            <>
+                                <CharacterCard
+                                    character={previewCharacter}
+                                    selectedManeuvers={selectedManeuverIds}
+                                    refresh={availableRefresh}
+                                />
+                                {/* Hidden Print Only Sheet */}
+                                <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
+                                    <LayoutStandard data={getCharacterPrintData(previewCharacter, availableRefresh)} />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="space-y-4">
+                                {/* On Screen Preview - Scaled */}
+                                <div className="w-full overflow-auto bg-gray-500/10 p-4 rounded-lg border border-gray-200 flex justify-center print:hidden">
+                                    {/* Scale transformation to fit large A4 on screen */}
+                                    <div className="origin-top scale-[0.6] sm:scale-75 md:scale-90 lg:scale-100 shadow-2xl transition-transform bg-white">
+                                        {(() => {
+                                            const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
+                                            return <SelectedLayout data={getCharacterPrintData(previewCharacter, availableRefresh)} />;
+                                        })()}
+                                    </div>
+                                </div>
+
+                                {/* Print Version - Always visible when printing */}
+                                <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
+                                    {(() => {
+                                        const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
+                                        return <SelectedLayout data={getCharacterPrintData(previewCharacter, availableRefresh)} />;
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 );
             default:
@@ -1182,11 +1278,12 @@ export function PublicCharacterWizard() {
                             <button onClick={handleExportJson} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors text-sm font-medium shadow-sm">
                                 <span>💾 <span className="hidden sm:inline">JSON</span></span>
                             </button>
-                            <button onClick={handleExportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-sm">
-                                <span>📄 <span className="hidden sm:inline">PDF</span></span>
-                            </button>
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-border hover:bg-muted transition-colors text-foreground text-sm font-medium shadow-sm">
-                                <span>🖨️ <span className="hidden sm:inline">Imprimir</span></span>
+                            <button onClick={handleExportPdf} disabled={isExportingPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-sm disabled:opacity-50">
+                                {isExportingPdf ? (
+                                    <span>⏳ Gerando...</span>
+                                ) : (
+                                    <span>📄 <span className="hidden sm:inline">Salvar PDF</span></span>
+                                )}
                             </button>
                         </div>
                     ) : currentStep < STEPS.length - 1 ? (
@@ -1211,6 +1308,22 @@ export function PublicCharacterWizard() {
                     )}
                 </div>
             </div>
+            {/* Hidden Export PDF Container */}
+            {isExportingPdf && (
+                <div id="pdf-export-target" className="fixed top-0 left-0 bg-white z-[-50]" style={{ width: '210mm', minHeight: '297mm' }}>
+                    {(() => {
+                        // Always use the selected layout for PDF export
+                        const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
+                        const exportCharacter = {
+                            ...character,
+                            maneuvers: selectedManeuverIds,
+                            skillManeuvers: selectedSkillManeuvers,
+                            gifts: selectedGifts
+                        };
+                        return <SelectedLayout data={getCharacterPrintData(exportCharacter, availableRefresh)} />;
+                    })()}
+                </div>
+            )}
         </div>
     );
 }
