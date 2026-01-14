@@ -1,6 +1,7 @@
 /**
  * Manobras de Habilidade - #iHunt
  * Manobras específicas para cada habilidade do jogo
+ * Baseado no livro oficial
  */
 
 export interface SkillManeuver {
@@ -33,21 +34,21 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
   ],
   'Assassino': [
     {
-      id: 'facada-traicoeira',
-      name: 'Facada Traiçoeira',
-      description: 'Quando atacar com Assassino usando uma arma pequena ou de ocultação fácil, como uma faca ou estilete, você ganha +2.',
+      id: 'tiro-incapacitante',
+      name: 'Tiro Incapacitante',
+      description: 'Às vezes só um tiro não é suficiente, você precisa tirar um membro, um olho, um tentáculo. Gaste um ponto de destino quando tiver sucesso em um ataque para aplicar um aspecto situacional ao alvo além dos efeitos normais.',
       skillId: 'Assassino'
     },
     {
-      id: 'sniper-porra',
-      name: 'Sniper, Porra',
-      description: 'Você ganha +2 em cada rolagem de Assassino em que estiver usando seu rifle de atirador.',
+      id: 'tiro-para-matar',
+      name: 'Tiro para Matar',
+      description: 'Contra um alvo completamente indefeso ou desatento, adicione +2 às suas ações de ataque de Assassino.',
       skillId: 'Assassino'
     },
     {
-      id: 'ataque-certeiro',
-      name: 'Ataque Certeiro',
-      description: 'Uma vez por conflito, quando acertar um ataque com Assassino, você pode gastar um ponto de destino para dobrar o dano causado.',
+      id: 'choque-e-pavor',
+      name: 'Choque e Pavor',
+      description: 'Você tem uma invocação grátis adicional para qualquer consequência causada com a sua habilidade Assassino, desde que você a use para aterrorizar, intimidar ou distrair.',
       skillId: 'Assassino'
     }
   ],
@@ -55,51 +56,45 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'segue-o-fluxo',
       name: 'Segue o Fluxo',
-      description: 'Depois da primeira ação de parkour bem-sucedida na cena, todas as outras ações de parkour ganham +2.',
+      description: 'Você é um mestre de parkour. Depois da primeira ação de Atleta baseada em parkour ou movimento na cena, todas as outras ganham +2.',
       skillId: 'Atleta'
     },
     {
       id: 'cara-muito-liso',
       name: 'O Cara É Muito Liso',
-      description: 'Sempre que usar Atleta para desviar de um ataque, você ganha +2.',
+      description: 'Ninguém consegue encostar em você se você não quiser. Sempre que usar Atleta para desviar de um ataque, adicione +2.',
       skillId: 'Atleta'
     },
     {
       id: 'vence-pelo-cansaco',
       name: 'Vence Pelo Cansaço',
-      description: 'Ao vencer uma perseguição usando Atleta, o oponente ganha a condição EXAUSTO.',
+      description: 'Depois que você começa, você não para mais. Sempre que ganhar de outro personagem em uma perseguição, você dá a essa pessoa a condição situacional de EXAUSTA.',
       skillId: 'Atleta'
     },
     {
       id: 'sem-paredes-sem-mestres',
       name: 'Sem Paredes, Sem Mestres',
-      description: 'Mova-se por uma zona adicional por conflito. +2 para superar obstáculos entre zonas.',
+      description: 'Você pode se mover livremente por uma zona adicional por conflito. Qualquer rolagem para superar obstáculos entre zonas físicas ganha +2.',
       skillId: 'Atleta'
     }
   ],
   'Lutador': [
     {
-      id: 'artes-marciais',
-      name: 'Artes Marciais',
-      description: 'Escolha um estilo de luta específico. Quando lutar usando esse estilo, você ganha +2 em rolagens de ataque.',
+      id: 'ma-reputacao',
+      name: 'Má Reputação',
+      description: 'Você só traz problemas, e todo mundo sabe disso. Ao gastar um ponto de destino, você pode substituir qualquer habilidade por Lutador, desde que esteja usando sua reputação como alguém que sabe meter porrada.',
       skillId: 'Lutador'
     },
     {
-      id: 'duro-de-derrubar',
-      name: 'Duro de Derrubar',
-      description: 'Uma vez por conflito, você pode absorver 2 pontos de stress físico adicional quando atingido.',
+      id: 'finta',
+      name: 'Finta',
+      description: 'Você dá um drible nos seus oponentes antes de dar o golpe final. Quando criar uma vantagem dando um ataque em falso para deixar seu oponente desprotegido, ganhe uma invocação grátis adicional.',
       skillId: 'Lutador'
     },
     {
-      id: 'golpe-devastador',
-      name: 'Golpe Devastador',
-      description: 'Quando conseguir um sucesso com estilo em um ataque com Lutador, você pode renunciar ao impulso para causar +2 de dano.',
-      skillId: 'Lutador'
-    },
-    {
-      id: 'lutador-de-rua',
-      name: 'Lutador de Rua',
-      description: 'Você aprendeu a lutar nas ruas. Pode usar objetos do ambiente como armas improvisadas sem penalidade.',
+      id: 'venca-a-dor',
+      name: 'Vença a Dor',
+      description: 'Uma vez por capítulo você pode gastar um ponto de destino para reduzir uma consequência moderada para uma leve, se tiver espaço, ou simplesmente apagar uma consequência leve.',
       skillId: 'Lutador'
     }
   ],
@@ -113,13 +108,13 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'calunia-difamacao',
       name: 'Calúnia e Difamação',
-      description: 'Você pode usar Trambiqueiro para atacar personagens mentalmente, agredindo suas reputações e imagens públicas.',
+      description: 'Você pode usar Trambiqueiro para atacar personagens mentalmente, agredindo suas reputações e imagens públicas. Isso entra no lugar da ação de ataque de Influencer.',
       skillId: 'Trambiqueiro'
     },
     {
       id: 'identidade-secreta-perfeita',
       name: 'Identidade Secreta Perfeita',
-      description: 'Você criou e aperfeiçoou uma identidade alternativa específica. Quando estiver usando essa identidade, todas as suas ações de Trambiqueiro são nível +2.',
+      description: 'Você criou e aperfeiçoou uma identidade alternativa específica, e treinou como interpretá-la perfeitamente. Quando estiver usando essa identidade, todas as suas ações de Trambiqueiro são nível +2.',
       skillId: 'Trambiqueiro'
     }
   ],
@@ -139,13 +134,13 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'sacrificio-pela-equipe',
       name: 'Faça Esse Sacrifício Pela Equipe',
-      description: 'Sempre que um colega próximo estiver sofrendo stress, você pode gastar um ponto de destino para pegar para você qualquer quantidade desse stress.',
+      description: 'Sempre que um colega próximo estiver sofrendo stress, você pode gastar um ponto de destino para pegar para você qualquer quantidade desse stress. Você precisa explicar como seu plano diminuiu o dano.',
       skillId: 'Guerrilheiro'
     },
     {
       id: 'movimento-de-equipe',
       name: 'Movimento de Equipe',
-      description: 'Quando usar uma ação de superar para se mover através de zonas múltiplas ou obstruídas, sua equipe inteira pode fazer o mesmo sem rolar.',
+      description: 'Quando usar uma ação de superar para se mover através de zonas múltiplas ou obstruídas, sua equipe inteira pode fazer o mesmo sem rolar e sem usarem suas ações.',
       skillId: 'Guerrilheiro'
     }
   ],
@@ -153,7 +148,7 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'anonimidade',
       name: 'Anonimidade',
-      description: 'Você pode usar Hacker para se defender contra ataques eletrônicos ou baseados na sua identidade. Adicione +2 à oposição em qualquer desses ataques contra você.',
+      description: 'Você pode usar Hacker para se defender contra ataques eletrônicos ou baseados na sua identidade, e em ações de criar vantagem. Adicione +2 à oposição ativa ou passiva nesses ataques contra você.',
       skillId: 'Hacker'
     },
     {
@@ -165,13 +160,13 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'forca-bruta',
       name: 'Força Bruta',
-      description: 'Quando tiver falhado ao tentar invadir um sistema com Hacker, sua próxima tentativa tem +2.',
+      description: 'Quando tiver falhado ao tentar invadir um sistema com Hacker, seja digital ou social, a sua próxima tentativa tem +2.',
       skillId: 'Hacker'
     },
     {
       id: 'porta-dos-fundos',
       name: 'Porta dos Fundos',
-      description: 'Quando estiver explorando zonas no espaço digital, você não precisa rolar para se mover uma zona extra, e rolagens para zonas obstruídas ganham +2.',
+      description: 'Quando estiver explorando zonas no espaço digital, você não precisa rolar para se mover uma zona extra por interação, e rolagens para se mover por zonas obstruídas ganham +2.',
       skillId: 'Hacker'
     }
   ],
@@ -179,59 +174,65 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'vestida-para-sucesso',
       name: 'Vestida(o) para o Sucesso',
-      description: 'Quando criar uma vantagem baseada em montar seu look ou apresentação pública antes de um evento, você ganha uma invocação grátis adicional.',
+      description: 'Quando criar uma vantagem baseada em montar seu look ou sua apresentação pública antes de um evento, você ganha uma invocação grátis adicional para esse aspecto.',
       skillId: 'Influencer'
     },
     {
       id: 'participe-da-minha-live',
       name: 'Participe da Minha Live',
-      description: 'Se você permitir, outros jogadores podem usar sua habilidade de Influencer em vez de suas próprias. Mas se falharem, você também sofre as consequências.',
+      description: 'Se você permitir, outros jogadores podem usar a sua habilidade de Influencer em vez de suas próprias. Mas se eles falharem, você também sofre as consequências.',
       skillId: 'Influencer'
     },
     {
       id: 'meia-volta',
       name: 'Meia-Volta',
-      description: 'Uma vez por sessão, quando enfrentar um chamado de um de seus aspectos, pode escolher mudar seu aspecto, invalidando o chamado. O aspecto nunca mais voltará ao que era.',
+      description: 'Uma vez por sessão, quando enfrentar um chamado de um dos seus aspectos, você pode escolher mudar seu aspecto. Se fizer isso, invalida o chamado e quaisquer pontos de destino são devolvidos. O aspecto nunca mais voltará ao que era.',
       skillId: 'Influencer'
     }
   ],
   'Investigador': [
     {
-      id: 'atencao-aos-detalhes',
-      name: 'Atenção aos Detalhes',
-      description: 'Você sempre nota pequenos detalhes que outros ignoram. +2 quando usar Investigador para criar vantagens baseadas em observação.',
+      id: 'percepcao-de-entropia',
+      name: 'Percepção de Entropia',
+      description: 'Você é muito bom em encontrar pontos fracos. Quando cria uma vantagem ao indicar um ponto fraco, você ganha uma invocação grátis que só pode ser usada em ações de ataque.',
       skillId: 'Investigador'
     },
     {
-      id: 'leitura-fria',
-      name: 'Leitura Fria',
-      description: 'Você pode usar Investigador para criar vantagens sobre pessoas que acabou de conhecer, deduzindo informações sobre elas.',
+      id: 'desmascarando',
+      name: 'Desmascarando',
+      description: 'Você consegue perceber o que é besteira rapidinho. Qualquer ação de Investigador para desmascarar (ou confirmar) uma fraude ou teoria da conspiração ganha +2.',
       skillId: 'Investigador'
     },
     {
-      id: 'rede-de-informantes',
-      name: 'Rede de Informantes',
-      description: 'Quando gastar um ponto de destino para adicionar um detalhe à história, você pode criar um informante que te deve um favor.',
+      id: 'elementar',
+      name: 'Elementar',
+      description: 'Você é muito bom em anunciar detalhes aparentemente nada a ver que vão se tornar realidade. Ao gastar um ponto de destino para declarar um detalhe, também pode criar um aspecto com invocação grátis que só pode ser usado em ações de Investigador.',
       skillId: 'Investigador'
     }
   ],
   'Criador': [
     {
-      id: 'gambiarras',
-      name: 'Gambiarras',
-      description: 'Você pode criar equipamentos improvisados usando Criador. Esses equipamentos funcionam por uma cena antes de quebrar.',
+      id: 'plano-reserva',
+      name: 'Plano Reserva',
+      description: 'Você sempre tem um plano alternativo. Quando criar uma vantagem com Criador, você pode criar dois aspectos, mas só tem uma invocação grátis para usar entre eles.',
       skillId: 'Criador'
     },
     {
-      id: 'mestre-das-ferramentas',
-      name: 'Mestre das Ferramentas',
-      description: 'Quando usar ferramentas apropriadas para a tarefa, você ganha +2 em rolagens de Criador.',
+      id: 'manufatura-de-qualidade',
+      name: 'Manufatura de Qualidade',
+      description: 'Você tem orgulho do seu trabalho e qualquer objeto que você tenha criado é mais difícil de destruir. Ele ganha +2 de defesa ou oposição passiva contra qualquer tentativa de desmontá-lo ou destruí-lo.',
       skillId: 'Criador'
     },
     {
-      id: 'reparo-rapido',
-      name: 'Reparo Rápido',
-      description: 'Você pode usar Criador para remover aspectos de equipamentos quebrados ou danificados, sem precisar de oficina.',
+      id: 'tendencias-de-design',
+      name: 'Tendências de Design',
+      description: 'Quando estiver lidando com tendências conhecidas de tecnologia e design, você pode usar sua habilidade Criador no lugar de qualquer outra habilidade.',
+      skillId: 'Criador'
+    },
+    {
+      id: 'drone-utilitario',
+      name: 'Drone Utilitário',
+      description: 'Quando criar um drone para propósitos utilitários, você pode gastar um ponto de destino para dar a ele uma habilidade de nível igual à sua habilidade Criador.',
       skillId: 'Criador'
     }
   ],
@@ -239,19 +240,31 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'primeiros-socorros',
       name: 'Primeiros Socorros',
-      description: 'Você pode usar Médico para começar a recuperação de consequências físicas uma categoria mais leve que o normal.',
+      description: 'Qualquer rolagem de Médico para intervir e diagnosticar ou impedir que um problema médico piore ganha +2.',
       skillId: 'Médico'
     },
     {
-      id: 'diagnostico-preciso',
-      name: 'Diagnóstico Preciso',
-      description: 'Quando examinar alguém com Médico, você pode descobrir exatamente o que há de errado com a pessoa, ganhando uma invocação grátis em um aspecto revelado.',
+      id: 'melhorar-o-desempenho',
+      name: 'Melhorar o Desempenho',
+      description: 'Se você adaptar a dosagem de uma droga especialmente para um indivíduo e criar uma vantagem, ele ganha uma invocação grátis adicional.',
       skillId: 'Médico'
     },
     {
-      id: 'farmacologia',
-      name: 'Farmacologia',
-      description: 'Você conhece drogas e medicamentos. Pode usar Médico para criar vantagens relacionadas a sedativos, venenos ou curas.',
+      id: 'primeiro-cause-dano',
+      name: 'Primeiro, Cause Dano',
+      description: 'Se você não tiver medo de jogar a ética fora, você pode usar a sua habilidade Médico no lugar de Assassino quando estiver tentando causar dano a alguém.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'medico-de-combate',
+      name: 'Médico de Combate',
+      description: 'Uma vez por sessão, você pode tratar feridas rapidamente. Gaste um ponto de destino para reduzir uma consequência moderada de dano físico para leve, se houver espaço, ou remover uma consequência leve.',
+      skillId: 'Médico'
+    },
+    {
+      id: 'deixa-comigo',
+      name: 'Deixa Comigo',
+      description: 'Você pode ignorar a penalidade normal de dificuldade +2 ao tratar suas próprias consequências.',
       skillId: 'Médico'
     }
   ],
@@ -259,7 +272,7 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'amuletos-de-defesa',
       name: 'Amuletos de Defesa',
-      description: 'Se você sabe contra o que está lutando e tem pelo menos dez minutos para se preparar, pode se defender contra habilidades sobrenaturais com Ocultista.',
+      description: 'Se você sabe contra o que está lutando e tem pelo menos dez minutos para se preparar antes de um encontro, você pode se defender contra habilidades sobrenaturais com Ocultista.',
       skillId: 'Ocultista'
     },
     {
@@ -271,7 +284,7 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'cacador-de-conhecimento',
       name: 'Caçador de Conhecimento',
-      description: 'Uma vez por sessão, quando criar uma vantagem baseada em conhecimento sobrenatural, você ganha uma invocação grátis adicional.',
+      description: 'Seu conhecimento sobre tradições sobrenaturais é profundo. Uma vez por sessão, quando criar uma vantagem com base em um factoide sobre o sobrenatural, você ganha uma invocação grátis adicional.',
       skillId: 'Ocultista'
     }
   ],
@@ -279,13 +292,13 @@ export const SKILL_MANEUVERS: Record<string, SkillManeuver[]> = {
     {
       id: 'discurso-impressionante',
       name: 'Discurso Impressionante',
-      description: 'Uma vez por sessão, antes de um grande confronto, se der um discurso motivacional, o aspecto que criar ganha uma invocação grátis adicional.',
+      description: 'Uma vez por sessão, antes de um grande confronto, se você der um discurso motivacional, o aspecto que criar ganha uma invocação grátis adicional.',
       skillId: 'Organizador'
     },
     {
       id: 'tamo-junto',
       name: 'Tamo Junto',
-      description: 'Se um membro da equipe estiver sofrendo stress mental, pode usar sua habilidade de Organizador em vez da original, ou ganhar +2. Se falhar, você ganha o mesmo stress.',
+      description: 'Se um membro da equipe estiver sofrendo stress mental, ele pode usar sua habilidade de Organizador em vez da original, ou ganhar +2. Se falhar, você ganha o mesmo stress.',
       skillId: 'Organizador'
     },
     {
