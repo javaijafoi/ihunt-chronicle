@@ -102,7 +102,7 @@ export interface UnifiedAspect {
   severity?: 'mild' | 'moderate' | 'severe';
 
   // Para temas
-  scope?: 'campaign' | 'season' | 'episode';
+  scope?: 'campaign' | 'season';
 }
 
 export interface SceneAspect {
@@ -176,7 +176,6 @@ export interface Scene {
   aspects: SceneAspect[];
   isActive: boolean;
   order: number;
-  episodeId: string;
   campaignId: string;
 }
 
@@ -216,7 +215,6 @@ export interface Selfie {
   usedAt?: string; // ISO Date da última utilização
 
   // NOVOS CAMPOS
-  grantedByEpisodeId: string;    // Qual episódio liberou este slot
   advancementApplied?: {         // Registro do avanço escolhido
     type: 'swap_skills' | 'rename_aspect' | 'skill_point' | 'clear_severe' | 'refresh' | 'maneuver_swap';
     details: Record<string, any>;
@@ -227,7 +225,6 @@ export interface Selfie {
 export interface SelfieSlot {
   id: string;
   type: SelfieType;
-  grantedBy: string; // episodeId
   used: boolean;
   usedAt?: Timestamp | Date;
   createdAt: Timestamp | Date;
@@ -266,7 +263,6 @@ export interface Archetype {
 export interface ActiveNPC {
   id: string;
   campaignId: string;
-  episodeId: string | null;
   name: string; // Nome único na sessão (ex: "Vlad")
   archetypeId: string; // Referência ao arquétipo original
   archetypeName: string; // Cache do nome do arquétipo (ex: "Vampiro Comum")

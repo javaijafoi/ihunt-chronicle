@@ -12,36 +12,24 @@ import {
 
 export function useSelfieEngine() {
 
-    // Chamado quando GM encerra um episódio
-    const closeEpisodeAndGrantSlots = async (
-        episodeId: string,
-        closedAs: 'episode' | 'story_climax' | 'season_finale',
-        campaignId: string
+
+    // Manually grant slots to all characters or specific ones
+    const grantSelfieSlotToAll = async (
+        campaignId: string,
+        slotType: SelfieType,
+        reason: string // e.g., "Sessão encerrada", "Auge da História"
     ) => {
         try {
             const batch = writeBatch(db);
 
-            // 1. Atualizar status do episódio
-            batch.update(doc(db, 'episodes', episodeId), {
-                status: 'closed',
-                closedAs,
-                closedAt: serverTimestamp()
-            });
-
-            // 2. Determinar tipo de slot baseado no encerramento
-            const slotType: SelfieType =
-                closedAs === 'episode' ? 'mood' :
-                    closedAs === 'story_climax' ? 'auge' : 'mudanca';
-
-            // 3. Buscar todos os personagens da campanha
-            // Nota: Idealmente filtramos apenas personagens ativos/não arquivados
+            // 1. Buscar todos os personagens da campanha
             const charsQuery = query(
                 collection(db, 'characters'),
                 where('campaignId', '==', campaignId)
             );
             const charsSnap = await getDocs(charsQuery);
 
-            // 4. Criar slot para cada personagem
+            // 2. Criar slot para cada personagem
             for (const charDoc of charsSnap.docs) {
                 const charData = charDoc.data();
                 const currentSlots = charData.selfieSlots || [];
@@ -49,9 +37,9 @@ export function useSelfieEngine() {
                 const newSlot = {
                     id: crypto.randomUUID(),
                     type: slotType,
-                    grantedBy: episodeId,
+                    grantedBy: reason, // Was episodeId
                     used: false,
-                    createdAt: serverTimestamp() // Firestore ok com Date em clients modernos ou converter se necessário
+                    createdAt: serverTimestamp()
                 };
 
                 batch.update(charDoc.ref, {
@@ -62,12 +50,12 @@ export function useSelfieEngine() {
             await batch.commit();
             return true;
         } catch (error) {
-            console.error("Error closing episode and granting slots:", error);
+            console.error("Error granting slots:", error);
             throw error;
         }
     };
 
     return {
-        closeEpisodeAndGrantSlots
+        grantSelfieSlotToAll
     };
 }

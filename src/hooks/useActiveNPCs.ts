@@ -64,7 +64,7 @@ export function useActiveNPCs(campaignId: string | undefined) {
         campaignId,
 
         sceneId: null, // Starts "guarded" / off-scene
-        episodeId: null,
+        // episodeId: null, // Removed
         hasToken: false,
         notes: "",
         sceneTags: [],

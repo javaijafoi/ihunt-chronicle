@@ -21,7 +21,7 @@ interface NewSelfieFormProps {
     onClose: () => void;
     onSubmit: (selfie: Selfie) => Promise<void>;
     type?: SelfieType;
-    episodeId?: string;
+    episodeId?: string; // Opt
 }
 
 export function NewSelfieForm({
@@ -30,7 +30,6 @@ export function NewSelfieForm({
     onClose,
     onSubmit,
     type: initialType = 'mood',
-    episodeId
 }: NewSelfieFormProps) {
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState('');
@@ -66,7 +65,7 @@ export function NewSelfieForm({
                 url: imageUrl,
                 isAvailable: true,
                 createdAt: new Date().toISOString(),
-                grantedByEpisodeId: episodeId || ''
+                // grantedByEpisodeId: '' // Removed
             };
 
             await onSubmit(newSelfie);

@@ -40,7 +40,7 @@ export function AdminDashboard() {
         return (
             <div className="p-4 flex items-center gap-2 text-destructive bg-destructive/10 rounded-lg">
                 <AlertCircle className="w-4 h-4" />
-                <span>Erro ao carregar regras: {error}</span>
+                <span className="font-bold">Erro ao carregar regras: {error?.message || String(error)}</span>
             </div>
         );
     }

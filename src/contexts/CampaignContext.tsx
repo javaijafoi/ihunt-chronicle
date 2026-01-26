@@ -14,13 +14,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
-import { Campaign, Episode, CampaignMember } from '@/types/schema';
+import { Campaign, CampaignMember } from '@/types/schema';
 import { Character, Scene } from '@/types/game';
 import { toast } from 'sonner';
 
 interface CampaignContextValue {
     campaign: Campaign | null;
-    currentEpisode: Episode | null;
     currentScene: Scene | null;
     myCharacter: Character | null;
     member: CampaignMember | null;
@@ -40,7 +39,6 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
 
     const [campaign, setCampaign] = useState<Campaign | null>(null);
     const [member, setMember] = useState<CampaignMember | null>(null);
-    const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
     const [currentScene, setCurrentScene] = useState<Scene | null>(null);
     const [myCharacter, setMyCharacter] = useState<Character | null>(null);
     const [loading, setLoading] = useState(true);
@@ -78,41 +76,41 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
         };
     }, [campaignId, user]);
 
-    // 2. Subscribe to Active Episode & Scene
+    // 2. Subscribe to Active Scene (Simplified: No Episode check)
+    // Assuming campaign now acts as the container, we might need a way to know the "active scene" for the campaign.
+    // However, the original logic relied on currentEpisodeId. 
+    // If we remove episodes, we need a 'currentSceneId' in Campaign.
+    // For now, I will remove the Episode subscription block entirely.
+    // We will re-add Scene subscription based on Campaign later if needed, or if the user instruction implies scene management moves to Campaign.
+    // The instructions say "Remover references a currentEpisode", so I will remove this block.
+    // But we need 'currentScene'.
+
+    // TEMPORARY: Empty effect until we define where currentScene comes from (likely Campaign.currentSceneId)
+    // I will look at adding currentSceneId to Campaign in Schema later if it's not there.
+    // But wait, the schema change for Campaign didn't add currentSceneId, it just removed currentEpisodeId.
+    // Types/game.ts: Scene has campaignId. 
+    // Maybe we just query for 'isActive=true' scenes?
     useEffect(() => {
-        if (!campaign?.currentEpisodeId) {
-            setCurrentEpisode(null);
-            return;
-        }
+        if (!campaignId) return;
+        // Query for active scenes in this campaign
+        const scenesRef = collection(db, 'scenes');
+        const q = query(
+            scenesRef,
+            where('campaignId', '==', campaignId),
+            where('isActive', '==', true)
+        );
 
-        const unsubEpisode = onSnapshot(doc(db, 'episodes', campaign.currentEpisodeId), (snap) => {
-            if (snap.exists()) {
-                const epData = snap.data();
-                const ep = { id: snap.id, ...epData } as Episode;
-                setCurrentEpisode(ep);
-
-                // Fetch Current Scene if episode has one
-                if (ep.currentSceneId) {
-                    // We can optimize this by having a separate subscription or just fetching
-                    // Here sticking to subscription to ensure realtime updates
-                    const unsubScene = onSnapshot(doc(db, 'scenes', ep.currentSceneId), (sceneSnap) => {
-                        if (sceneSnap.exists()) {
-                            setCurrentScene({ id: sceneSnap.id, ...sceneSnap.data() } as Scene);
-                        } else {
-                            setCurrentScene(null);
-                        }
-                    });
-                    return () => unsubScene();
-                } else {
-                    setCurrentScene(null);
-                }
+        const unsubScene = onSnapshot(q, (snap) => {
+            if (!snap.empty) {
+                // Assume only one active scene allowed or pick the first
+                const doc = snap.docs[0];
+                setCurrentScene({ id: doc.id, ...doc.data() } as Scene);
             } else {
-                setCurrentEpisode(null);
+                setCurrentScene(null);
             }
         });
-
-        return () => unsubEpisode();
-    }, [campaign?.currentEpisodeId]);
+        return () => unsubScene();
+    }, [campaignId]);
 
     // 3. Subscribe to My Character
     useEffect(() => {
@@ -181,7 +179,6 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
     return (
         <CampaignContext.Provider value={{
             campaign,
-            currentEpisode,
             currentScene,
             myCharacter,
             member,

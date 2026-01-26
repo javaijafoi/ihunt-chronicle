@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
-import { useEpisode } from '@/hooks/useEpisode';
+// import { useEpisode } from '@/hooks/useEpisode'; // Removed
 import { useScenes } from '@/hooks/useScenes';
 import { useActiveNPCs } from '@/hooks/useActiveNPCs';
 import { useTokens } from '@/hooks/useTokens';
@@ -53,20 +53,20 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const { user, userProfile, signOut } = useAuth();
 
   // New Context Hooks
-  const { campaign, currentEpisode, currentScene, isGM, myCharacter, selectCharacter, loading: campaignLoading } = useCampaign();
-  const { episodeId, campaignId } = { episodeId: currentEpisode?.id, campaignId: campaign?.id };
+  const { campaign, currentScene, isGM, myCharacter, selectCharacter, loading: campaignLoading } = useCampaign();
+  const { campaignId } = { campaignId: campaign?.id };
 
   // Derived Hooks
-  const { scenes, activeScene, createScene, updateScene, deleteScene, setActiveScene, archiveScene, unarchiveScene, searchQuery: sceneSearchQuery, setSearchQuery: setSceneSearchQuery, MIN_ASPECTS } = useScenes(episodeId, campaignId, isGM);
+  const { scenes, activeScene, createScene, updateScene, deleteScene, setActiveScene, archiveScene, unarchiveScene, searchQuery: sceneSearchQuery, setSearchQuery: setSceneSearchQuery, MIN_ASPECTS } = useScenes(campaignId, isGM);
   const { activeNPCs, updateNPC } = useActiveNPCs(campaignId);
   const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(activeScene?.id, campaignId);
   const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters(campaignId);
   const { updateCharacter: updateFirebaseCharacter } = useFirebaseCharacters(undefined); // Removed SessionID dependency? need to check implementation
 
-  const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(episodeId, campaignId, isGM);
-  const { allAspects, invokeAspect } = useAspects(campaignId || '', episodeId || '', activeScene?.id);
+  const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(campaignId, isGM);
+  const { allAspects, invokeAspect } = useAspects(campaignId || '', activeScene?.id);
 
-  const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(episodeId, campaignId, isGM);
+  const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(campaignId, isGM);
 
   // Local State
   const [viewingCharacterId, setViewingCharacterId] = useState<string | null>(null);
@@ -353,17 +353,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
       </motion.header>
 
       {/* Active Episode Warning */}
-      {!currentEpisode && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-500 flex items-center justify-center gap-2 shrink-0 animate-in slide-in-from-top-2">
-          <span className="font-bold">⚠️ Modo Lobby:</span>
-          <span>Nenhum episódio ativo. Histórico salvo no registro geral.</span>
-          {isGM && (
-            <Link to="/episodes" className="underline hover:text-amber-400 ml-2 font-bold">
-              Criar/Ativar Episódio
-            </Link>
-          )}
-        </div>
-      )}
+      {/* Active Episode Warning - Removed */}
 
       <XCardOverlay safetyState={safetyState} currentUserId={user?.uid} isGM={isGM} onResolve={resolveXCard} />
 
@@ -547,7 +537,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
       <Dialog open={showAspects} onOpenChange={setShowAspects}>
         <DialogContent className="max-w-md h-[80vh] p-0 bg-transparent border-none overflow-hidden shadow-2xl">
           <DialogTitle className="sr-only">Hub de Aspectos</DialogTitle>
-          <AspectHub campaignId={campaignId || ''} episodeId={episodeId || ''} onClose={() => setShowAspects(false)} />
+          <AspectHub campaignId={campaignId || ''} onClose={() => setShowAspects(false)} />
         </DialogContent>
       </Dialog>
 

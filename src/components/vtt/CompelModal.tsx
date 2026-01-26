@@ -21,7 +21,7 @@ interface CompelRequest {
 
 export function CompelModal({ campaignId, myCharacterId }: { campaignId: string; myCharacterId?: string }) {
     const [request, setRequest] = useState<CompelRequest | null>(null);
-    const { updateFate, addLog } = useGameActions('', campaignId, false); // EpisodeId might be needed?
+    const { updateFate, addLog } = useGameActions(campaignId, false);
     // We'll fetch episodeId dynamically if needed or just pass empty if log doesn't strictly require it (GameLog usually does)
     // Ideally passed as prop, but let's assume loose coupling for now.
 

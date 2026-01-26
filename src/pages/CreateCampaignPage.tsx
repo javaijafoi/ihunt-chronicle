@@ -43,7 +43,7 @@ export function CreateCampaignPage() {
                 },
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                currentEpisodeId: null,
+
                 members: [user.uid] // Basic array for index-less querying until we have subcollections sorted
             } as Omit<Campaign, 'id'>);
 

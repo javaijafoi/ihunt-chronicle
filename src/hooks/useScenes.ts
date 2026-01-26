@@ -29,14 +29,14 @@ export interface ExtendedScene extends Scene {
   isArchived?: boolean;
 }
 
-export function useScenes(episodeId: string | undefined, campaignId: string | undefined, isGM: boolean = false) {
+export function useScenes(campaignId: string | undefined, isGM: boolean = false) {
   const [allScenes, setAllScenes] = useState<ExtendedScene[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Subscribe to scenes collection
   useEffect(() => {
-    if (!episodeId) {
+    if (!campaignId) {
       setAllScenes([]);
       setLoading(false);
       return;
@@ -48,8 +48,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
 
     const scenesQuery = query(
       scenesRef,
-      where('episodeId', '==', episodeId),
-      where('campaignId', '==', campaignId) // Required for security rules
+      where('campaignId', '==', campaignId)
     );
 
     const unsubscribe = onSnapshot(
@@ -73,7 +72,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
     );
 
     return () => unsubscribe();
-  }, [episodeId]);
+  }, [campaignId]);
 
   // Filter scenes based on user role
   const scenes = useMemo(() => {
@@ -124,8 +123,8 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
   }, []);
 
   const createScene = useCallback(
-    async (sceneData: Omit<Scene, 'id' | 'episodeId' | 'campaignId' | 'order'>) => {
-      if (!episodeId || !campaignId) return null;
+    async (sceneData: Omit<Scene, 'id' | 'campaignId' | 'order'>) => {
+      if (!campaignId) return null;
 
       const validatedAspects = validateAspects(sceneData.aspects || []);
 
@@ -137,7 +136,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
 
         await setDoc(sceneRef, {
           ...sceneData,
-          episodeId,
+          ...sceneData,
           campaignId,
           aspects: validatedAspects,
           isActive: isFirstScene || sceneData.isActive,
@@ -147,14 +146,11 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
           updatedAt: serverTimestamp(),
         });
 
-        // If active, update episode currentSceneId
-        if (isFirstScene || sceneData.isActive) {
-          const epRef = doc(db, 'episodes', episodeId);
-          await updateDoc(epRef, {
-            currentSceneId: sceneId,
-            // We might not need to duplicate aspect data here anymore if Clients subscribe to Scene directly
-          });
-        }
+        // If active, update episode currentSceneId - REMOVED for Phase 3
+        /* if (isFirstScene || sceneData.isActive) {
+           // Logic to ensure only one scene is active is handled in setActiveScene
+           // For creation, if we set isActive=true, we might want to deactivate others, but let's leave that to setActiveScene or manual actions for now to simplify
+        } */
 
         toast.success(`Cena "${sceneData.name}" criada.`);
         return sceneId;
@@ -164,7 +160,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
         return null;
       }
     },
-    [episodeId, campaignId, allScenes.length, validateAspects]
+    [campaignId, allScenes.length, validateAspects]
   );
 
   const updateScene = useCallback(
@@ -211,7 +207,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
 
   const setActiveScene = useCallback(
     async (sceneId: string) => {
-      if (!episodeId) return;
+      if (!campaignId) return;
 
       try {
         const batch = writeBatch(db);
@@ -236,10 +232,11 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
           }
         }
 
-        const epRef = doc(db, 'episodes', episodeId);
-        batch.update(epRef, {
-          currentSceneId: sceneId
-        });
+        // Episode update removed
+        // const epRef = doc(db, 'episodes', episodeId);
+        // batch.update(epRef, {
+        //   currentSceneId: sceneId
+        // });
 
         await batch.commit();
 
@@ -249,7 +246,7 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
         toast.error('Erro ao trocar cena.');
       }
     },
-    [episodeId, allScenes, validateAspects]
+    [campaignId, allScenes, validateAspects]
   );
 
   const archiveScene = useCallback(

@@ -8,7 +8,7 @@ import { Sparkles } from 'lucide-react';
 
 interface SceneCanvasProps {
   scene: Scene | null;
-  episodeId?: string;
+  // episodeId?: string;
   tokens?: Token[];
   aspects?: SceneAspect[];
   onInvokeAspect?: (aspectName: string, useFree?: boolean) => void;
@@ -24,7 +24,7 @@ interface SceneCanvasProps {
 
 export function SceneCanvas({
   scene,
-  episodeId,
+  // episodeId,
   // ... props
   tokens = [],
   aspects = [],

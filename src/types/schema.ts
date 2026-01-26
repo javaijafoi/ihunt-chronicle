@@ -13,8 +13,8 @@ export interface Campaign {
     description: string;
     gmId: string;
     joinCode: string; // indexed, unique
-    currentEpisodeId: string | null;
     status: 'active' | 'archived';
+    gmFatePool?: number; // Added
     theme: {
         tone: string;
         safetyTools: string[];
@@ -50,18 +50,4 @@ export interface Story {
     themeAspect?: string;
 }
 
-export type EpisodeStatus = 'draft' | 'active' | 'closed';
-export type EpisodeClosingType = 'episode' | 'story_climax' | 'season_finale';
 
-export interface Episode {
-    id: string;
-    storyId: string; // indexed
-    campaignId: string; // indexed
-    title: string;
-    status: EpisodeStatus;
-    closedAs?: EpisodeClosingType;
-    currentSceneId: string | null;
-    gmFatePool: number;
-    createdAt?: Timestamp | Date;
-    closedAt?: Timestamp | Date;
-}

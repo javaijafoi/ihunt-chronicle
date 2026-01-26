@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useSession } from './useSession';
+// import { useSession } from './useSession';
 import { usePartyCharacters } from './usePartyCharacters';
 import { useActiveNPCs } from './useActiveNPCs';
 import { useScenes } from './useScenes';
@@ -9,18 +9,18 @@ import { useCampaign } from '@/contexts/CampaignContext';
 import { useGameActions } from './useGameActions';
 import { useFirebaseCharacters } from './useFirebaseCharacters';
 
-export function useAspects(campaignId: string, episodeId: string, sceneId?: string) {
+export function useAspects(campaignId: string, sceneId?: string) {
     const { user } = useAuth();
     const { campaign } = useCampaign();
-    const { currentSession } = useSession();
+    // const { currentSession } = useSession();
     const { partyCharacters } = usePartyCharacters(campaignId);
     const { activeNPCs } = useActiveNPCs(campaignId);
     // useScenes returns activeScene as the current active scene
-    const { activeScene, updateScene } = useScenes(episodeId, campaignId);
+    const { activeScene, updateScene } = useScenes(campaignId);
     const currentScene = activeScene; // Alias for compatibility
 
     // Hooks for actions
-    const { updateFate, addLog } = useGameActions(episodeId, campaignId, currentSession?.gmId === user?.uid);
+    const { updateFate, addLog } = useGameActions(campaignId, campaign?.gmId === user?.uid);
     const { updateCharacter } = useFirebaseCharacters(campaignId);
 
     // Identify my character
@@ -41,10 +41,10 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
                 name,
                 source: 'theme',
                 ownerType: 'campaign',
-                ownerName: currentSession?.name || 'Campanha',
+                ownerName: campaign?.title || 'Campanha',
                 freeInvokes: 0,
                 usedThisScene: false,
-                createdBy: currentSession?.gmId || '',
+                createdBy: campaign?.gmId || '',
                 isTemporary: false,
                 scope: 'campaign'
             });
@@ -128,7 +128,7 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
                     ownerType: 'npc',
                     freeInvokes: 0,
                     usedThisScene: false,
-                    createdBy: currentSession?.gmId || '',
+                    createdBy: campaign?.gmId || '',
                     isTemporary: false
                 });
             });
@@ -145,7 +145,7 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
                         ownerType: 'npc',
                         freeInvokes: 1, // Consequências vêm com 1 free invoke
                         usedThisScene: false,
-                        createdBy: currentSession?.gmId || '',
+                        createdBy: campaign?.gmId || '',
                         isTemporary: false,
                         severity: severity as 'mild' | 'moderate' | 'severe'
                     });
@@ -169,7 +169,7 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
         });
 
         return aspects;
-    }, [currentSession, partyCharacters, activeNPCs, currentScene]);
+    }, [campaign, partyCharacters, activeNPCs, currentScene]);
 
     // Funções de ação
     const invokeAspect = async (aspect: UnifiedAspect, useFree: boolean) => {

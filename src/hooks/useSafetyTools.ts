@@ -20,7 +20,7 @@ import {
     SAFETY_LEVELS
 } from '@/types/safety';
 
-export function useSafetyTools(episodeId: string | undefined, campaignId: string | undefined, isGM: boolean) {
+export function useSafetyTools(campaignId: string | undefined, isGM: boolean) {
     const { user } = useAuth();
     const [safetyState, setSafetyState] = useState<SafetyState>({
         isPaused: false,
@@ -32,10 +32,15 @@ export function useSafetyTools(episodeId: string | undefined, campaignId: string
     const [mySettings, setMySettings] = useState<Record<string, SafetyLevel>>({});
     const [loading, setLoading] = useState(true);
 
-    // 1. Listen to Safety State (Episode Level)
+    // 1. Listen to Safety State (Campaign Level for simplicity or session)
+    // Since Episodes are gone, we store safety state on the Campaign doc or a subcollection.
+    // Let's use 'safety_state' doc in 'safety_settings' collection or similar, or just a doc in 'session'.
+    // For now, let's look at a fixed doc 'safety/state' in campaign? Or just 'campaigns/{id}/safety_state/current'.
+    // To match previous 'episodes/{id}/safety/state', let's use 'campaigns/{id}/safety/state'.
+
     useEffect(() => {
-        if (!episodeId) return;
-        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
+        if (!campaignId) return;
+        const stateRef = doc(db, 'campaigns', campaignId, 'safety', 'state');
 
         const unsubscribe = onSnapshot(stateRef, (snap) => {
             if (snap.exists()) {
@@ -52,7 +57,7 @@ export function useSafetyTools(episodeId: string | undefined, campaignId: string
         });
 
         return () => unsubscribe();
-    }, [episodeId, isGM]);
+    }, [campaignId, isGM]);
 
     // 2. Listen to All Player Settings (Campaign Level)
     useEffect(() => {
@@ -128,35 +133,35 @@ export function useSafetyTools(episodeId: string | undefined, campaignId: string
     }, [user, campaignId]);
 
     const triggerXCard = useCallback(async () => {
-        if (!user || !episodeId) return;
-        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
+        if (!user || !campaignId) return;
+        const stateRef = doc(db, 'campaigns', campaignId, 'safety', 'state');
         await setDoc(stateRef, {
             isPaused: true,
             xCardTriggeredBy: user.uid,
             lastUpdated: serverTimestamp()
         }, { merge: true });
-    }, [user, episodeId]);
+    }, [user, campaignId]);
 
     const resolveXCard = useCallback(async () => {
-        if (!user || !episodeId) return;
-        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
+        if (!user || !campaignId) return;
+        const stateRef = doc(db, 'campaigns', campaignId, 'safety', 'state');
         await updateDoc(stateRef, {
             isPaused: false,
             xCardTriggeredBy: null,
             lastUpdated: serverTimestamp()
         });
-    }, [user, episodeId]);
+    }, [user, campaignId]);
 
     const togglePause = useCallback(async () => {
-        if (!episodeId) return;
+        if (!campaignId) return;
         if (safetyState.xCardTriggeredBy) return;
 
-        const stateRef = doc(db, 'episodes', episodeId, 'safety', 'state');
+        const stateRef = doc(db, 'campaigns', campaignId, 'safety', 'state');
         await updateDoc(stateRef, {
             isPaused: !safetyState.isPaused,
             lastUpdated: serverTimestamp()
         });
-    }, [episodeId, safetyState]);
+    }, [campaignId, safetyState]);
 
     return {
         safetyState,

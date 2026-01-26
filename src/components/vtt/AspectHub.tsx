@@ -16,18 +16,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface AspectHubProps {
     campaignId: string;
-    episodeId: string;
     isOpen?: boolean;
     onClose?: () => void;
 }
 
-export function AspectHub({ campaignId, episodeId, onClose }: AspectHubProps) {
+export function AspectHub({ campaignId, onClose }: AspectHubProps) {
     const {
         allAspects,
         invokeAspect,
         compelAspect,
         rejectCompel
-    } = useAspects(campaignId, episodeId);
+    } = useAspects(campaignId);
 
     const [search, setSearch] = useState('');
     const [compelTarget, setCompelTarget] = useState<{ aspect: UnifiedAspect, complication: string } | null>(null);

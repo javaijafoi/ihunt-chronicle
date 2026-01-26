@@ -6,7 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { SceneManager } from './SceneManager';
 import { ActiveNPCsPanel } from './ActiveNPCsPanel';
 import { ActiveNPCSheet } from './ActiveNPCSheet';
-import { TimelineManager } from './TimelineManager';
+// import { TimelineManager } from './TimelineManager'; // Removed
 import { ArchetypeDatabase } from './ArchetypeDatabase';
 import { CharactersDatabase } from './CharactersDatabase';
 // ... imports
@@ -80,14 +80,14 @@ export function GMPanel({
   const [selectedNPC, setSelectedNPC] = useState<ActiveNPC | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showCharacters, setShowCharacters] = useState(false);
-  const { campaign, currentEpisode } = useCampaign();
+  const { campaign } = useCampaign();
 
   const updateGMFate = async (delta: number) => {
-    if (!currentEpisode) return;
-    const current = currentEpisode.gmFatePool || 0;
+    if (!campaign) return;
+    const current = campaign.gmFatePool || 0; // Assuming this field exists now or will
     const newVal = Math.max(0, current + delta);
     try {
-      await updateDoc(doc(db, 'episodes', currentEpisode.id), { gmFatePool: newVal });
+      await updateDoc(doc(db, 'campaigns', campaign.id), { gmFatePool: newVal });
     } catch (e) {
       console.error(e);
       toast({ title: "Erro ao atualizar Fate do GM", variant: "destructive" });
@@ -152,7 +152,7 @@ export function GMPanel({
           <div className="flex items-center mr-2 bg-background/50 rounded-lg border border-border px-1">
             <span className="text-[10px] font-bold text-muted-foreground mr-1 uppercase">GM Fate:</span>
             <button onClick={() => updateGMFate(-1)} className="hover:bg-destructive/10 text-destructive p-1 rounded font-bold text-xs">-</button>
-            <span className="mx-1 font-display min-w-[1ch] text-center text-sm">{currentEpisode?.gmFatePool || 0}</span>
+            <span className="mx-1 font-display min-w-[1ch] text-center text-sm">{campaign?.gmFatePool || 0}</span>
             <button onClick={() => updateGMFate(1)} className="hover:bg-primary/10 text-primary p-1 rounded font-bold text-xs">+</button>
           </div>
 
@@ -162,13 +162,13 @@ export function GMPanel({
           <button onClick={() => setShowArchetypes(true)} className="p-1 hover:bg-secondary/20 rounded" title="Base de Arquétipos">
             <BookOpen className="w-4 h-4 text-secondary" />
           </button>
-          <button onClick={() => setShowTimeline(true)} className="p-1 hover:bg-secondary/20 rounded" title="Gerenciar Linha do Tempo">
+          {/* <button onClick={() => setShowTimeline(true)} className="p-1 hover:bg-secondary/20 rounded" title="Gerenciar Linha do Tempo">
             <Calendar className="w-4 h-4 text-secondary" />
-          </button>
+          </button> */ null}
         </div>
       </div>
 
-      <TimelineManager isOpen={showTimeline} onClose={() => setShowTimeline(false)} />
+      {/* <TimelineManager isOpen={showTimeline} onClose={() => setShowTimeline(false)} /> */}
 
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
         <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
