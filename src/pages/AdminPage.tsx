@@ -13,6 +13,8 @@ import { AdminManeuversTab } from '@/components/admin/AdminManeuversTab';
 import { AdminGiftsTab } from '@/components/admin/AdminGiftsTab';
 import { AdminDrivesTab } from '@/components/admin/AdminDrivesTab';
 import { AdminSeedButton } from '@/components/admin/AdminSeedButton';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { LayoutDashboard } from 'lucide-react'; // Import Icon
 
 const ADMIN_CREDENTIALS = {
   user: 'Peter',
@@ -134,8 +136,12 @@ export function AdminPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="skills" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              Visão Geral
+            </TabsTrigger>
             <TabsTrigger value="skills" className="flex items-center gap-2">
               <Sword className="w-4 h-4" />
               Perícias
@@ -153,6 +159,10 @@ export function AdminPage() {
               Taras
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard">
+            <AdminDashboard />
+          </TabsContent>
 
           <TabsContent value="skills">
             <AdminSkillsTab />

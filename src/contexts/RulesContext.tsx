@@ -18,6 +18,7 @@ interface RulesContextValue {
   gifts: SystemGift[];
   generalManeuvers: SystemManeuver[];
   allManeuvers: SystemManeuver[];
+  maneuvers: SystemManeuver[]; // Alias for backwards compatibility / direct access
 
   // State
   isLoading: boolean;
@@ -32,6 +33,8 @@ interface RulesContextValue {
 
   // Refresh
   refetch: () => Promise<void>;
+  refresh: () => Promise<void>;
+  loading: boolean;
 }
 
 const RulesContext = createContext<RulesContextValue | null>(null);
@@ -341,6 +344,9 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
     findManeuver,
     getAllManeuversForDrive,
     refetch: fetchRules,
+    refresh: fetchRules, // Alias
+    maneuvers, // Direct access
+    loading: isLoading, // Alias
   };
 
   return (

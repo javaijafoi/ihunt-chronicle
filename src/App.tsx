@@ -22,14 +22,17 @@ import { AdminPage } from "./pages/AdminPage";
 import { CampaignProvider } from "@/contexts/CampaignContext";
 import { RulesProvider } from "@/contexts/RulesContext";
 
-const CampaignRoute = () => {
+import { forwardRef } from "react";
+
+const CampaignRoute = forwardRef<HTMLDivElement>((props, ref) => {
   const { campaignId } = useParams();
   return (
     <CampaignProvider campaignId={campaignId}>
-      <VTTPage />
+      <VTTPage ref={ref} />
     </CampaignProvider>
   );
-};
+});
+CampaignRoute.displayName = 'CampaignRoute';
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

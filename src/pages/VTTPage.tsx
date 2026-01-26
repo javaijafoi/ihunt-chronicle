@@ -46,7 +46,9 @@ import { PartyCharacter } from '@/types/session';
 
 const appVersion = import.meta.env.APP_VERSION;
 
-export function VTTPage() {
+import { forwardRef } from 'react';
+
+export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const navigate = useNavigate();
   const { user, userProfile, signOut } = useAuth();
 
@@ -234,7 +236,7 @@ export function VTTPage() {
 
   // Render (Simplified for brevity, kept structure)
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
+    <div ref={ref} className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
       <motion.header className="h-14 px-4 flex items-center justify-between shrink-0 border-b border-border bg-background/90 backdrop-blur-sm z-10">
         <div className="flex items-center gap-2">
@@ -621,4 +623,5 @@ export function VTTPage() {
       <CompelModal campaignId={campaignId || ''} myCharacterId={myCharacter?.id} />
     </div>
   );
-}
+});
+VTTPage.displayName = 'VTTPage';

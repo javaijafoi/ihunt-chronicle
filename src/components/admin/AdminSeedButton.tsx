@@ -1,11 +1,20 @@
 import { useState } from 'react';
-import { Download, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
+import { Download, Loader2, AlertTriangle, Trash2, Settings2, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { seedDatabase, clearAllRules, type SeedProgress } from '@/lib/seedRules';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { seedDatabase, clearAllRules, exportRules, type SeedProgress } from '@/lib/seedRules';
 import { useToast } from '@/hooks/use-toast';
+import { useRules } from '@/contexts/RulesContext';
 
 interface AdminSeedButtonProps {
   onComplete?: () => void;
@@ -18,6 +27,9 @@ export function AdminSeedButton({ onComplete }: AdminSeedButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { toast } = useToast();
+  const { skillNames, maneuvers, refresh } = useRules();
+
+  const hasData = skillNames.length > 0 || maneuvers.length > 0;
 
   const handleSeed = async () => {
     setShowConfirm(false);
@@ -42,6 +54,7 @@ export function AdminSeedButton({ onComplete }: AdminSeedButtonProps) {
 
     setIsSeeding(false);
     setProgress(null);
+    refresh(); // Refresh context
   };
 
   const handleClear = async () => {
@@ -65,40 +78,57 @@ export function AdminSeedButton({ onComplete }: AdminSeedButtonProps) {
     }
 
     setIsClearing(false);
+    refresh(); // Refresh context
   };
 
   const progressPercent = progress ? (progress.current / progress.total) * 100 : 0;
 
   return (
     <>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowConfirm(true)}
-          disabled={isSeeding || isClearing}
-        >
-          {isSeeding ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Settings2 className="w-4 h-4" />
+            Ferramentas
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Gerenciar Regras</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          {!hasData && (
+            <DropdownMenuItem onClick={() => setShowConfirm(true)} disabled={isSeeding || isClearing}>
+              <Download className="w-4 h-4 mr-2" />
+              Importar Regras Iniciais
+            </DropdownMenuItem>
+          )}
+
+          {hasData && (
+            <DropdownMenuItem onClick={() => setShowConfirm(true)} disabled={isSeeding || isClearing}>
+              <Download className="w-4 h-4 mr-2" />
+              Re-importar (Sobrescrever)
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={() => exportRules()}>
             <Download className="w-4 h-4 mr-2" />
-          )}
-          Importar Regras Iniciais
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowClearConfirm(true)}
-          disabled={isSeeding || isClearing}
-          className="text-destructive hover:text-destructive"
-        >
-          {isClearing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Trash2 className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
+            Exportar Backup (JSON)
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem
+            onClick={() => setShowClearConfirm(true)}
+            disabled={isSeeding || isClearing}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Limpar Tudo
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
@@ -156,7 +186,7 @@ export function AdminSeedButton({ onComplete }: AdminSeedButtonProps) {
       </Dialog>
 
       {/* Progress Dialog */}
-      <Dialog open={isSeeding} onOpenChange={() => {}}>
+      <Dialog open={isSeeding} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Importando Regras...</DialogTitle>

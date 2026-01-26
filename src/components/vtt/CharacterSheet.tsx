@@ -1,10 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye, Info } from 'lucide-react';
+import { useState } from 'react';
+import { useRules } from '@/contexts/RulesContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
-import { useRules } from '@/contexts/RulesContext';
 import { calculateStressTracks } from '@/utils/gameRules';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 interface CharacterSheetProps {
   character: Character;
@@ -31,21 +33,25 @@ export function CharacterSheet({
   character,
   isOpen,
   onClose,
-  onSpendFate,
-  onGainFate,
-  onToggleStress,
-  onSetConsequence,
   readOnly = false,
+  variant = 'window',
   onSkillClick,
-  variant = 'modal',
+  onInvokeAspect,
   onAddSituationalAspect,
   onRemoveSituationalAspect,
   onUpdateSituationalAspect,
-  onInvokeAspect,
-  onUpdateNotes
+  onUpdateNotes,
+  onToggleStress,
+  onSetConsequence,
+  onSpendFate,
+  onGainFate
 }: CharacterSheetProps) {
-  const { skillManeuvers, getDriveById } = useRules();
-  const canToggleStress = !readOnly && !!onToggleStress;
+  const { drives, skillManeuvers, gifts, loading, getDriveById } = useRules();
+  // Using context rather than static imports
+  const drive = character.drive ? getDriveById(character.drive) : undefined;
+  // If drive not found in rules (maybe custom), fallback or just ignore for now.
+
+  const [activeTab, setActiveTab] = useState<'sheet' | 'bio' | 'advancement'>('sheet');
   const consequenceReadOnly = readOnly || !onSetConsequence;
   const calculatedTracks = calculateStressTracks(character);
   const stressTooltip =
@@ -131,7 +137,7 @@ export function CharacterSheet({
             <div className="group relative">
               <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider block mb-1">Alto Conceito</label>
               <div
-                className={`p-3 rounded-lg bg-primary/10 border border-primary/20 text-base font-medium relative overflow-hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-primary/20 transition-colors' : ''}`}
+                className={`p - 3 rounded - lg bg - primary / 10 border border - primary / 20 text - base font - medium relative overflow - hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-primary/20 transition-colors' : ''} `}
                 onClick={() => onInvokeAspect?.(character.aspects.highConcept)}
               >
                 {character.aspects.highConcept}
@@ -141,7 +147,7 @@ export function CharacterSheet({
             <div className="group relative">
               <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider block mb-1">Drama</label>
               <div
-                className={`p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-base font-medium relative overflow-hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-destructive/20 transition-colors' : ''}`}
+                className={`p - 3 rounded - lg bg - destructive / 10 border border - destructive / 20 text - base font - medium relative overflow - hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-destructive/20 transition-colors' : ''} `}
                 onClick={() => onInvokeAspect?.(character.aspects.drama)}
               >
                 {character.aspects.drama}
@@ -155,13 +161,13 @@ export function CharacterSheet({
             <div className="grid grid-cols-2 gap-3">
               <div className="group relative">
                 <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
-                <div className={`p-2 rounded bg-muted/40 border border-border text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''}`} onClick={() => onInvokeAspect?.(character.aspects.job)}>
+                <div className={`p - 2 rounded bg - muted / 40 border border - border text - sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''} `} onClick={() => onInvokeAspect?.(character.aspects.job)}>
                   {character.aspects.job}
                 </div>
               </div>
               <div className="group relative">
                 <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Sonho</label>
-                <div className={`p-2 rounded bg-muted/40 border border-border text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''}`} onClick={() => onInvokeAspect?.(character.aspects.dreamBoard)}>
+                <div className={`p - 2 rounded bg - muted / 40 border border - border text - sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''} `} onClick={() => onInvokeAspect?.(character.aspects.dreamBoard)}>
                   {character.aspects.dreamBoard}
                 </div>
               </div>
@@ -171,7 +177,7 @@ export function CharacterSheet({
             <div className="space-y-2">
               {character.aspects.free.map((aspect, i) => (
                 <div key={i} className="group relative flex items-center gap-2">
-                  <div className={`flex-1 p-2 rounded bg-muted/30 border border-border/50 text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={() => onInvokeAspect?.(aspect)}>
+                  <div className={`flex - 1 p - 2 rounded bg - muted / 30 border border - border / 50 text - sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/50' : ''} `} onClick={() => onInvokeAspect?.(aspect)}>
                     {aspect}
                   </div>
                 </div>
@@ -194,7 +200,7 @@ export function CharacterSheet({
               <button
                 key={skill}
                 onClick={() => onSkillClick?.(skill)}
-                className={`p-2 rounded-lg text-center border transition-all ${onSkillClick ? 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer' : 'cursor-default bg-muted/20'} border-border`}
+                className={`p - 2 rounded - lg text - center border transition - all ${onSkillClick ? 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer' : 'cursor-default bg-muted/20'} border - border`}
                 disabled={!onSkillClick}
               >
                 <div className="font-display text-2xl leading-none mb-1 text-primary">+{value}</div>
@@ -214,7 +220,7 @@ export function CharacterSheet({
             </h3>
             <div className="space-y-2">
               {[...(character.maneuvers || []), ...(character.skillManeuvers || [])].map((maneuverId, i) => {
-                const drive = character.drive ? getDriveById(character.drive) : undefined;
+                // const drive = character.drive ? getDriveById(character.drive) : undefined; // Moved to top of component
                 /* Lookup Logic reused from previous implementation */
                 let maneuverName = maneuverId;
                 let maneuverDescription = '';
@@ -249,9 +255,9 @@ export function CharacterSheet({
                 }
 
                 return (
-                  <Tooltip key={`${maneuverId}-${i}`}>
+                  <Tooltip key={`${maneuverId} -${i} `}>
                     <TooltipTrigger asChild>
-                      <div className={`p-2 rounded-md font-ui text-sm flex items-start gap-3 cursor-help transition-colors hover:bg-muted/80 ${isFree ? 'bg-primary/10 border border-primary/20 text-primary-foreground' : 'bg-muted/40 border border-border'}`}>
+                      <div className={`p - 2 rounded - md font - ui text - sm flex items - start gap - 3 cursor - help transition - colors hover: bg - muted / 80 ${isFree ? 'bg-primary/10 border border-primary/20 text-primary-foreground' : 'bg-muted/40 border border-border'} `}>
                         <div className="mt-0.5">
                           {type === 'skill' && <Target className="w-3.5 h-3.5 text-blue-400" />}
                           {type === 'drive' && <Zap className="w-3.5 h-3.5 text-yellow-500" />}
@@ -273,6 +279,30 @@ export function CharacterSheet({
                   </Tooltip>
                 );
               })}
+              {/* Drive Info */}
+              {drive && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-4xl">{drive.icon}</span>
+                    <div>
+                      <h3 className="font-display text-lg text-primary">{drive.name}</h3>
+                      <p className="text-xs text-muted-foreground">{drive.summary}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-sm">Manobra Gratuita</h4>
+                    {drive.freeManeuvers.map(fm => (
+                      <div key={fm.id} className="p-3 rounded bg-muted">
+                        <div className="font-bold text-sm mb-1">{fm.name}</div>
+                        <p className="text-xs text-muted-foreground">{fm.description}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* We could list exclusive maneuvers too if needed */}
+                </div>
+              )}
               {(!character.maneuvers?.length && !character.skillManeuvers?.length) && <p className="text-sm text-muted-foreground italic">Nenhuma manobra.</p>}
             </div>
           </div>
@@ -406,7 +436,7 @@ export function CharacterSheet({
                       key={index}
                       onClick={() => onToggleStress?.('physical', index)}
                       disabled={!canToggleStress}
-                      className={`h-8 w-8 rounded border flex items-center justify-center transition-all ${filled ? 'bg-destructive text-destructive-foreground border-destructive' : 'bg-muted/30 border-border hover:border-destructive/50'} ${!canToggleStress ? 'cursor-default' : ''}`}
+                      className={`h - 8 w - 8 rounded border flex items - center justify - center transition - all ${filled ? 'bg-destructive text-destructive-foreground border-destructive' : 'bg-muted/30 border-border hover:border-destructive/50'} ${!canToggleStress ? 'cursor-default' : ''} `}
                     >
                       {index + 1}
                     </button>
@@ -421,7 +451,7 @@ export function CharacterSheet({
                       key={index}
                       onClick={() => onToggleStress?.('mental', index)}
                       disabled={!canToggleStress}
-                      className={`h-8 w-8 rounded border flex items-center justify-center transition-all ${filled ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 border-border hover:border-primary/50'} ${!canToggleStress ? 'cursor-default' : ''}`}
+                      className={`h - 8 w - 8 rounded border flex items - center justify - center transition - all ${filled ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 border-border hover:border-primary/50'} ${!canToggleStress ? 'cursor-default' : ''} `}
                     >
                       {index + 1}
                     </button>
@@ -441,11 +471,11 @@ export function CharacterSheet({
             <div className="space-y-2">
               {(['mild', 'moderate', 'severe'] as const).map((severity) => (
                 <div key={severity} className="flex gap-2">
-                  <div className={`w-20 shrink-0 flex items-center justify-center rounded text-[10px] font-bold uppercase border ${severity === 'mild' ? 'border-border text-muted-foreground' : severity === 'moderate' ? 'border-yellow-500/30 text-yellow-500' : 'border-destructive/30 text-destructive'}`}>
+                  <div className={`w - 20 shrink - 0 flex items - center justify - center rounded text - [10px] font - bold uppercase border ${severity === 'mild' ? 'border-border text-muted-foreground' : severity === 'moderate' ? 'border-yellow-500/30 text-yellow-500' : 'border-destructive/30 text-destructive'} `}>
                     {severity === 'mild' ? 'Suave -2' : severity === 'moderate' ? 'Mod. -4' : 'Severa -6'}
                   </div>
                   <div className="flex-1 relative">
-                    <div className={`w-full px-3 py-1.5 rounded text-sm bg-background/50 border ${character.consequences[severity] ? 'border-secondary/50 text-foreground' : 'border-border/50 text-muted-foreground/50 italic'} min-h-[34px] flex items-center`}>
+                    <div className={`w - full px - 3 py - 1.5 rounded text - sm bg - background / 50 border ${character.consequences[severity] ? 'border-secondary/50 text-foreground' : 'border-border/50 text-muted-foreground/50 italic'} min - h - [34px] flex items - center`}>
                       {character.consequences[severity] || 'Livre'}
                     </div>
                     {!consequenceReadOnly && (

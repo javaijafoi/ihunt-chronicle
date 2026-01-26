@@ -14,7 +14,7 @@ import { getCharacterPrintData } from './prints/printUtils';
 
 import { SkillPyramid } from '@/components/vtt/SkillPyramid';
 // Cleaned imports
-import { Character, DriveName, Maneuver, CharacterGift } from '@/types/game';
+import { ActionType, Character, DriveName, Maneuver, CharacterGift } from '@/types/game';
 import { migrateCharacter } from '@/utils/characterMigration'; // Sprint 2
 import { useRules } from '@/contexts/RulesContext';
 import { SystemManeuver, SystemGift } from '@/types/rules';
@@ -641,13 +641,11 @@ export function PublicCharacterWizard({ initialData, onSave, onCancel }: PublicC
                             // Calculate potential new cost
                             // It's hard to simulate cleanly without extracting the Memo.
                             // Let's allow for now if availableRefresh > 0 OR if we seem to have few maneuvers.
-                            if (availableRefresh <= 0 && selectedManeuverIds.length + selectedSkillManeuvers.length >= 3) {
-                                // Very rough heuristic, assumes drive free + 2 general/skill
-                                // Better: just block if availableRefresh <= 0 AND we assume next one costs.
-                                // But next one might be free (if we have free slots).
-                                // Let's stick to simple: allow user to click, if it goes negative, so be it (or block).
-                                // Original code blocked.
-                            }
+                            // Very rough heuristic, assumes drive free + 2 general/skill
+                            // Better: just block if availableRefresh <= 0 AND we assume next one costs.
+                            // But next one might be free (if we have free slots).
+                            // Let's stick to simple: allow user to click, if it goes negative, so be it (or block).
+                            // Original code blocked.
 
                             return [...prev, maneuver.id];
                         }
