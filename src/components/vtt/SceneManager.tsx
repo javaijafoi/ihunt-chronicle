@@ -4,6 +4,17 @@ import { Plus, Edit, Trash2, Check, X, Image, MapPin, Archive, Search, RotateCcw
 import { Scene, SceneAspect } from '@/types/game';
 import { getOptimizedImageUrl } from '@/utils/images';
 
+// Simple UUID fallback for insecure contexts
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 interface SceneManagerProps {
   scenes: Scene[];
   archivedScenes?: Scene[];
@@ -47,7 +58,7 @@ export function SceneManager({
     name: '',
     background: '',
     aspects: DEFAULT_NEW_ASPECTS.map((name, i) => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name,
       freeInvokes: i === 0 ? 1 : 0,
       createdBy: 'gm',
@@ -74,7 +85,7 @@ export function SceneManager({
       name: '',
       background: '',
       aspects: DEFAULT_NEW_ASPECTS.map((name, i) => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name,
         freeInvokes: i === 0 ? 1 : 0,
         createdBy: 'gm',
@@ -117,7 +128,7 @@ export function SceneManager({
     setEditAspects([
       ...editAspects,
       {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name: '',
         freeInvokes: 0,
         createdBy: 'gm',

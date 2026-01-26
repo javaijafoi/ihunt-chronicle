@@ -44,9 +44,12 @@ export function useScenes(episodeId: string | undefined, campaignId: string | un
 
     // Flat collection query
     const scenesRef = collection(db, 'scenes');
+    if (!campaignId) return; // Guard
+
     const scenesQuery = query(
       scenesRef,
-      where('episodeId', '==', episodeId)
+      where('episodeId', '==', episodeId),
+      where('campaignId', '==', campaignId) // Required for security rules
     );
 
     const unsubscribe = onSnapshot(

@@ -1,8 +1,7 @@
 import { Character, CharacterGift } from '@/types/game';
-import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
 import { User, Zap, Circle, Target, Sparkles } from 'lucide-react';
-import { SKILL_MANEUVERS } from '@/data/skillManeuvers';
-import { BOOK_GIFTS } from '@/data/gifts';
+import { useRules } from '@/contexts/RulesContext';
+import { SystemManeuver } from '@/types/rules';
 
 interface CharacterCardProps {
     character: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'>;
@@ -13,6 +12,7 @@ interface CharacterCardProps {
 }
 
 export function CharacterCard({ character, selectedManeuvers, refresh }: CharacterCardProps) {
+    const { drives, generalManeuvers, skillManeuvers, getDriveById } = useRules();
     const currentDrive = character.drive ? getDriveById(character.drive) : undefined;
 
     // Combine general maneuvers with skill maneuvers for display
@@ -24,17 +24,17 @@ export function CharacterCard({ character, selectedManeuvers, refresh }: Charact
     const getManeuverInfo = (id: string) => {
         // Check drive
         if (currentDrive) {
-            if (currentDrive.freeManeuver.id === id) return { name: currentDrive.freeManeuver.name, desc: currentDrive.freeManeuver.description, type: 'drive' };
+            if (currentDrive.freeManeuvers[0]?.id === id) return { name: currentDrive.freeManeuvers[0].name, desc: currentDrive.freeManeuvers[0].description, type: 'drive' };
             const exclusive = currentDrive.exclusiveManeuvers.find(m => m.id === id);
             if (exclusive) return { name: exclusive.name, desc: exclusive.description, type: 'drive' };
         }
 
         // Check general
-        const general = GENERAL_MANEUVERS.find(m => m.id === id);
+        const general = generalManeuvers.find(m => m.id === id);
         if (general) return { name: general.name, desc: general.description, type: 'general' };
 
         // Check skill
-        for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+        for (const [skill, maneuvers] of Object.entries(skillManeuvers)) {
             const found = maneuvers.find(m => m.id === id);
             if (found) return { name: found.name, desc: found.description, type: 'skill' };
         }

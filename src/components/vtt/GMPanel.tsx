@@ -12,7 +12,7 @@ import { CharactersDatabase } from './CharactersDatabase';
 // ... imports
 import { Scene, Character, ActiveNPC } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -172,6 +172,7 @@ export function GMPanel({
 
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}>
         <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
+          <DialogTitle className="sr-only">Base de Arquétipos</DialogTitle>
           <div className="flex-1 min-h-0 overflow-hidden">
             <ArchetypeDatabase sessionId={sessionId} />
           </div>
@@ -180,6 +181,7 @@ export function GMPanel({
 
       <Dialog open={showCharacters} onOpenChange={setShowCharacters}>
         <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0 bg-background border-border">
+          <DialogTitle className="sr-only">Gerenciar Personagens</DialogTitle>
           <div className="flex-1 min-h-0 overflow-hidden">
             <CharactersDatabase sessionId={campaignId} partyCharacters={partyCharacters} />
           </div>
@@ -231,6 +233,7 @@ export function GMPanel({
       {/* ... Dialogs */}
       <Dialog open={!!selectedNPC} onOpenChange={(open) => !open && setSelectedNPC(null)}>
         <DialogContent className="p-0 border-none bg-transparent w-auto h-auto max-w-none shadow-none [&>button]:hidden focus:outline-none">
+          <DialogTitle className="sr-only">Ficha de NPC</DialogTitle>
           {selectedNPC && (
             <ActiveNPCSheet
               npc={selectedNPC}

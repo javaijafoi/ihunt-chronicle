@@ -95,7 +95,8 @@ export function useTokens(sceneId: string | undefined, campaignId: string | unde
     const tokensRef = collection(db, 'tokens');
     const q = query(
       tokensRef,
-      where('sceneId', '==', sceneId)
+      where('sceneId', '==', sceneId),
+      where('campaignId', '==', campaignId) // Required for security rules
     );
 
     const unsubscribe = onSnapshot(

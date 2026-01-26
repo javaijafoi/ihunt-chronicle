@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MonsterData } from "./IdentityStep";
-import { SKILLS, SKILL_NAMES } from "@/data/skills";
+import { useRules } from "@/contexts/RulesContext";
 import { motion } from "framer-motion";
 
 interface SkillsStepProps {
@@ -9,6 +9,7 @@ interface SkillsStepProps {
 }
 
 export const SkillsStep = ({ data, updateData }: SkillsStepProps) => {
+    const { skillNames } = useRules();
     const updateSkill = (skill: string, value: number) => {
         updateData({
             skills: {
@@ -56,7 +57,7 @@ export const SkillsStep = ({ data, updateData }: SkillsStepProps) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {SKILL_NAMES.map((skillName) => (
+                {skillNames.map((skillName) => (
                     <motion.div
                         key={skillName}
                         layoutId={`skill-${skillName}`}

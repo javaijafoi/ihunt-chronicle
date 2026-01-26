@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap, Bookmark, User, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap, Bookmark, User, Users, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { ActionType, DiceResult, SceneAspect, Character, Selfie } from '@/types/game';
 import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
 
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { Camera } from 'lucide-react';
 
@@ -251,6 +252,7 @@ export function DiceRoller({
 
     setResult(diceResult);
     setIsRolling(false);
+    setShowAspectPanel(true); // Auto-expand
   };
 
   const handleInvokeAspectBonus = (aspect: InvokableAspect, useFreeInvoke: boolean) => {
@@ -586,7 +588,24 @@ export function DiceRoller({
             <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/5 border border-secondary/20">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-secondary" />
-                <span className="text-sm font-ui">Vantagem (3dF + d6)</span>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-ui">Vantagem</span>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-3 h-3 text-muted-foreground/70" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs text-xs">
+                          Vantagem substitui 1 dado Fate por 1d6 (resultado 1-6).
+                          <br />
+                          Decisão deve ser feita ANTES da rolagem.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">3dF + 1d6</span>
+                </div>
               </div>
               <button
                 type="button"
@@ -734,59 +753,98 @@ export function DiceRoller({
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-2 space-y-1.5 max-h-32 overflow-y-auto">
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-2 py-0.5 bg-muted/50 rounded">
-                          <span>Pontos de Destino:</span>
-                          <span className="font-display text-sm text-accent">{fatePoints}</span>
+                      <div className="mt-2 space-y-3 max-h-60 overflow-y-auto custom-scrollbar px-1">
+
+                        {/* Fate Point Counter */}
+                        <div className="flex items-center justify-between px-3 py-2 bg-accent/5 rounded-lg border border-accent/20 mb-3">
+                          <span className="text-xs font-bold font-ui text-accent/80 uppercase">Pontos de Destino</span>
+                          <div className="flex items-center gap-2">
+                            {Array.from({ length: Math.min(fatePoints, 5) }).map((_, i) => (
+                              <div key={i} className="w-3 h-3 rounded-full bg-accent shadow-[0_0_8px_rgba(255,171,0,0.6)]" />
+                            ))}
+                            <span className="font-display text-xl text-accent leading-none ml-1">{fatePoints}</span>
+                          </div>
                         </div>
 
-                        {invokableAspects.map((aspect, idx) => {
-                          const isInvoked = invokedAspects.includes(aspect.name);
-                          const hasFreeInvoke = (aspect.freeInvokes ?? 0) > 0;
-                          const canInvoke = !isInvoked && (hasFreeInvoke || fatePoints > 0);
+                        {/* Grouped Aspects */}
+                        {(['scene', 'self', 'other'] as const).map(group => {
+                          const groupAspects = invokableAspects.filter(a => a.sourceType === group);
+                          if (groupAspects.length === 0) return null;
+
+                          const groupLabel = {
+                            scene: '📍 CENA',
+                            self: '👤 MEUS ASPECTOS',
+                            other: '👥 GRUPO'
+                          }[group];
 
                           return (
-                            <div
-                              key={`${aspect.name}-${idx}`}
-                              className={`p-1.5 rounded border text-left ${isInvoked
-                                ? 'border-secondary/30 bg-secondary/10 opacity-60'
-                                : 'border-border hover:border-secondary/50'
-                                }`}
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className={`${aspect.sourceType === 'scene' ? 'text-secondary' :
-                                  aspect.sourceType === 'self' ? 'text-primary' : 'text-accent'
-                                  }`}>
-                                  {getSourceIcon(aspect.sourceType)}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-ui truncate">{aspect.name}</p>
-                                </div>
-                                {!isInvoked && (
-                                  <div className="flex gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleInvokeAspectBonus(aspect, hasFreeInvoke)}
-                                      disabled={!canInvoke}
-                                      className="px-1.5 py-0.5 rounded text-[9px] font-ui bg-secondary/20 text-secondary hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            <div key={group} className="space-y-1">
+                              <h4 className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest pl-1">{groupLabel}</h4>
+                              <div className="space-y-1.5">
+                                {groupAspects.map((aspect, idx) => {
+                                  const isInvoked = invokedAspects.includes(aspect.name);
+                                  const hasFreeInvoke = (aspect.freeInvokes ?? 0) > 0;
+                                  const canInvoke = !isInvoked && (hasFreeInvoke || fatePoints > 0);
+
+                                  return (
+                                    <div
+                                      key={`${aspect.name}-${idx}`}
+                                      className={`p-2 rounded-lg border text-left transition-all ${isInvoked
+                                        ? 'border-secondary/30 bg-secondary/10 opacity-60'
+                                        : 'border-border bg-card hover:border-secondary/50 shadow-sm'
+                                        }`}
                                     >
-                                      +2
-                                    </button>
-                                    {!hasUsedReroll && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleReroll(aspect, hasFreeInvoke)}
-                                        disabled={!canInvoke}
-                                        className="px-1.5 py-0.5 rounded text-[9px] font-ui bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      >
-                                        <RotateCcw className="w-2.5 h-2.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                                {isInvoked && (
-                                  <span className="text-[9px] text-secondary">✓</span>
-                                )}
+                                      <div className="flex items-center gap-2">
+                                        <span className={`${aspect.sourceType === 'scene' ? 'text-secondary' :
+                                          aspect.sourceType === 'self' ? 'text-primary' : 'text-accent'
+                                          }`}>
+                                          {getSourceIcon(aspect.sourceType)}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium font-ui truncate" title={aspect.name}>{aspect.name}</p>
+                                          {hasFreeInvoke && (
+                                            <span className="text-[9px] text-green-500 font-bold flex items-center gap-0.5">
+                                              <RotateCcw className="w-2 h-2" /> {aspect.freeInvokes} grátis
+                                            </span>
+                                          )}
+                                        </div>
+                                        {!isInvoked && (
+                                          <div className="flex gap-1.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleInvokeAspectBonus(aspect, hasFreeInvoke)}
+                                              disabled={!canInvoke}
+                                              className="px-2 py-1 rounded-md text-[10px] font-bold font-ui bg-secondary/10 text-secondary border border-secondary/20 hover:bg-secondary/20 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                              title="+2 bônus"
+                                            >
+                                              +2
+                                            </button>
+                                            {!hasUsedReroll && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleReroll(aspect, hasFreeInvoke)}
+                                                disabled={!canInvoke}
+                                                className="px-2 py-1 rounded-md text-[10px] font-bold font-ui bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                                title="Reroll"
+                                              >
+                                                <RotateCcw className="w-3 h-3" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                        {isInvoked && (
+                                          <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary/20 text-secondary"
+                                          >
+                                            <Zap className="w-3 h-3" />
+                                          </motion.div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           );

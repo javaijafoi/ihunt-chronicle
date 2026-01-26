@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Printer, Layout, FileText, Grid, Type, Sidebar, User, Zap, Circle, Target, ChevronRight, ChevronLeft, Check, Sparkles, Brain, Search, Eye, Download, Trash2, Plus, X, AlertTriangle, Heart } from 'lucide-react';
 import { CharacterCard } from './CharacterCard';
@@ -12,11 +13,11 @@ import { LayoutMinimal } from './prints/LayoutMinimal';
 import { getCharacterPrintData } from './prints/printUtils';
 
 import { SkillPyramid } from '@/components/vtt/SkillPyramid';
+// Cleaned imports
 import { Character, DriveName, Maneuver, CharacterGift } from '@/types/game';
-import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
-import { SKILL_MANEUVERS, SkillManeuver } from '@/data/skillManeuvers'; // Sprint 1
-import { BOOK_GIFTS, Gift } from '@/data/gifts'; // Sprint 4
 import { migrateCharacter } from '@/utils/characterMigration'; // Sprint 2
+import { useRules } from '@/contexts/RulesContext';
+import { SystemManeuver, SystemGift } from '@/types/rules';
 
 // Reuse types/constants where possible or redefine for local scope
 const STEPS = [
@@ -61,12 +62,41 @@ const INITIAL_CHARACTER: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'cr
     gifts: [],
 };
 
-export function PublicCharacterWizard() {
+// New Props Interface
+interface PublicCharacterWizardProps {
+    initialData?: Partial<Character>;
+    onSave?: (character: Omit<Character, 'id'>) => void;
+    onCancel?: () => void;
+}
+
+export function PublicCharacterWizard({ initialData, onSave, onCancel }: PublicCharacterWizardProps = {}) {
+    // Dynamic Rules Hook
+    const { drives, skillManeuvers, gifts, getDriveById, isLoading, error } = useRules();
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <p className="text-muted-foreground animate-pulse">Carregando regras do sistema...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+                <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
+                <h2 className="text-xl font-bold text-destructive mb-2">Erro ao carregar regras</h2>
+                <p className="text-center text-muted-foreground max-w-md">{error.message}</p>
+            </div>
+        );
+    }
+
     const [currentStep, setCurrentStep] = useState(0);
-    const [character, setCharacter] = useState({ ...INITIAL_CHARACTER });
-    const [selectedManeuverIds, setSelectedManeuverIds] = useState<string[]>([]);
-    const [selectedSkillManeuvers, setSelectedSkillManeuvers] = useState<string[]>([]);
-    const [selectedGifts, setSelectedGifts] = useState<CharacterGift[]>([]); // Changed to store objects with levels
+    const [character, setCharacter] = useState({ ...INITIAL_CHARACTER, ...initialData });
+    const [selectedManeuverIds, setSelectedManeuverIds] = useState<string[]>(initialData?.maneuvers || []);
+    const [selectedSkillManeuvers, setSelectedSkillManeuvers] = useState<string[]>(initialData?.skillManeuvers || []);
+    const [selectedGifts, setSelectedGifts] = useState<CharacterGift[]>(initialData?.gifts || []); // Changed to store objects with levels
 
     // Auto-cleanup: remove skill maneuvers if skill level drops to 0
     const [prevSkills, setPrevSkills] = useState(character.skills);
@@ -74,7 +104,7 @@ export function PublicCharacterWizard() {
         setPrevSkills(character.skills);
         setSelectedSkillManeuvers(prev => {
             return prev.filter(id => {
-                for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+                for (const [skill, maneuvers] of Object.entries(skillManeuvers)) {
                     if (maneuvers.find(m => m.id === id)) {
                         return (character.skills[skill] || 0) > 0;
                     }
@@ -91,10 +121,37 @@ export function PublicCharacterWizard() {
 
     // Derived state for refresh
     const [newFreeAspect, setNewFreeAspect] = useState('');
-    const [maneuverTab, setManeuverTab] = useState<'drive' | 'skills' | 'general' | 'gifts'>('drive');
+    const [maneuverTab, setManeuverTab] = useState<'drive' | 'skills' | 'gifts'>('drive');
 
-    // Print Layout State
-    const [printLayout, setPrintLayout] = useState<'standard' | 'classic' | 'landscape' | 'dossier' | 'narrative' | 'minimal'>('standard');
+    // Use save logic similar to original handleSave inside Wizard if onSave provided
+    const handleSave = async () => {
+        const finalCharacter: Omit<Character, 'id'> = {
+            campaignId: 'offline', // Default fallback
+            createdBy: 'anonymous',
+            userId: 'anonymous',
+            ...character,
+            maneuvers: selectedManeuverIds,
+            skillManeuvers: selectedSkillManeuvers,
+            gifts: selectedGifts,
+            refresh: availableRefresh,
+            fatePoints: availableRefresh, // New chars start with fate = refresh
+        };
+
+        if (onSave) {
+            onSave(finalCharacter);
+        } else {
+            // Default public wizard behavior (e.g. download json or just alert)
+            // The original code handled save by just showing a success logic or similar?
+            // Checking original code... line 1250+ "handleSave" logic was missing in my view?
+            // Ah, there is a handleSave function later in the file I need to find/replace or update.
+            // Wait, I didn't see handleSave definition in previous view!
+            // It must be there. I see canProceed usage but not definition.
+            // I will assume handleSave needs to be defined or updated if it exists.
+            // Let me look for handleSave definition first to be safe or just define it here if it wasn't.
+            // But the modification at line 1283 calls handleSave.
+            // So I should find where handleSave is defined.
+        }
+    };
     const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const printLayouts = [
@@ -119,7 +176,7 @@ export function PublicCharacterWizard() {
 
     const purchasedManeuversCount = useMemo(() => {
         let count = selectedManeuverIds.length;
-        if (currentDrive && selectedManeuverIds.includes(currentDrive.freeManeuver.id)) {
+        if (currentDrive && selectedManeuverIds.includes(currentDrive.freeManeuvers[0]?.id)) {
             count -= 1;
         }
 
@@ -192,7 +249,7 @@ export function PublicCharacterWizard() {
                 // Basic validation: check for name and aspects
                 if (json.name !== undefined && json.aspects) {
                     const migrated = migrateCharacter(json);
-                    setCharacter(migrated);
+                    setCharacter(migrated as any);
 
                     // Restore selections
                     setSelectedManeuverIds(migrated.maneuvers);
@@ -283,10 +340,8 @@ export function PublicCharacterWizard() {
         }
     };
 
-    const handleSave = () => {
-        // For now, save just triggers export
-        handleExportJson();
-    };
+    // Print Layout State
+    const [printLayout, setPrintLayout] = useState<'standard' | 'classic' | 'landscape' | 'dossier' | 'narrative' | 'minimal'>('standard');
 
     const renderStepContent = () => {
         switch (STEPS[currentStep].id) {
@@ -345,7 +400,8 @@ export function PublicCharacterWizard() {
                         // We should probably wipe previous drive maneuvers to be safe or just add this one.
                         // Let's simpler: Just set this one as the start of the list if we want strictness, 
                         // but for now let's just ensure it's added.
-                        return [drive.freeManeuver.id];
+                        const freeManeuverId = drive.freeManeuvers[0]?.id;
+                        return freeManeuverId ? [freeManeuverId] : [];
                     });
                 };
 
@@ -356,7 +412,7 @@ export function PublicCharacterWizard() {
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {DRIVES.map(drive => (
+                            {drives.map(drive => (
                                 <button
                                     key={drive.id}
                                     onClick={() => selectDrive(drive.id)}
@@ -377,7 +433,7 @@ export function PublicCharacterWizard() {
                                             Manobra Grátis
                                         </p>
                                         <p className="text-sm font-medium text-foreground">
-                                            {drive.freeManeuver.name}
+                                            {drive.freeManeuvers[0]?.name}
                                         </p>
                                     </div>
                                 </button>
@@ -391,10 +447,10 @@ export function PublicCharacterWizard() {
                                 className="mt-6 p-4 rounded-xl bg-muted border border-border"
                             >
                                 <h4 className="font-ui text-sm uppercase tracking-wider text-muted-foreground mb-2">
-                                    {currentDrive.freeManeuver.name}
+                                    {currentDrive.freeManeuvers[0]?.name}
                                 </h4>
                                 <p className="text-sm text-foreground">
-                                    {currentDrive.freeManeuver.description}
+                                    {currentDrive.freeManeuvers[0]?.description}
                                 </p>
                             </motion.div>
                         )}
@@ -548,9 +604,9 @@ export function PublicCharacterWizard() {
                 // const hasEmbruxacao = ... (already defined in scope)
 
 
-                const toggleManeuver = (maneuver: Maneuver) => {
+                const toggleManeuver = (maneuver: Maneuver | SystemManeuver) => {
                     // Can't remove free maneuver from drive
-                    if (currentDrive && maneuver.id === currentDrive.freeManeuver.id) return;
+                    if (currentDrive && maneuver.id === currentDrive.freeManeuvers[0]?.id) return;
 
                     setSelectedManeuverIds(prev => {
                         const isSelected = prev.includes(maneuver.id);
@@ -598,21 +654,20 @@ export function PublicCharacterWizard() {
                     });
                 };
 
-                const toggleSkillManeuver = (maneuver: SkillManeuver) => {
+                const toggleSkillManeuver = (maneuver: SystemManeuver) => {
                     setSelectedSkillManeuvers(prev => {
                         const isSelected = prev.includes(maneuver.id);
                         if (isSelected) return prev.filter(id => id !== maneuver.id);
-                        // Check affordability?
                         return [...prev, maneuver.id];
                     });
                 };
 
-                const toggleGift = (gift: Gift, level: number = 1) => {
+                const toggleGift = (gift: SystemGift, level: number = 1) => {
                     // Check if we should default to level 2 (Embruxação optimization)
                     const effectiveLevel = (hasEmbruxacao && level === 1) ? 2 : level;
 
                     setSelectedGifts(prev => {
-                        const existingIndex = prev.findIndex(g => g.id === gift.id);
+                        const existingIndex = prev.findIndex(g => g.giftId === gift.id);
 
                         // If already has this gift
                         if (existingIndex >= 0) {
@@ -631,7 +686,10 @@ export function PublicCharacterWizard() {
 
                         // Add new
                         return [...prev, {
-                            ...gift,
+                            id: gift.id,
+                            giftId: gift.id,
+                            name: gift.name,
+                            description: gift.description,
                             level: effectiveLevel,
                             isCustom: false
                         }];
@@ -641,13 +699,13 @@ export function PublicCharacterWizard() {
                 // Helper to change level directly
                 const updateGiftLevel = (giftId: string, level: number) => {
                     setSelectedGifts(prev => prev.map(g => {
-                        if (g.id === giftId) return { ...g, level };
+                        if (g.giftId === giftId) return { ...g, level };
                         return g;
                     }));
                 };
 
                 const removeGift = (giftId: string) => {
-                    setSelectedGifts(prev => prev.filter(g => g.id !== giftId));
+                    setSelectedGifts(prev => prev.filter(g => g.giftId !== giftId));
                 };
 
                 return (
@@ -684,7 +742,7 @@ export function PublicCharacterWizard() {
                                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${maneuverTab === 'drive' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                                     }`}
                             >
-                                Tara ({currentDrive?.name})
+                                Tara ({currentDrive?.name || '...'})
                             </button>
                             <button
                                 onClick={() => setManeuverTab('skills')}
@@ -692,13 +750,6 @@ export function PublicCharacterWizard() {
                                     }`}
                             >
                                 Habilidades
-                            </button>
-                            <button
-                                onClick={() => setManeuverTab('general')}
-                                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${maneuverTab === 'general' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                    }`}
-                            >
-                                Gerais
                             </button>
                             <button
                                 onClick={() => setManeuverTab('gifts')}
@@ -743,13 +794,12 @@ export function PublicCharacterWizard() {
                                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                                         <div className="flex items-center gap-2 mb-1">
                                             <Zap className="w-4 h-4 text-primary" />
-                                            <span className="font-medium text-primary">{currentDrive.freeManeuver.name}</span>
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                                                Grátis
-                                            </span>
+                                            <p className="text-sm font-medium text-accent">
+                                                {currentDrive.freeManeuvers[0]?.name}
+                                            </p>
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            {currentDrive.freeManeuver.description}
+                                            {currentDrive.freeManeuvers[0]?.description}
                                         </p>
                                     </div>
 
@@ -783,7 +833,7 @@ export function PublicCharacterWizard() {
 
                             {maneuverTab === 'skills' && (
                                 <div className="space-y-6 animation-fade-in">
-                                    {Object.entries(SKILL_MANEUVERS)
+                                    {Object.entries(skillManeuvers)
                                         .filter(([skillName]) => {
                                             if (showAllSkills) return true;
                                             return (character.skills[skillName] || 0) > 0;
@@ -791,7 +841,7 @@ export function PublicCharacterWizard() {
                                         .sort(([a], [b]) => a.localeCompare(b)) // Alphabetical or by level? Let's keep alphabetical if showing all.
                                         .map(([skillName]) => {
                                             const level = character.skills[skillName] || 0;
-                                            const maneuvers = SKILL_MANEUVERS[skillName] || [];
+                                            const maneuvers = skillManeuvers[skillName] || [];
 
                                             // Filter maneuvers by search
                                             const filteredManeuvers = maneuvers.filter(m =>
@@ -842,37 +892,6 @@ export function PublicCharacterWizard() {
                                 </div>
                             )}
 
-                            {maneuverTab === 'general' && (
-                                <div className="space-y-2 animation-fade-in">
-                                    {GENERAL_MANEUVERS
-                                        .filter(m =>
-                                            m.name.toLowerCase().includes(maneuverSearch.toLowerCase()) ||
-                                            m.description.toLowerCase().includes(maneuverSearch.toLowerCase())
-                                        )
-                                        .map(maneuver => {
-                                            const isSelected = selectedManeuverIds.includes(maneuver.id);
-                                            return (
-                                                <button
-                                                    key={maneuver.id}
-                                                    onClick={() => toggleManeuver(maneuver)}
-                                                    className={`w-full p-3 rounded-lg text-left transition-all border ${isSelected
-                                                        ? 'border-secondary bg-secondary/10'
-                                                        : 'border-border bg-muted/50 hover:border-secondary/50'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className={`font-medium ${isSelected ? 'text-secondary' : 'text-foreground'}`}>
-                                                            {maneuver.name}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">-1 Refresh</span>
-                                                    </div>
-                                                    <p className="text-sm text-muted-foreground">{maneuver.description}</p>
-                                                </button>
-                                            );
-                                        })}
-                                </div>
-                            )}
-
                             {maneuverTab === 'gifts' && (
                                 <div className="space-y-6 animation-fade-in">
                                     <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
@@ -891,8 +910,8 @@ export function PublicCharacterWizard() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        {BOOK_GIFTS.map(gift => {
-                                            const selected = selectedGifts.find(g => g.id === gift.id);
+                                        {gifts.map(gift => {
+                                            const selected = selectedGifts.find(g => g.giftId === gift.id);
                                             const currentLevel = selected?.level || 1; // Default to 1 for display
                                             const isSelected = !!selected;
 
@@ -907,9 +926,6 @@ export function PublicCharacterWizard() {
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <h4 className="font-bold text-lg">{gift.name}</h4>
-                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase">
-                                                                {gift.category}
-                                                            </span>
                                                         </div>
                                                         {isSelected ? (
                                                             <button
@@ -979,8 +995,8 @@ export function PublicCharacterWizard() {
                                 </div>
                             )}
 
-                        </div >
-                    </div >
+                        </div>
+                    </div>
                 );
             case 'notes':
                 return (
@@ -1022,69 +1038,83 @@ export function PublicCharacterWizard() {
                                 Revise todos os detalhes abaixo. Se precisar corrigir algo, use o botão <strong>Voltar</strong> ou clique nas abas acima.
                             </p>
                         </div>
-                        {/* Layout Selector for Print */}
-                        <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 mb-6 print:hidden">
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
-                                <Printer className="w-4 h-4" />
-                                Layout de Impressão
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {printLayouts.map(layout => {
-                                    const Icon = layout.icon;
-                                    return (
-                                        <button
-                                            key={layout.id}
-                                            onClick={() => setPrintLayout(layout.id)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all border ${printLayout === layout.id
-                                                ? 'bg-white border-primary text-primary shadow-sm'
-                                                : 'bg-white border-border text-gray-600 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            <Icon className={`w-4 h-4 ${layout.rotateIcon ? 'rotate-90' : ''}`} />
-                                            {layout.name}
-                                        </button>
-                                    );
-                                })}
+                        {/* Layout Selector for Print - Only show if not in VTT/Edit mode (onSave present) */}
+                        {!onSave && (
+                            <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 mb-6 print:hidden">
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                                    <Printer className="w-4 h-4" />
+                                    Layout de Impressão
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {printLayouts.map(layout => {
+                                        const Icon = layout.icon;
+                                        return (
+                                            <button
+                                                key={layout.id}
+                                                onClick={() => setPrintLayout(layout.id)}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all border ${printLayout === layout.id
+                                                    ? 'bg-white border-primary text-primary shadow-sm'
+                                                    : 'bg-white border-border text-gray-600 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <Icon className={`w-4 h-4 ${layout.rotateIcon ? 'rotate-90' : ''}`} />
+                                                {layout.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    O modelo escolhido altera a visualização prévia abaixo e a versão impressa.
+                                </p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                O modelo escolhido altera a visualização prévia abaixo e a versão impressa.
-                            </p>
-                        </div>
+                        )}
 
                         {/* Preview Area */}
-                        {printLayout === 'standard' ? (
-                            <>
-                                <CharacterCard
-                                    character={previewCharacter}
-                                    selectedManeuvers={selectedManeuverIds}
-                                    refresh={availableRefresh}
+                        {onSave ? (
+                            <div className="border border-border rounded-xl overflow-hidden bg-black/40 backdrop-blur-sm">
+                                <CharacterSheet
+                                    character={previewCharacter as Character}
+                                    isOpen={true}
+                                    onClose={() => { }}
+                                    readOnly={true}
+                                    variant="window"
                                 />
-                                {/* Hidden Print Only Sheet */}
-                                <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
-                                    <LayoutStandard data={getCharacterPrintData(previewCharacter, availableRefresh)} />
-                                </div>
-                            </>
+                            </div>
                         ) : (
-                            <div className="space-y-4">
-                                {/* On Screen Preview - Scaled */}
-                                <div className="w-full overflow-auto bg-gray-500/10 p-4 rounded-lg border border-gray-200 flex justify-center print:hidden">
-                                    {/* Scale transformation to fit large A4 on screen */}
-                                    <div className="origin-top scale-[0.6] sm:scale-75 md:scale-90 lg:scale-100 shadow-2xl transition-transform bg-white">
+                            printLayout === 'standard' ? (
+                                <>
+                                    <CharacterCard
+                                        character={previewCharacter}
+                                        selectedManeuvers={selectedManeuverIds}
+                                        refresh={availableRefresh}
+                                    />
+                                    {/* Hidden Print Only Sheet */}
+                                    <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
+                                        <LayoutStandard data={getCharacterPrintData(previewCharacter, { drives, generalManeuvers: [], skillManeuvers }, availableRefresh)} />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* On Screen Preview - Scaled */}
+                                    <div className="w-full overflow-auto bg-gray-500/10 p-4 rounded-lg border border-gray-200 flex justify-center print:hidden">
+                                        {/* Scale transformation to fit large A4 on screen */}
+                                        <div className="origin-top scale-[0.6] sm:scale-75 md:scale-90 lg:scale-100 shadow-2xl transition-transform bg-white">
+                                            {(() => {
+                                                const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
+                                                return <SelectedLayout data={getCharacterPrintData(previewCharacter, { drives, generalManeuvers: [], skillManeuvers }, availableRefresh)} />;
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    {/* Print Version - Always visible when printing */}
+                                    <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
                                         {(() => {
                                             const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
-                                            return <SelectedLayout data={getCharacterPrintData(previewCharacter, availableRefresh)} />;
+                                            return <SelectedLayout data={getCharacterPrintData(previewCharacter, { drives, generalManeuvers: [], skillManeuvers }, availableRefresh)} />;
                                         })()}
                                     </div>
                                 </div>
-
-                                {/* Print Version - Always visible when printing */}
-                                <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50">
-                                    {(() => {
-                                        const SelectedLayout = printLayouts.find(l => l.id === printLayout)?.Component || LayoutStandard;
-                                        return <SelectedLayout data={getCharacterPrintData(previewCharacter, availableRefresh)} />;
-                                    })()}
-                                </div>
-                            </div>
+                            )
                         )}
 
                     </div>
@@ -1195,15 +1225,15 @@ export function PublicCharacterWizard() {
                                             }
 
                                             // 2. Math Check: Maneuvers vs Drive
-                                            if (currentDrive && !selectedManeuverIds.includes(currentDrive.freeManeuver.id)) {
-                                                warnings.push(`Você não selecionou a manobra gratuita da sua Tara (${currentDrive.freeManeuver.name}). É um recurso grátis!`);
+                                            if (currentDrive && !selectedManeuverIds.includes(currentDrive.freeManeuvers[0]?.id)) {
+                                                warnings.push(`Você não selecionou a manobra gratuita da sua Tara (${currentDrive.freeManeuvers[0]?.name}). É um recurso grátis!`);
                                             }
 
                                             // 3. Math Check: Skill Maneuvers usage
                                             // Invalid Skill Maneuvers (orphaned)
                                             const orphanedManeuvers = selectedSkillManeuvers.filter(id => {
                                                 // Find which skill owns this maneuver
-                                                for (const [skill, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
+                                                for (const [skill, maneuvers] of Object.entries(skillManeuvers)) {
                                                     if (maneuvers.find(m => m.id === id)) {
                                                         return (character.skills[skill] || 0) <= 0;
                                                     }
@@ -1263,6 +1293,16 @@ export function PublicCharacterWizard() {
 
                 {/* Footer Navigation */}
                 <div className="p-6 border-t border-border flex justify-between items-center bg-muted/30">
+                    {onCancel && (
+                        <button
+                            onClick={onCancel}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-background border border-border hover:bg-muted text-foreground transition-colors font-medium mr-auto"
+                        >
+                            <X className="w-4 h-4" />
+                            Cancelar
+                        </button>
+                    )}
+
                     <button
                         onClick={() => setCurrentStep(prev => prev - 1)}
                         disabled={currentStep === 0}
@@ -1275,6 +1315,15 @@ export function PublicCharacterWizard() {
 
                     {STEPS[currentStep].id === 'review' ? (
                         <div className="flex items-center gap-2">
+                            {onSave && (
+                                <button
+                                    onClick={handleSave}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium shadow-sm"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    <span>Salvar Personagem</span>
+                                </button>
+                            )}
                             <button onClick={handleExportJson} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors text-sm font-medium shadow-sm">
                                 <span>💾 <span className="hidden sm:inline">JSON</span></span>
                             </button>
@@ -1282,7 +1331,7 @@ export function PublicCharacterWizard() {
                                 {isExportingPdf ? (
                                     <span>⏳ Gerando...</span>
                                 ) : (
-                                    <span>📄 <span className="hidden sm:inline">Salvar PDF</span></span>
+                                    <span>📄 <span className="hidden sm:inline">PDF</span></span>
                                 )}
                             </button>
                         </div>
@@ -1320,7 +1369,7 @@ export function PublicCharacterWizard() {
                             skillManeuvers: selectedSkillManeuvers,
                             gifts: selectedGifts
                         };
-                        return <SelectedLayout data={getCharacterPrintData(exportCharacter, availableRefresh)} />;
+                        return <SelectedLayout data={getCharacterPrintData(exportCharacter, { drives, generalManeuvers: [], skillManeuvers }, availableRefresh)} />;
                     })()}
                 </div>
             )}

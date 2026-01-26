@@ -45,10 +45,30 @@ export function PartyPanel({
 
   const handleCopyCode = () => {
     if (inviteCode) {
-      navigator.clipboard.writeText(inviteCode);
-      setCopied(true);
-      toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
-      setTimeout(() => setCopied(false), 2000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(inviteCode)
+          .then(() => {
+            setCopied(true);
+            toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch(() => toast({ title: "Erro ao copiar", variant: "destructive" }));
+      } else {
+        // Fallback
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = inviteCode;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          setCopied(true);
+          toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+          setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+          toast({ title: "Erro ao copiar", variant: "destructive" });
+        }
+      }
     }
   };
 

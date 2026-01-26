@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus, X } from 'lucide-react';
-import { SKILL_NAMES } from '@/data/skills';
+import { useRules } from '@/contexts/RulesContext';
 
 // Pyramid structure: level -> max skills at that level
 const PYRAMID_STRUCTURE = {
@@ -25,6 +25,7 @@ interface SkillPyramidProps {
 }
 
 export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyramidProps) {
+  const { skillNames } = useRules();
   const [customSkill, setCustomSkill] = useState('');
 
   // Get skills at each level
@@ -42,7 +43,7 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
   };
 
   // Get available skills (not yet assigned)
-  const availableSkills = SKILL_NAMES.filter(skill => !(skill in skills));
+  const availableSkills = skillNames.filter(skill => !(skill in skills));
 
   // Add skill at level
   const addSkill = (skill: string, level: number) => {
@@ -71,7 +72,7 @@ export function SkillPyramid({ skills, onChange, readOnly = false }: SkillPyrami
   // Add custom skill
   const addCustomSkill = () => {
     if (!customSkill.trim()) return;
-    if (customSkill in skills || SKILL_NAMES.includes(customSkill)) return;
+    if (customSkill in skills || skillNames.includes(customSkill)) return;
     onChange({ ...skills, [customSkill.trim()]: 1 });
     setCustomSkill('');
   };

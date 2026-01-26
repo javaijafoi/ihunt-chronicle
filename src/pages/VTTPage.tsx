@@ -293,8 +293,24 @@ export function VTTPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(campaign.joinCode);
-                  toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(campaign.joinCode)
+                      .then(() => toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." }))
+                      .catch(() => toast({ title: "Erro ao copiar", description: "Tente copiar manualmente.", variant: "destructive" }));
+                  } else {
+                    // Fallback for non-secure contexts
+                    try {
+                      const textArea = document.createElement("textarea");
+                      textArea.value = campaign.joinCode;
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(textArea);
+                      toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
+                    } catch (err) {
+                      toast({ title: "Erro ao copiar", description: "Seu navegador não suporta cópia automática.", variant: "destructive" });
+                    }
+                  }
                 }}
                 className="glass-panel px-2 py-1.5 flex items-center gap-1.5 hover:bg-muted/50 transition-colors group"
               >
@@ -334,10 +350,24 @@ export function VTTPage() {
         </div>
       </motion.header>
 
+      {/* Active Episode Warning */}
+      {!currentEpisode && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-500 flex items-center justify-center gap-2 shrink-0 animate-in slide-in-from-top-2">
+          <span className="font-bold">⚠️ Modo Lobby:</span>
+          <span>Nenhum episódio ativo. Histórico salvo no registro geral.</span>
+          {isGM && (
+            <Link to="/episodes" className="underline hover:text-amber-400 ml-2 font-bold">
+              Criar/Ativar Episódio
+            </Link>
+          )}
+        </div>
+      )}
+
       <XCardOverlay safetyState={safetyState} currentUserId={user?.uid} isGM={isGM} onResolve={resolveXCard} />
 
       <Dialog open={showSelfieAlbum} onOpenChange={setShowSelfieAlbum}>
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background">
+          <DialogTitle className="sr-only">Álbum de Selfies</DialogTitle>
           <SelfieTimeline
             partyCharacters={partyCharacters}
             myCharacter={myCharacter}
@@ -514,12 +544,16 @@ export function VTTPage() {
       {/* Modals */}
       <Dialog open={showAspects} onOpenChange={setShowAspects}>
         <DialogContent className="max-w-md h-[80vh] p-0 bg-transparent border-none overflow-hidden shadow-2xl">
+          <DialogTitle className="sr-only">Hub de Aspectos</DialogTitle>
           <AspectHub campaignId={campaignId || ''} episodeId={episodeId || ''} onClose={() => setShowAspects(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!viewingCharacterId} onOpenChange={(open) => !open && setViewingCharacterId(null)}>
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background overflow-hidden">
+          <DialogTitle className="sr-only">
+            {viewingPC ? `Ficha de ${viewingPC.name}` : viewingNPC ? `Ficha de ${viewingNPC.name}` : 'Visualizar Personagem'}
+          </DialogTitle>
           {viewingPC && (
             <div className="flex flex-col h-full bg-card">
               <div className="flex-1 overflow-y-auto custom-scrollbar">

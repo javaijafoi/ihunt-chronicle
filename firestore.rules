@@ -8,16 +8,40 @@ service cloud.firestore {
     // --- NEW CAMPAIGN ARCHITECTURE HELPERS ---
     
     function isCampaignMember(campaignId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid
+      );
     }
 
     function isCampaignGM(campaignId) {
-      // Check if member doc exists AND role is 'gm'
+      // Check if member doc exists AND role is 'gm', OR if user is the campaign gmId
       let memberPath = /databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid);
-      return isSignedIn() && exists(memberPath) && get(memberPath).data.role == 'gm';
+      return isSignedIn() && (
+        (exists(memberPath) && get(memberPath).data.role == 'gm') ||
+        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid
+      );
     }
 
     // --- CAMPAIGNS & SUBCOLLECTIONS ---
+
+    // SYSTEM RULES (Admin controlled, open for dev seeding)
+    match /system_skills/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /system_maneuvers/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /system_gifts/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /system_drives/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
 
     match /campaigns/{campaignId} {
       // Allow read if signed in (for joining via code or listing)
@@ -40,6 +64,11 @@ service cloud.firestore {
         
         // Deleting: GM can kick, User can leave
         allow delete: if isCampaignGM(campaignId) || request.auth.uid == memberId;
+      }
+
+      match /presence/{userId} {
+        allow read: if isCampaignMember(campaignId);
+        allow write: if isCampaignMember(campaignId) && request.auth.uid == userId;
       }
     }
 
@@ -64,6 +93,15 @@ service cloud.firestore {
       allow read: if isCampaignMember(resource.data.campaignId);
       allow create: if isCampaignGM(request.resource.data.campaignId);
       allow update, delete: if isCampaignGM(resource.data.campaignId);
+
+      match /logs/{logId} {
+        // Logs can be read by any member
+        allow read: if isCampaignMember(resource.data.campaignId);
+        // Logs can be created by any member (if campaignId matches)
+        allow create: if isCampaignMember(request.resource.data.campaignId);
+        // Only GM or Creator can delete/update? Usually logs are immutable, but let's allow GM.
+        allow update, delete: if isCampaignGM(resource.data.campaignId);
+      }
     }
 
     // Scenes (New Schema)
@@ -92,24 +130,25 @@ service cloud.firestore {
 
     // --- CHARACTERS (Hybrid / Migration) ---
     // Characters are root level. New chars have campaignId. Old chars have sessionId.
+    // --- CHARACTERS (Hybrid / Migration) ---
+    // Characters are root level. New chars have campaignId. Old chars have sessionId.
     match /characters/{characterId} {
-      // New Logic: Check campaignId
-      allow read: if isSignedIn() && (
-         (resource.data.campaignId != null && isCampaignMember(resource.data.campaignId)) ||
-         (resource.data.sessionId != null && canAccessSession(resource.data.sessionId))
-      );
+      // Explicit inline rules to fix permission issues
+      allow read: if (resource.data.isPublic == true)
+                  || (isSignedIn() && resource.data.get('campaignId', '') == 'library' && (resource.data.userId == request.auth.uid || resource.data.createdBy == request.auth.uid))
+                  || (isSignedIn() && resource.data.campaignId != null && resource.data.campaignId != 'library' && isCampaignMember(resource.data.campaignId))
+                  || (isSignedIn() && resource.data.sessionId != null && canAccessSession(resource.data.sessionId));
 
-      allow create: if isSignedIn() && (
-         (request.resource.data.campaignId != null && isCampaignMember(request.resource.data.campaignId)) ||
-         (request.resource.data.sessionId != null && canAccessSession(request.resource.data.sessionId))
-      );
+      allow create: if (request.resource.data.campaignId == 'library')
+                    || (isSignedIn() && request.resource.data.campaignId != null && request.resource.data.campaignId != 'library' && isCampaignMember(request.resource.data.campaignId))
+                    || (isSignedIn() && request.resource.data.sessionId != null && canAccessSession(request.resource.data.sessionId));
       
-      allow update, delete: if isSignedIn() && (
-         // Campaign Logic
-         (resource.data.campaignId != null && (resource.data.userId == request.auth.uid || isCampaignGM(resource.data.campaignId))) ||
-         // Legacy Session Logic
-         (resource.data.sessionId != null && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId)))
-      );
+      allow update: if (isSignedIn() && resource.data.campaignId == 'library' && (resource.data.userId == request.auth.uid || resource.data.createdBy == request.auth.uid))
+                    || (isSignedIn() && resource.data.campaignId != null && resource.data.campaignId != 'library' && (resource.data.userId == request.auth.uid || isCampaignGM(resource.data.campaignId)))
+                    || (isSignedIn() && resource.data.sessionId != null && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId)));
+      
+      // Absolute override: If you created it or own it, you can delete it.
+      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || resource.data.userId == request.auth.uid);
     }
 
     // --- LEGACY SESSION LOGIC (Keep for now) ---
@@ -155,7 +194,7 @@ service cloud.firestore {
           || request.resource.data.gmId == ''
           || request.resource.data.gmId == request.auth.uid);
 
-      allow read: if canAccessSession(sessionId);
+      allow read: if isSignedIn();
 
       allow update, delete: if canAccessSession(sessionId);
 

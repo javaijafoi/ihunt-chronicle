@@ -1,7 +1,12 @@
 
 import { Character, DriveName, Maneuver, CharacterGift } from '@/types/game';
-import { DRIVES, GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
-import { SKILL_MANEUVERS } from '@/data/skillManeuvers';
+import { ResolvedDrive, SystemManeuver } from '@/types/rules';
+
+export interface RulesData {
+    drives: ResolvedDrive[];
+    generalManeuvers: SystemManeuver[];
+    skillManeuvers: Record<string, SystemManeuver[]>;
+}
 
 export interface PrintData {
     name: string;
@@ -33,11 +38,12 @@ export interface PrintData {
 
 export function getCharacterPrintData(
     character: Omit<Character, 'id' | 'campaignId' | 'sessionId' | 'createdBy' | 'userId'>,
+    rules: RulesData,
     previewRefresh?: number
 ): PrintData {
 
     // 1. Resolve Drive/Archetype
-    const drive = character.drive ? getDriveById(character.drive) : undefined;
+    const drive = character.drive ? rules.drives.find(d => d.id === character.drive) : undefined;
     const archetype = drive ? drive.name : 'Caçador'; // Fallback
     const description = drive ? drive.summary : 'Um caçador sem filiação clara.';
 
@@ -64,19 +70,19 @@ export function getCharacterPrintData(
     const allManeuverIds = [...(character.maneuvers || []), ...(character.skillManeuvers || [])];
 
     // Helper to find maneuver info
-    const findManeuver = (id: string): Maneuver | undefined => {
+    const findManeuver = (id: string): SystemManeuver | Maneuver | undefined => {
         // Check drive
         if (drive) {
-            if (drive.freeManeuver.id === id) return drive.freeManeuver;
+            if (drive.freeManeuvers[0]?.id === id) return drive.freeManeuvers[0];
             const exclusive = drive.exclusiveManeuvers.find(m => m.id === id);
             if (exclusive) return exclusive;
         }
         // Check general
-        const general = GENERAL_MANEUVERS.find(m => m.id === id);
+        const general = rules.generalManeuvers.find(m => m.id === id);
         if (general) return general;
 
         // Check skills
-        for (const maneuvers of Object.values(SKILL_MANEUVERS)) {
+        for (const maneuvers of Object.values(rules.skillManeuvers)) {
             const found = maneuvers.find(m => m.id === id);
             if (found) return found;
         }

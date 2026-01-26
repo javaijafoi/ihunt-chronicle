@@ -16,6 +16,7 @@ export interface Gift {
 }
 
 export interface CharacterGift {
+  id: string;           // Alias for giftId
   giftId: string;       // ID do dom ou 'custom-{uuid}'
   name: string;         // Nome do dom
   description: string;  // Descrição

@@ -18,18 +18,18 @@ interface RulesContextValue {
   gifts: SystemGift[];
   generalManeuvers: SystemManeuver[];
   allManeuvers: SystemManeuver[];
-  
+
   // State
   isLoading: boolean;
   error: Error | null;
-  
+
   // Helpers
   getDriveById: (id: DriveName) => ResolvedDrive | undefined;
   getSkillManeuvers: (skillId: string) => SystemManeuver[];
   findGift: (id: string) => SystemGift | undefined;
   findManeuver: (id: string) => SystemManeuver | undefined;
   getAllManeuversForDrive: (driveId: DriveName) => SystemManeuver[];
-  
+
   // Refresh
   refetch: () => Promise<void>;
 }
@@ -48,7 +48,7 @@ function convertStaticSkills(): SystemSkill[] {
 // Convert static maneuvers to SystemManeuver format
 function convertStaticManeuvers(): SystemManeuver[] {
   const maneuvers: SystemManeuver[] = [];
-  
+
   // Skill maneuvers
   for (const [skillId, skillManeuvers] of Object.entries(SKILL_MANEUVERS)) {
     for (const m of skillManeuvers) {
@@ -62,7 +62,7 @@ function convertStaticManeuvers(): SystemManeuver[] {
       });
     }
   }
-  
+
   // Drive maneuvers
   for (const drive of DRIVES) {
     // Free maneuver
@@ -76,7 +76,7 @@ function convertStaticManeuvers(): SystemManeuver[] {
         cost: 0,
       });
     }
-    
+
     // Exclusive maneuvers
     for (const m of drive.exclusiveManeuvers || []) {
       maneuvers.push({
@@ -89,7 +89,7 @@ function convertStaticManeuvers(): SystemManeuver[] {
       });
     }
   }
-  
+
   return maneuvers;
 }
 
@@ -126,7 +126,7 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
   const fetchRules = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Fetch all collections in parallel
       const [skillsSnap, maneuversSnap, giftsSnap, drivesSnap] = await Promise.all([
@@ -135,24 +135,103 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
         getDocs(query(collection(db, 'system_gifts'), orderBy('name'))),
         getDocs(collection(db, 'system_drives')),
       ]);
-      
-      const fetchedSkills = skillsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemSkill));
-      const fetchedManeuvers = maneuversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemManeuver));
-      const fetchedGifts = giftsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemGift));
-      const fetchedDrives = drivesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemDrive));
-      
-      // If Firestore is empty, use static data as fallback
-      if (fetchedSkills.length === 0) {
-        console.log('[RulesContext] Firestore empty, using static fallback data');
-        setSkills(convertStaticSkills());
-        setManeuvers(convertStaticManeuvers());
-        setGifts(convertStaticGifts());
-        setDrives(convertStaticDrives());
-      } else {
+
+      const fetchedSkills = skillsSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || data.Name || doc.id, // Fallback to ID if name missing
+          actions: data.actions || [],
+          // Normalize ID for consistency
+          ...data
+        } as SystemSkill;
+      });
+
+      const fetchedManeuvers = maneuversSnap.docs.map(doc => {
+        const data = doc.data();
+        // Infer type if missing
+        let type = data.type;
+        if (!type) {
+          if (data.skillId) type = 'skill';
+          else if (data.driveId) type = 'drive_exclusive'; // approximation
+          else type = 'general';
+        }
+
+        return {
+          id: doc.id,
+          name: data.name || data.Name || 'Unknown Maneuver',
+          description: data.description || data.Description || '',
+          skillId: data.skillId || data.SkillId,
+          driveId: data.driveId || data.DriveId,
+          type: type as any,
+          cost: data.cost ?? 1,
+          ...data
+        } as SystemManeuver;
+      });
+
+      const fetchedGifts = giftsSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || data.Name || 'Unknown Gift',
+          description: data.description || data.Description || '',
+          essenceCost: data.essenceCost ?? data.cost ?? 1,
+          ...data
+        } as SystemGift;
+      });
+
+      const fetchedDrives = drivesSnap.docs.map(doc => {
+        const data = doc.data();
+        // Handle legacy freeManeuver (single object) vs freeManeuverIds (array)
+        let freeIds = data.freeManeuverIds || [];
+        if (!freeIds.length && data.freeManeuver && data.freeManeuver.id) {
+          freeIds = [data.freeManeuver.id];
+        }
+
+        let exclusiveIds = data.exclusiveManeuverIds || [];
+        if (!exclusiveIds.length && data.exclusiveManeuvers) {
+          exclusiveIds = data.exclusiveManeuvers.map((m: any) => m.id);
+        }
+
+        return {
+          id: doc.id,
+          name: data.name || data.Name || doc.id,
+          icon: data.icon || '🚗',
+          summary: data.summary || data.description || '',
+          freeManeuverIds: freeIds,
+          exclusiveManeuverIds: exclusiveIds,
+          ...data
+        } as SystemDrive;
+      });
+
+
+      // Granular fallback logic
+      if (fetchedSkills.length > 0) {
         setSkills(fetchedSkills);
+      } else {
+        console.log('[RulesContext] Skills empty, using static fallback');
+        setSkills(convertStaticSkills());
+      }
+
+      if (fetchedManeuvers.length > 0) {
         setManeuvers(fetchedManeuvers);
+      } else {
+        console.log('[RulesContext] Maneuvers empty, using static fallback');
+        setManeuvers(convertStaticManeuvers());
+      }
+
+      if (fetchedGifts.length > 0) {
         setGifts(fetchedGifts);
+      } else {
+        console.log('[RulesContext] Gifts empty, using static fallback');
+        setGifts(convertStaticGifts());
+      }
+
+      if (fetchedDrives.length > 0) {
         setDrives(fetchedDrives);
+      } else {
+        console.log('[RulesContext] Drives empty, using static fallback');
+        setDrives(convertStaticDrives());
       }
     } catch (err) {
       console.error('[RulesContext] Error fetching rules:', err);
@@ -172,7 +251,7 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
   }, [fetchRules]);
 
   // Derived data
-  const skillNames = useMemo(() => 
+  const skillNames = useMemo(() =>
     skills.map(s => s.name).sort(),
     [skills]
   );
@@ -188,8 +267,12 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
     return map;
   }, [maneuvers]);
 
-  const generalManeuvers = useMemo(() => 
-    maneuvers.filter(m => m.type === 'general'),
+  const generalManeuvers = useMemo(() =>
+    maneuvers.filter(m => {
+      const type = (m.type || '').toLowerCase();
+      // Include if explicitly general/geral OR if it has no specific type but also no skill/drive association
+      return type === 'general' || type === 'geral' || (!m.skillId && !m.driveId && !type.includes('drive') && !type.includes('skill'));
+    }),
     [maneuvers]
   );
 
@@ -199,28 +282,39 @@ export function RulesProvider({ children }: { children: React.ReactNode }) {
       name: d.name,
       icon: d.icon,
       summary: d.summary,
-      freeManeuvers: maneuvers.filter(m => d.freeManeuverIds?.includes(m.id)),
-      exclusiveManeuvers: maneuvers.filter(m => d.exclusiveManeuverIds?.includes(m.id)),
+      // More robust filtering for free/exclusive maneuvers
+      freeManeuvers: maneuvers.filter(m =>
+        // Match by ID
+        d.freeManeuverIds?.includes(m.id) ||
+        // OR Match by driveId property and type 'drive_free'
+        (m.driveId === d.id && (m.type === 'drive_free' || m.cost === 0))
+      ),
+      exclusiveManeuvers: maneuvers.filter(m =>
+        // Match by ID in list
+        d.exclusiveManeuverIds?.includes(m.id) ||
+        // OR Match by driveId property and NOT free
+        (m.driveId === d.id && m.type !== 'drive_free' && m.cost !== 0)
+      ),
     }));
   }, [drives, maneuvers]);
 
   // Helper functions
-  const getDriveById = useCallback((id: DriveName) => 
+  const getDriveById = useCallback((id: DriveName) =>
     resolvedDrives.find(d => d.id === id),
     [resolvedDrives]
   );
 
-  const getSkillManeuvers = useCallback((skillId: string) => 
+  const getSkillManeuvers = useCallback((skillId: string) =>
     skillManeuvers[skillId] || [],
     [skillManeuvers]
   );
 
-  const findGift = useCallback((id: string) => 
+  const findGift = useCallback((id: string) =>
     gifts.find(g => g.id === id),
     [gifts]
   );
 
-  const findManeuver = useCallback((id: string) => 
+  const findManeuver = useCallback((id: string) =>
     maneuvers.find(m => m.id === id),
     [maneuvers]
   );

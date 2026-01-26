@@ -7,7 +7,8 @@ import {
     addDoc,
     serverTimestamp,
     doc,
-    updateDoc
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ActionType, DiceResult, LogEntry } from '@/types/game';
@@ -18,15 +19,23 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
 
     // Subscribe to Logs
     useEffect(() => {
-        if (!episodeId) {
+        if (!episodeId && !campaignId) {
             setLogs([]);
             return;
         }
 
-        const logsRef = collection(db, 'episodes', episodeId, 'logs');
-        // Removing orderBy/limit to avoid index requirement for now. 
-        // Client-side sorting ensures we see data even if index is missing.
-        const q = query(logsRef);
+        let q;
+        if (episodeId) {
+            const logsRef = collection(db, 'episodes', episodeId, 'logs');
+            q = campaignId
+                ? query(logsRef, where('campaignId', '==', campaignId))
+                : query(logsRef);
+        } else if (campaignId) {
+            // Fallback to lobby_logs if no episode is active
+            q = query(collection(db, 'campaigns', campaignId, 'lobby_logs'));
+        } else {
+            return;
+        }
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const newLogs = snapshot.docs.map(doc => ({
@@ -35,52 +44,55 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
                 timestamp: doc.data().timestamp?.toDate() || new Date()
             })) as LogEntry[];
 
-            // Sort by timestamp ascending (Oldest first, Newest last)
+            // Sort by timestamp ascending
             newLogs.sort((a, b) => {
                 const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as any).toDate().getTime();
                 const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp as any).toDate().getTime();
                 return timeA - timeB;
             });
 
-            // Optional: Client-side limit if needed, but let's show all for context
             setLogs(newLogs);
         });
 
         return () => unsubscribe();
-    }, [episodeId]);
+    }, [episodeId, campaignId]);
 
     const addLog = useCallback(async (message: string, type: LogEntry['type'] = 'system', details?: any) => {
-        if (!episodeId) {
-            console.warn("No episodeId, cannot add log");
+        if (!episodeId && !campaignId) {
+            console.warn("No episodeId or campaignId, cannot add log");
             return;
         }
+
         try {
-            await addDoc(collection(db, 'episodes', episodeId, 'logs'), {
+            const collectionPath = episodeId
+                ? collection(db, 'episodes', episodeId, 'logs')
+                : collection(db, 'campaigns', campaignId!, 'lobby_logs');
+
+            await addDoc(collectionPath, {
                 message,
                 type,
                 details: details || null,
                 timestamp: serverTimestamp(),
-                character: 'Sistema' // TODO: pass actor name
+                character: 'Sistema', // TODO: pass actor name
+                campaignId // Link for security rules
             });
         } catch (e) {
             console.error(e);
         }
-    }, [episodeId]);
+    }, [episodeId, campaignId]);
 
     const createRollLog = useCallback(async (result: DiceResult) => {
-        if (!episodeId) {
-            console.warn("No episodeId, cannot log roll");
-            toast.error("Nenhum episódio ativo. A rolagem não foi salva no histórico.");
+        if (!episodeId && !campaignId) {
+            console.warn("No active context, cannot log roll");
+            toast.error("Erro: Campanha não identificada.");
             return;
         }
 
         try {
             // Sanitize undefined values using JSON serialization
-            // This is safer than manual object manipulation for Firestore
             const safeDetails = JSON.parse(JSON.stringify({
                 ...result,
                 kind: 'roll',
-                // Ensure timestamps are strings or handled correctly before saving
                 timestamp: result.timestamp instanceof Date
                     ? result.timestamp.toISOString()
                     : (result.timestamp as any)?.toDate?.().toISOString() || new Date().toISOString()
@@ -91,15 +103,26 @@ export function useGameActions(episodeId: string | undefined, campaignId: string
                 message: `${result.character} rolou ${result.action || 'dados'}`,
                 character: result.character,
                 details: safeDetails,
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp(),
+                campaignId // Link for security rules
             };
 
-            await addDoc(collection(db, 'episodes', episodeId, 'logs'), logEntry);
+            const collectionPath = episodeId
+                ? collection(db, 'episodes', episodeId, 'logs')
+                : collection(db, 'campaigns', campaignId!, 'lobby_logs');
+
+            await addDoc(collectionPath, logEntry);
+
+            if (!episodeId) {
+                // Info toast just to be sure user knows
+                console.log("Logged to lobby_logs");
+            }
+
         } catch (e) {
             console.error("Error creating roll log:", e);
             toast.error("Erro ao registrar rolagem");
         }
-    }, [episodeId]);
+    }, [episodeId, campaignId]);
 
     // Fate Points Logic
     const updateFate = useCallback(async (targetId: string, delta: number, isCharacter: boolean) => {

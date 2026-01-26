@@ -2,9 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Sparkles, Heart, Brain, Zap, Target, Eye, Info } from 'lucide-react';
 import { Character } from '@/types/game';
 import { FatePointDisplay } from './FatePointDisplay';
-import { GENERAL_MANEUVERS, getDriveById } from '@/data/drives';
-import { SKILL_MANEUVERS, SkillManeuver } from '@/data/skillManeuvers';
-import { BOOK_GIFTS, Gift } from '@/data/gifts';
+import { useRules } from '@/contexts/RulesContext';
 import { calculateStressTracks } from '@/utils/gameRules';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -46,6 +44,7 @@ export function CharacterSheet({
   onInvokeAspect,
   onUpdateNotes
 }: CharacterSheetProps) {
+  const { skillManeuvers, getDriveById } = useRules();
   const canToggleStress = !readOnly && !!onToggleStress;
   const consequenceReadOnly = readOnly || !onSetConsequence;
   const calculatedTracks = calculateStressTracks(character);
@@ -58,9 +57,19 @@ export function CharacterSheet({
     (_filled, index) => character.stress.mental?.[index] ?? false
   );
 
+  /* 
+    Refactored Layout per User Request:
+    1. Aspects (Top, Full Width)
+    2. Skills (Middle, Prominent)
+    3. Maneuvers & Gifts (Middle)
+    4. Situational Aspects (Middle/Bottom)
+    5. Others (Fate, Stress, Consequences, Notes)
+  */
   const sheetBody = (
-    <div className="relative w-full max-w-4xl">
-      {/* Character Info Header - Only show in modal variant */}
+    <div className="relative w-full max-w-4xl space-y-6">
+
+      {/* Header Identity */}
+      {/* Modal Header */}
       {variant === 'modal' && (
         <div className="sticky top-0 z-10 glass-panel rounded-t-lg border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -80,18 +89,15 @@ export function CharacterSheet({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-          >
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
       )}
 
-      {/* Character identity bar for window variant */}
+      {/* Window Identity */}
       {variant === 'window' && (
-        <div className="flex items-center gap-3 mb-4 p-3 glass-panel rounded-lg">
+        <div className="flex items-center gap-3 p-3 glass-panel rounded-lg">
           <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-primary shrink-0">
             {character.avatar ? (
               <img src={character.avatar} alt={character.name} className="w-full h-full rounded-full object-cover" />
@@ -104,19 +110,277 @@ export function CharacterSheet({
             <p className="text-xs text-muted-foreground truncate">{character.aspects.highConcept}</p>
           </div>
           {readOnly && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs font-ui text-muted-foreground border border-border shrink-0">
-              <Eye className="w-3 h-3" />
-              Visualização
-            </span>
+            <div className="flex flex-col items-end">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs font-ui text-muted-foreground border border-border shrink-0">
+                <Eye className="w-3 h-3" /> Visualização
+              </span>
+            </div>
           )}
         </div>
       )}
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Column */}
+      {/* 1. ASPECTS - Top Priority, Full Width or Grid */}
+      <div className="glass-panel p-4 lg:p-6">
+        <h3 className="font-display text-xl text-primary mb-4 flex items-center gap-2 border-b border-white/10 pb-2">
+          <Sparkles className="w-5 h-5" />
+          Aspectos
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Named Aspects */}
+          <div className="space-y-4">
+            <div className="group relative">
+              <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider block mb-1">Alto Conceito</label>
+              <div
+                className={`p-3 rounded-lg bg-primary/10 border border-primary/20 text-base font-medium relative overflow-hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-primary/20 transition-colors' : ''}`}
+                onClick={() => onInvokeAspect?.(character.aspects.highConcept)}
+              >
+                {character.aspects.highConcept}
+                {onInvokeAspect && <span className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded pointer-events-none">Invocar</span>}
+              </div>
+            </div>
+            <div className="group relative">
+              <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider block mb-1">Drama</label>
+              <div
+                className={`p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-base font-medium relative overflow-hidden ${onInvokeAspect ? 'cursor-pointer hover:bg-destructive/20 transition-colors' : ''}`}
+                onClick={() => onInvokeAspect?.(character.aspects.drama)}
+              >
+                {character.aspects.drama}
+                {onInvokeAspect && <span className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded pointer-events-none">Invocar</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary Aspects Grid */}
+          <div className="grid grid-cols-1 gap-3 content-start">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="group relative">
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
+                <div className={`p-2 rounded bg-muted/40 border border-border text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''}`} onClick={() => onInvokeAspect?.(character.aspects.job)}>
+                  {character.aspects.job}
+                </div>
+              </div>
+              <div className="group relative">
+                <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Sonho</label>
+                <div className={`p-2 rounded bg-muted/40 border border-border text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/60' : ''}`} onClick={() => onInvokeAspect?.(character.aspects.dreamBoard)}>
+                  {character.aspects.dreamBoard}
+                </div>
+              </div>
+            </div>
+
+            {/* Free Aspects */}
+            <div className="space-y-2">
+              {character.aspects.free.map((aspect, i) => (
+                <div key={i} className="group relative flex items-center gap-2">
+                  <div className={`flex-1 p-2 rounded bg-muted/30 border border-border/50 text-sm ${onInvokeAspect ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={() => onInvokeAspect?.(aspect)}>
+                    {aspect}
+                  </div>
+                </div>
+              ))}
+              {character.aspects.free.length === 0 && <p className="text-xs text-muted-foreground italic pl-1">Sem aspectos livres.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 2. SKILLS - High Visibility */}
+        <div className="glass-panel p-4">
+          <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2 border-b border-white/10 pb-2">
+            <Target className="w-5 h-5" />
+            Perícias
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(character.skills).map(([skill, value]) => (
+              <button
+                key={skill}
+                onClick={() => onSkillClick?.(skill)}
+                className={`p-2 rounded-lg text-center border transition-all ${onSkillClick ? 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer' : 'cursor-default bg-muted/20'} border-border`}
+                disabled={!onSkillClick}
+              >
+                <div className="font-display text-2xl leading-none mb-1 text-primary">+{value}</div>
+                <div className="text-xs text-muted-foreground capitalize truncate font-medium">{skill}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3 & 4. MANEUVERS & GIFTS */}
         <div className="space-y-6">
-          {/* Fate Points */}
+          {/* Maneuvers */}
           <div className="glass-panel p-4">
+            <h3 className="font-display text-xl text-secondary mb-3 flex items-center gap-2 border-b border-white/10 pb-2">
+              <Zap className="w-5 h-5" />
+              Manobras
+            </h3>
+            <div className="space-y-2">
+              {[...(character.maneuvers || []), ...(character.skillManeuvers || [])].map((maneuverId, i) => {
+                const drive = character.drive ? getDriveById(character.drive) : undefined;
+                /* Lookup Logic reused from previous implementation */
+                let maneuverName = maneuverId;
+                let maneuverDescription = '';
+                let isFree = false;
+                let type = 'general';
+
+                if (drive) {
+                  if (drive.freeManeuvers[0]?.id === maneuverId) {
+                    maneuverName = drive.freeManeuvers[0].name;
+                    maneuverDescription = drive.freeManeuvers[0].description;
+                    isFree = true;
+                    type = 'drive';
+                  } else {
+                    const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
+                    if (exclusive) {
+                      maneuverName = exclusive.name;
+                      maneuverDescription = exclusive.description;
+                      type = 'drive';
+                    }
+                  }
+                }
+                if (type === 'general') {
+                  for (const [skillName, maneuvers] of Object.entries(skillManeuvers)) {
+                    const found = maneuvers.find(m => m.id === maneuverId);
+                    if (found) {
+                      maneuverName = found.name;
+                      maneuverDescription = found.description;
+                      type = 'skill';
+                      break;
+                    }
+                  }
+                }
+
+                return (
+                  <Tooltip key={`${maneuverId}-${i}`}>
+                    <TooltipTrigger asChild>
+                      <div className={`p-2 rounded-md font-ui text-sm flex items-start gap-3 cursor-help transition-colors hover:bg-muted/80 ${isFree ? 'bg-primary/10 border border-primary/20 text-primary-foreground' : 'bg-muted/40 border border-border'}`}>
+                        <div className="mt-0.5">
+                          {type === 'skill' && <Target className="w-3.5 h-3.5 text-blue-400" />}
+                          {type === 'drive' && <Zap className="w-3.5 h-3.5 text-yellow-500" />}
+                          {type === 'general' && <Zap className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm leading-none mb-1 flex items-center gap-2">
+                            {maneuverName}
+                            {isFree && <span className="text-[9px] uppercase bg-primary/20 text-primary px-1 rounded">Grátis</span>}
+                          </div>
+                          <div className="text-xs opacity-70 line-clamp-2">{maneuverDescription}</div>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="font-medium mb-1">{maneuverName}</p>
+                      <p className="text-xs text-muted-foreground">{maneuverDescription}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              {(!character.maneuvers?.length && !character.skillManeuvers?.length) && <p className="text-sm text-muted-foreground italic">Nenhuma manobra.</p>}
+            </div>
+          </div>
+
+          {/* Gifts - Only show if present */}
+          {(character.gifts && character.gifts.length > 0) && (
+            <div className="glass-panel p-4">
+              <h3 className="font-display text-xl text-purple-400 mb-3 flex items-center gap-2 border-b border-white/10 pb-2">
+                <Sparkles className="w-5 h-5" />
+                Dons Sobrenaturais
+              </h3>
+              <div className="space-y-2">
+                {character.gifts.map((gift, i) => (
+                  <div key={i} className="p-2 rounded-md bg-purple-500/10 border border-purple-500/20 flex gap-3">
+                    <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-purple-100 text-sm mb-0.5">{gift.name}</div>
+                      <p className="text-xs text-purple-200/70">{gift.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. SITUATIONAL ASPECTS / ADVANTAGES */}
+      <div className="glass-panel p-4">
+        <h3 className="font-display text-xl text-primary mb-3 flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Vantagens / Aspectos Situacionais
+          </div>
+          {!readOnly && onAddSituationalAspect && (
+            <button
+              className="text-xs bg-primary/20 hover:bg-primary/30 text-primary px-2 py-1 rounded transition-colors"
+              onClick={() => document.getElementById('new-situational-aspect')?.focus()}
+            >
+              + Nova
+            </button>
+          )}
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {character.situationalAspects?.map((aspect) => (
+            <div key={aspect.id} className="flex flex-col p-3 bg-muted/20 border border-border/50 rounded-lg group hover:border-primary/30 transition-all">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="font-medium text-sm leading-tight line-clamp-2" title={aspect.name}>{aspect.name}</div>
+                {!readOnly && onRemoveSituationalAspect && (
+                  <button
+                    onClick={() => onRemoveSituationalAspect(aspect.id)}
+                    className="p-1 -mr-1 -mt-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-auto flex items-center justify-between pt-2 border-t border-white/5">
+                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Invocações</span>
+                <div className="flex items-center gap-2 bg-background/50 rounded px-1.5 py-0.5 border border-white/5">
+                  {!readOnly && onUpdateSituationalAspect && (
+                    <button onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: Math.max(0, aspect.freeInvokes - 1) })} className="w-5 h-5 flex items-center justify-center hover:bg-muted rounded text-muted-foreground hover:text-foreground text-sm font-bold">-</button>
+                  )}
+                  <span className="font-mono font-bold text-primary text-sm">{aspect.freeInvokes}</span>
+                  {!readOnly && onUpdateSituationalAspect && (
+                    <button onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: aspect.freeInvokes + 1 })} className="w-5 h-5 flex items-center justify-center hover:bg-muted rounded text-muted-foreground hover:text-foreground text-sm font-bold">+</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {!readOnly && onAddSituationalAspect && (
+            <div className="flex flex-col justify-center p-3 border border-dashed border-border/50 rounded-lg hover:bg-muted/10 transition-colors">
+              <input
+                type="text"
+                id="new-situational-aspect"
+                placeholder="Nome da vantagem..."
+                className="bg-transparent border-0 border-b border-border/50 text-sm focus:border-primary focus:outline-none mb-2 placeholder:text-muted-foreground/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const input = e.currentTarget;
+                    if (input.value.trim()) {
+                      onAddSituationalAspect(input.value.trim(), 1);
+                      input.value = '';
+                    }
+                  }
+                }}
+              />
+              <div className="text-[10px] text-muted-foreground italic text-center">Pressione Enter para adicionar</div>
+            </div>
+          )}
+
+          {(!character.situationalAspects?.length && !onAddSituationalAspect) && <div className="col-span-full text-sm text-muted-foreground italic py-4 text-center">Nenhum aspecto situacional ativo.</div>}
+        </div>
+      </div>
+
+      {/* 6. OTHERS (Stats, Notes) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Stress & Fate */}
+        <div className="glass-panel p-4 space-y-6">
+          {/* Fate Points */}
+          <div>
+            <h4 className="text-xs font-bold uppercase text-accent mb-2 flex items-center gap-2">
+              <Zap className="w-3 h-3" /> Pontos de Destino
+            </h4>
             <FatePointDisplay
               points={character.fatePoints}
               maxPoints={character.refresh + 2}
@@ -124,451 +388,99 @@ export function CharacterSheet({
               onGain={readOnly ? undefined : onGainFate}
               readOnly={readOnly}
             />
-            {readOnly && (
-              <p className="mt-2 text-xs text-muted-foreground font-ui">
-                Modo de visualização — alterações desativadas.
-              </p>
-            )}
           </div>
 
-          {/* Aspects */}
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Aspectos
-            </h3>
-            <div className="space-y-2">
-              <div className="space-y-2">
-                <div className="group relative">
-                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Alto Conceito</label>
-                  <div
-                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
-                    title={character.aspects.highConcept}
-                    onClick={() => onInvokeAspect?.(character.aspects.highConcept)}
-                  >
-                    {character.aspects.highConcept}
-                  </div>
-                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
-                </div>
-                <div className="group relative">
-                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Drama</label>
-                  <div
-                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
-                    title={character.aspects.drama}
-                    onClick={() => onInvokeAspect?.(character.aspects.drama)}
-                  >
-                    {character.aspects.drama}
-                  </div>
-                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
-                </div>
-                <div className="group relative">
-                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Emprego</label>
-                  <div
-                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
-                    title={character.aspects.job}
-                    onClick={() => onInvokeAspect?.(character.aspects.job)}
-                  >
-                    {character.aspects.job}
-                  </div>
-                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
-                </div>
-                <div className="group relative">
-                  <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Quadro dos Sonhos</label>
-                  <div
-                    className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
-                    title={character.aspects.dreamBoard}
-                    onClick={() => onInvokeAspect?.(character.aspects.dreamBoard)}
-                  >
-                    {character.aspects.dreamBoard}
-                  </div>
-                  {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
-                </div>
-                {character.aspects.free.map((aspect, i) => (
-                  <div key={i} className="group relative">
-                    <label className="text-[10px] text-muted-foreground font-ui uppercase tracking-wider">Livre</label>
-                    <div
-                      className={`aspect-tag mt-0.5 text-sm truncate ${onInvokeAspect ? 'cursor-pointer hover:text-primary hover:border-primary/50 transition-colors' : ''}`}
-                      title={aspect}
-                      onClick={() => onInvokeAspect?.(aspect)}
+          <div className="h-px bg-border/50" />
+
+          {/* Stress Tracks */}
+          <div>
+            <h4 className="text-xs font-bold uppercase text-destructive mb-3 flex items-center gap-2">
+              <Heart className="w-3 h-3" /> Estresse
+            </h4>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="w-16 text-xs font-bold text-muted-foreground">FÍSICO</span>
+                <div className="flex gap-1.5 flex-1">
+                  {physicalStress.map((filled, index) => (
+                    <button
+                      key={index}
+                      onClick={() => onToggleStress?.('physical', index)}
+                      disabled={!canToggleStress}
+                      className={`h-8 w-8 rounded border flex items-center justify-center transition-all ${filled ? 'bg-destructive text-destructive-foreground border-destructive' : 'bg-muted/30 border-border hover:border-destructive/50'} ${!canToggleStress ? 'cursor-default' : ''}`}
                     >
-                      {aspect}
-                    </div>
-                    {onInvokeAspect && <span className="absolute right-2 top-4 opacity-0 group-hover:opacity-100 text-[10px] text-primary bg-background px-1 rounded border border-primary/20 pointer-events-none">Invocar</span>}
-                  </div>
-                ))}
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="w-16 text-xs font-bold text-muted-foreground">MENTAL</span>
+                <div className="flex gap-1.5 flex-1">
+                  {mentalStress.map((filled, index) => (
+                    <button
+                      key={index}
+                      onClick={() => onToggleStress?.('mental', index)}
+                      disabled={!canToggleStress}
+                      className={`h-8 w-8 rounded border flex items-center justify-center transition-all ${filled ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 border-border hover:border-primary/50'} ${!canToggleStress ? 'cursor-default' : ''}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Situational Aspects */}
-        <div className="glass-panel p-4">
-          <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Vantagens / Aspectos Situacionais
-          </h3>
-
-          <div className="space-y-2">
-            {character.situationalAspects?.map((aspect) => (
-              <div key={aspect.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded border border-border/50 group hover:border-primary/30 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate" title={aspect.name}>{aspect.name}</div>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span className="uppercase tracking-wider">Invocações Grátis:</span>
-                    <span className="font-bold text-primary">{aspect.freeInvokes}</span>
+        {/* Consequences & Notes */}
+        <div className="glass-panel p-4 flex flex-col">
+          <div className="flex-1 space-y-4">
+            <h4 className="text-xs font-bold uppercase text-secondary mb-2 flex items-center gap-2">
+              <Brain className="w-3 h-3" /> Consequências
+            </h4>
+            <div className="space-y-2">
+              {(['mild', 'moderate', 'severe'] as const).map((severity) => (
+                <div key={severity} className="flex gap-2">
+                  <div className={`w-20 shrink-0 flex items-center justify-center rounded text-[10px] font-bold uppercase border ${severity === 'mild' ? 'border-border text-muted-foreground' : severity === 'moderate' ? 'border-yellow-500/30 text-yellow-500' : 'border-destructive/30 text-destructive'}`}>
+                    {severity === 'mild' ? 'Suave -2' : severity === 'moderate' ? 'Mod. -4' : 'Severa -6'}
+                  </div>
+                  <div className="flex-1 relative">
+                    <div className={`w-full px-3 py-1.5 rounded text-sm bg-background/50 border ${character.consequences[severity] ? 'border-secondary/50 text-foreground' : 'border-border/50 text-muted-foreground/50 italic'} min-h-[34px] flex items-center`}>
+                      {character.consequences[severity] || 'Livre'}
+                    </div>
+                    {!consequenceReadOnly && (
+                      <button
+                        className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 bg-black/10 flex items-center justify-center text-xs font-bold text-secondary backdrop-blur-[1px] transition-opacity rounded"
+                        onClick={() => onSetConsequence?.(severity, character.consequences[severity] ? null : '')}
+                      >
+                        {character.consequences[severity] ? 'Recuperar' : 'Marcar'}
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                {!readOnly && onUpdateSituationalAspect && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: Math.max(0, aspect.freeInvokes - 1) })}
-                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                    >
-                      -
-                    </button>
-                    <button
-                      onClick={() => onUpdateSituationalAspect(aspect.id, { freeInvokes: aspect.freeInvokes + 1 })}
-                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                    >
-                      +
-                    </button>
-                  </div>
-                )}
-
-                {!readOnly && onRemoveSituationalAspect && (
-                  <button
-                    onClick={() => onRemoveSituationalAspect(aspect.id)}
-                    className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {!readOnly && onAddSituationalAspect && (
-              <div className="flex gap-2 mt-3">
-                <input
-                  type="text"
-                  id="new-situational-aspect"
-                  placeholder="Nova vantagem..."
-                  className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-primary"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const input = e.currentTarget;
-                      if (input.value.trim()) {
-                        onAddSituationalAspect(input.value.trim(), 1); // Default 1 free invoke
-                        input.value = '';
-                      }
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    const input = document.getElementById('new-situational-aspect') as HTMLInputElement;
-                    if (input?.value.trim()) {
-                      onAddSituationalAspect(input.value.trim(), 1);
-                      input.value = '';
-                    }
-                  }}
-                  className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-sm font-medium transition-colors"
-                >
-                  Add
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Maneuvers */}
-        <div className="glass-panel p-4">
-          <h3 className="font-display text-xl text-secondary mb-3 flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            Manobras
-          </h3>
-          <div className="space-y-1.5">
-            {[...(character.maneuvers || []), ...(character.skillManeuvers || [])].map((maneuverId, i) => {
-              const drive = character.drive ? getDriveById(character.drive) : undefined;
-              let maneuverName = maneuverId;
-              let maneuverDescription = '';
-              let isFree = false;
-              let type = 'general';
-
-              // Check Drive
-              if (drive) {
-                if (drive.freeManeuver.id === maneuverId) {
-                  maneuverName = drive.freeManeuver.name;
-                  maneuverDescription = drive.freeManeuver.description;
-                  isFree = true;
-                  type = 'drive';
-                } else {
-                  const exclusive = drive.exclusiveManeuvers.find(m => m.id === maneuverId);
-                  if (exclusive) {
-                    maneuverName = exclusive.name;
-                    maneuverDescription = exclusive.description;
-                    type = 'drive';
-                  }
-                }
-              }
-
-              // Check General
-              const general = GENERAL_MANEUVERS.find(m => m.id === maneuverId);
-              if (general) {
-                maneuverName = general.name;
-                maneuverDescription = general.description;
-                type = 'general';
-              }
-
-              // Check Skill Maneuvers
-              if (type === 'general' && !general) { // If not found yet
-                for (const [skillName, maneuvers] of Object.entries(SKILL_MANEUVERS)) {
-                  const found = maneuvers.find(m => m.id === maneuverId);
-                  if (found) {
-                    maneuverName = found.name;
-                    maneuverDescription = found.description;
-                    type = 'skill';
-                    break;
-                  }
-                }
-              }
-
-              return (
-                <Tooltip key={`${maneuverId}-${i}`}>
-                  <TooltipTrigger asChild>
-                    <div className={`px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help ${isFree ? 'bg-primary/20 text-primary' : type === 'skill' ? 'bg-blue-500/10 text-blue-400' : 'bg-muted'
-                      }`}>
-                      {type === 'skill' && <Target className="w-3 h-3 opacity-50" />}
-                      {type === 'drive' && <Zap className="w-3 h-3 opacity-50" />}
-                      <span className="truncate flex-1">{maneuverName}</span>
-                      {isFree && <span className="text-[10px] opacity-70 shrink-0">(grátis)</span>}
-                      <Info className="w-3 h-3 opacity-50 shrink-0" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    <p className="font-medium mb-1">{maneuverName}</p>
-                    <p className="text-xs text-muted-foreground">{maneuverDescription}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Gifts */}
-        {character.gifts && character.gifts.length > 0 && (
-          <div className="glass-panel p-4">
-            <h3 className="font-display text-xl text-purple-400 mb-3 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Dons Sobrenaturais
-            </h3>
-            <div className="space-y-1.5">
-              {character.gifts.map((gift, i) => (
-                <Tooltip key={i}>
-                  <TooltipTrigger asChild>
-                    <div className="px-2.5 py-1.5 rounded-md font-ui text-sm flex items-center gap-2 cursor-help bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                      <Sparkles className="w-3 h-3 opacity-50" />
-                      <span className="truncate flex-1">{gift.name}</span>
-                      <Info className="w-3 h-3 opacity-50 shrink-0" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    <p className="font-medium mb-1">{gift.name}</p>
-                    <p className="text-xs text-muted-foreground">{gift.description}</p>
-                  </TooltipContent>
-                </Tooltip>
               ))}
             </div>
+
+            <div className="h-px bg-border/50 my-4" />
+
+            <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Anotações</h4>
+            {readOnly ? (
+              <div className="text-sm text-muted-foreground/80 whitespace-pre-wrap p-2 bg-muted/20 rounded border border-white/5 min-h-[80px]">
+                {character.notes || 'Sem anotações.'}
+              </div>
+            ) : (
+              <textarea
+                className="w-full min-h-[100px] bg-background/50 border border-border rounded p-2 text-sm focus:outline-none focus:border-primary resize-y font-ui"
+                placeholder="..."
+                value={character.notes || ''}
+                onChange={(e) => onUpdateNotes?.(e.target.value)}
+              />
+            )}
           </div>
-        )}
-
-
-      </div>
-
-      {/* Right Column */}
-      <div className="space-y-6">
-        {/* Skills */}
-        <div className="glass-panel p-4">
-          <h3 className="font-display text-xl text-primary mb-3 flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Perícias
-          </h3>
-          <div className="grid grid-cols-3 gap-1.5">
-            {Object.entries(character.skills).map(([skill, value]) => (
-              <button
-                key={skill}
-                onClick={() => onSkillClick?.(skill)}
-                className={`p-1.5 rounded text-center border transition-colors ${onSkillClick ? 'hover:border-primary/50 hover:text-primary cursor-pointer' : 'cursor-default'
-                  }`}
-                disabled={!onSkillClick}
-              >
-                <div className="font-display text-lg leading-none">+{value}</div>
-                <div className="text-[10px] text-muted-foreground capitalize truncate">{skill}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Stress Tracks */}
-        <div className="glass-panel p-4">
-          <h3 className="font-display text-xl text-destructive mb-2 flex items-center gap-2">
-            <Heart className="w-5 h-5" />
-            Estresse & Consequências
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            {stressTooltip}
-          </p>
-
-          <div className="space-y-3">
-            {/* Physical Stress */}
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Físico</span>
-                <span className="text-[10px] text-muted-foreground">Base {character.stress.physical.length}</span>
-              </div>
-              <div className="flex gap-2 mt-2">
-                {physicalStress.map((filled, index) => (
-                  <button
-                    key={index}
-                    onClick={() => onToggleStress?.('physical', index)}
-                    disabled={!canToggleStress}
-                    className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${filled
-                      ? 'bg-destructive/20 border-destructive text-destructive glow-destructive'
-                      : 'bg-muted border-border hover:border-destructive/60'
-                      } ${!canToggleStress ? 'cursor-default' : ''}`}
-                  >
-                    <Heart className="w-4 h-4" />
-                    <span className="text-sm">{index + 1}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mental Stress */}
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-ui text-muted-foreground uppercase tracking-wide">Estresse Mental</span>
-                <span className="text-[10px] text-muted-foreground">Base {character.stress.mental.length}</span>
-              </div>
-              <div className="flex gap-2 mt-2">
-                {mentalStress.map((filled, index) => (
-                  <button
-                    key={index}
-                    onClick={() => onToggleStress?.('mental', index)}
-                    disabled={!canToggleStress}
-                    className={`relative flex-1 h-10 rounded-md border transition-all flex items-center justify-center gap-1 ${filled
-                      ? 'bg-primary/20 border-primary text-primary glow-primary'
-                      : 'bg-muted border-border hover:border-primary/60'
-                      } ${!canToggleStress ? 'cursor-default' : ''}`}
-                  >
-                    <Brain className="w-4 h-4" />
-                    <span className="text-sm">{index + 1}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Consequences */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-            {(['mild', 'moderate', 'severe'] as const).map((severity) => (
-              <div key={severity} className="glass-panel p-3 bg-muted/40 border-dashed border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-secondary" />
-                  <span className="text-xs font-ui uppercase tracking-wider">
-                    {severity === 'mild' ? 'Suave (2)' : severity === 'moderate' ? 'Moderada (4)' : 'Severa (6)'}
-                  </span>
-                </div>
-                <div className={`px-3 py-2 rounded-md text-sm bg-background border ${character.consequences[severity] ? 'border-secondary' : 'border-border'} min-h-[52px]`}>
-                  {character.consequences[severity] || 'Sem consequência'}
-                </div>
-                {!consequenceReadOnly && (
-                  <button
-                    onClick={() => onSetConsequence?.(severity, character.consequences[severity] ? null : '')}
-                    className="mt-2 w-full px-3 py-2 rounded-md text-sm border border-secondary/40 text-secondary hover:bg-secondary/10 transition-colors"
-                  >
-                    {character.consequences[severity] ? 'Remover' : 'Adicionar'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Drives */}
-        <div className="glass-panel p-4">
-          <h3 className="font-display text-xl text-accent mb-3 flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            Impulso
-          </h3>
-          {character.drive ? (
-            <div className="space-y-2">
-              <div className="glass-panel p-2.5 bg-muted/30 border-primary/20">
-                <p className="text-sm text-foreground flex items-center gap-2">
-                  <span className="text-base">{getDriveById(character.drive)?.icon}</span>
-                  <span className="font-display truncate">{getDriveById(character.drive)?.name}</span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{getDriveById(character.drive)?.summary}</p>
-              </div>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="glass-panel p-2.5 cursor-help">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Manobra Grátis</p>
-                    <p className="font-display text-sm text-primary truncate">{getDriveById(character.drive)?.freeManeuver.name}</p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-xs">
-                  <p className="font-medium mb-1">{getDriveById(character.drive)?.freeManeuver.name}</p>
-                  <p className="text-xs text-muted-foreground">{getDriveById(character.drive)?.freeManeuver.description}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                {getDriveById(character.drive)?.exclusiveManeuvers.map((maneuver) => (
-                  <Tooltip key={maneuver.id}>
-                    <TooltipTrigger asChild>
-                      <div className="glass-panel p-2 bg-muted/50 cursor-help">
-                        <p className="text-[10px] text-muted-foreground uppercase">Exclusiva</p>
-                        <p className="font-display text-sm truncate">{maneuver.name}</p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
-                      <p className="font-medium mb-1">{maneuver.name}</p>
-                      <p className="text-xs text-muted-foreground">{maneuver.description}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhum impulso selecionado.</p>
-          )}
         </div>
       </div>
 
-
-      {/* Notes Section - Full Width */}
-      <div className="mt-6 glass-panel p-4 col-span-1 md:col-span-2">
-        <div className="font-display text-xl text-muted-foreground mb-3 flex items-center gap-2">
-          <Brain className="w-5 h-5" />
-          Anotações
-        </div>
-        {readOnly ? (
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[100px] p-2 bg-muted/20 rounded">
-            {character.notes || 'Sem anotações.'}
-          </div>
-        ) : (
-          <textarea
-            className="w-full min-h-[150px] bg-background/50 border border-border rounded p-3 text-sm focus:outline-none focus:border-primary resize-y font-ui"
-            placeholder="Anotações da campanha, inventário, contatos..."
-            value={character.notes || ''}
-            onChange={(e) => onUpdateNotes?.(e.target.value)}
-          />
-        )}
-      </div>
-
-    </div >
+    </div>
   );
 
 

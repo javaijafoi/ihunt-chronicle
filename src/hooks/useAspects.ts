@@ -21,7 +21,7 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
 
     // Hooks for actions
     const { updateFate, addLog } = useGameActions(episodeId, campaignId, currentSession?.gmId === user?.uid);
-    const { updateCharacter } = useFirebaseCharacters(currentSession?.id);
+    const { updateCharacter } = useFirebaseCharacters(campaignId);
 
     // Identify my character
     const myCharacter = useMemo(() =>
@@ -53,13 +53,15 @@ export function useAspects(campaignId: string, episodeId: string, sceneId?: stri
         // 2. Aspectos de Personagens
         partyCharacters.forEach(char => {
             // High Concept, Drama, Job, DreamBoard, Free
-            const charAspects = [
+            const aspectsList = char.aspects ? [
                 { name: char.aspects.highConcept, label: 'Alto Conceito' },
                 { name: char.aspects.drama, label: 'Drama' },
                 { name: char.aspects.job, label: 'Emprego' },
                 { name: char.aspects.dreamBoard, label: 'Sonhos' },
-                ...char.aspects.free.map(f => ({ name: f, label: 'Livre' }))
-            ];
+                ...(char.aspects.free || []).map(f => ({ name: f, label: 'Livre' }))
+            ] : [];
+
+            const charAspects = aspectsList;
 
             charAspects.forEach(({ name }) => {
                 if (name) {
