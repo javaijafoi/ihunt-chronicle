@@ -83,7 +83,7 @@ export function CreateAdvantageModal({
 
     const getOutcomeLabel = () => {
         switch (outcome) {
-            case 'style': return 'Sucesso com Estilo (+3 invocações)'; // Wait, usually 2 for style? Fate Core says 2. Prompt says 2. I'll stick to props.
+            case 'style': return 'Sucesso com Estilo';
             case 'success': return 'Sucesso (+1 invocação)';
             case 'tie': return 'Empate (Boost temporário)';
             default: return '';
