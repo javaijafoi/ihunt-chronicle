@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
-// import { useEpisode } from '@/hooks/useEpisode'; // Removed
+
 import { useScenes } from '@/hooks/useScenes';
 import { useActiveNPCs } from '@/hooks/useActiveNPCs';
 import { useTokens } from '@/hooks/useTokens';

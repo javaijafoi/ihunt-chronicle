@@ -46,7 +46,7 @@ export function SelfieTimeline({
     const [filter, setFilter] = useState<'all' | SelfieType>('all');
     const [showNewSelfie, setShowNewSelfie] = useState(false);
     const [advancementSelfie, setAdvancementSelfie] = useState<Selfie | null>(null);
-    // const { currentEpisode } = useCampaign();
+
 
     // Aggregate all selfies into a single timeline
     const timelineItems = useMemo(() => {
@@ -302,7 +302,7 @@ export function SelfieTimeline({
                     isOpen={showNewSelfie}
                     onClose={() => setShowNewSelfie(false)}
                     onSubmit={handleCreateSelfie}
-                    episodeId={undefined}
+
                 />
             )}
 

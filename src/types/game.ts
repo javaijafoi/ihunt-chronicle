@@ -26,7 +26,7 @@ export interface Drive {
 
 export interface Character {
   id: string;
-  sessionId?: string; // @deprecated use campaignId
+
   campaignId: string;
   userId: string; // Owner ID (former createdBy, normalized)
   createdBy: string; // Keep for legacy or alias to userId

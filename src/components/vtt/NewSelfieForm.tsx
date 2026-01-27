@@ -21,7 +21,7 @@ interface NewSelfieFormProps {
     onClose: () => void;
     onSubmit: (selfie: Selfie) => Promise<void>;
     type?: SelfieType;
-    episodeId?: string; // Opt
+
 }
 
 export function NewSelfieForm({

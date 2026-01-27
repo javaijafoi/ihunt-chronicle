@@ -2,7 +2,8 @@
 description: Atualiza o código em produção (Git Sync Cycle)
 ---
 
-Siga estes passos quando o usuário pedir para "atualizar em produção" ou "fazer deploy":
+Siga estes passos quando o usuário pedir para "atualizar em produção" ou "fazer deploy".
+**PADRÃO: O código deve ser sempre sincronizado em AMBOS os repositórios (Principal e Backup).**
 
 1. **Verificar Status**
    - Execute `git status` para ver o que mudou.
@@ -11,15 +12,16 @@ Siga estes passos quando o usuário pedir para "atualizar em produção" ou "faz
    - Execute `git add .` para adicionar todas as mudanças.
 
 3. **Commit**
-   - Gere uma mensagem de commit descritiva baseada nas mudanças feitas (git diff se necessário) OU pergunte ao usuário se preferir.
+   - Gere uma mensagem de commit descritiva.
    - Execute `git commit -m "Sua mensagem aqui"`.
 
 4. **Sincronizar (Pull)**
-   - Execute `git pull` para trazer alterações remotas.
-   - Se houver conflitos, **PARE** e resolva-os (ou peça ajuda ao usuário), depois continue.
+   - Execute `git pull origin` para garantir que está atualizado.
+   - **Importante:** Se houver conflitos, resolva-os antes de prosseguir.
 
-5. **Enviar (Push)**
-   - Execute `git push` para enviar o código atualizado.
+5. **Enviar (Push) - DUPLO DEPLOY**
+   - Execute `git push origin`
+   - Execute `git push target_repo`
 
 6. **Confirmação**
-   - Confirme para o usuário que o processo foi concluído e o código está atualizado.
+   - Confirme para o usuário que o código foi atualizado em **ambos** os repositórios.

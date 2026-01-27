@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-// import { useSession } from './useSession';
+
 import { usePartyCharacters } from './usePartyCharacters';
 import { useActiveNPCs } from './useActiveNPCs';
 import { useScenes } from './useScenes';
@@ -12,7 +12,7 @@ import { useFirebaseCharacters } from './useFirebaseCharacters';
 export function useAspects(campaignId: string, sceneId?: string) {
     const { user } = useAuth();
     const { campaign } = useCampaign();
-    // const { currentSession } = useSession();
+
     const { partyCharacters } = usePartyCharacters(campaignId);
     const { activeNPCs } = useActiveNPCs(campaignId);
     // useScenes returns activeScene as the current active scene

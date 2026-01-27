@@ -78,20 +78,7 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
         };
     }, [campaignId, user]);
 
-    // 2. Subscribe to Active Scene (Simplified: No Episode check)
-    // Assuming campaign now acts as the container, we might need a way to know the "active scene" for the campaign.
-    // However, the original logic relied on currentEpisodeId. 
-    // If we remove episodes, we need a 'currentSceneId' in Campaign.
-    // For now, I will remove the Episode subscription block entirely.
-    // We will re-add Scene subscription based on Campaign later if needed, or if the user instruction implies scene management moves to Campaign.
-    // The instructions say "Remover references a currentEpisode", so I will remove this block.
-    // But we need 'currentScene'.
-
-    // TEMPORARY: Empty effect until we define where currentScene comes from (likely Campaign.currentSceneId)
-    // I will look at adding currentSceneId to Campaign in Schema later if it's not there.
-    // But wait, the schema change for Campaign didn't add currentSceneId, it just removed currentEpisodeId.
-    // Types/game.ts: Scene has campaignId. 
-    // Maybe we just query for 'isActive=true' scenes?
+    // 2. Subscribe to Active Scene
     useEffect(() => {
         if (!campaignId || !user) return;
         // Query for active scenes in this campaign
