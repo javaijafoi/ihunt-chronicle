@@ -111,7 +111,8 @@ export function useAspects(campaignId: string, sceneId?: string) {
                     freeInvokes: sa.freeInvokes,
                     usedThisScene: false,
                     createdBy: char.userId,
-                    isTemporary: true
+                    isTemporary: !sa.isPersistent, // Respect persistence
+                    isPersistent: sa.isPersistent
                 });
             });
         });
@@ -150,6 +151,23 @@ export function useAspects(campaignId: string, sceneId?: string) {
                         severity: severity as 'mild' | 'moderate' | 'severe'
                     });
                 }
+            });
+
+            // Situational Aspects on NPCs
+            npc.situationalAspects?.forEach(sa => {
+                aspects.push({
+                    id: sa.id,
+                    name: sa.name,
+                    source: 'situational',
+                    ownerId: npc.id,
+                    ownerName: npc.name,
+                    ownerType: 'npc',
+                    freeInvokes: sa.freeInvokes,
+                    usedThisScene: false,
+                    createdBy: sa.createdBy || campaign?.gmId || '',
+                    isTemporary: !sa.isPersistent,
+                    isPersistent: sa.isPersistent
+                });
             });
         });
 

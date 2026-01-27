@@ -42,6 +42,7 @@ interface DiceRollerProps {
   isGM?: boolean;
   unifiedAspects?: UnifiedAspect[];
   onRevokeAspect?: (aspectName: string, source: string, wasFree: boolean) => void;
+  onCreateAdvantage?: (outcome: 'tie' | 'success' | 'style', freeInvokes: number) => void;
 }
 
 interface InvocationRecord {
@@ -95,7 +96,8 @@ export function DiceRoller({
   variant = 'modal',
   isGM = false,
   unifiedAspects,
-  onRevokeAspect
+  onRevokeAspect,
+  onCreateAdvantage
 }: DiceRollerProps) {
 
   const [result, setResult] = useState<DiceResult | null>(null);
@@ -229,6 +231,15 @@ export function DiceRoller({
       setInvokedAspects([]);
     }
   }, [isOpen, presetSkill]);
+
+  useEffect(() => {
+    if (result && result.action === 'criarVantagem' && result.outcome) {
+      if (result.outcome !== 'failure') {
+        const freeInvokes = result.outcome === 'style' ? 2 : 1;
+        onCreateAdvantage?.(result.outcome, freeInvokes);
+      }
+    }
+  }, [result]);
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 

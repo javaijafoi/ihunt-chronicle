@@ -50,11 +50,7 @@ export interface Character {
   gifts?: CharacterGift[];
   // NEW: Notes field for campaign characters
   notes?: string;
-  situationalAspects?: {
-    id: string;
-    name: string;
-    freeInvokes: number;
-  }[];
+  situationalAspects?: SituationalAspect[];
   selfies: Selfie[];
   selfieSlots?: SelfieSlot[]; // New progression system
   stress: {
@@ -69,6 +65,19 @@ export interface Character {
   fatePoints: number;
   refresh: number;
 
+}
+
+export interface SituationalAspect {
+  id: string;
+  name: string;
+  freeInvokes: number;
+  createdAt?: string;           // ISO timestamp
+  createdBy?: string;           // userId que criou
+  createdInSceneId?: string;   // ID da cena onde foi criado
+  createdInSceneName?: string; // Cache do nome da cena (para display)
+  isBoost?: boolean;            // true = some apos usar invocacao
+  isPersistent?: boolean;       // true = nao limpa ao trocar cena (Malinas)
+  expiresAt?: string;          // Para aspectos com duracao (opcional)
 }
 
 export type AspectSource =
@@ -97,6 +106,7 @@ export interface UnifiedAspect {
   createdBy: string;      // userId que criou
   createdAt?: Date | Timestamp;
   isTemporary: boolean;   // Desaparece ao fim da cena
+  isPersistent?: boolean; // Novo: Malinas
 
   // Para consequências
   severity?: 'mild' | 'moderate' | 'severe';
@@ -111,6 +121,10 @@ export interface SceneAspect {
   freeInvokes: number;
   createdBy: string;
   isTemporary: boolean;
+  isBoost?: boolean;         // NOVO
+  isPersistent?: boolean;    // NOVO
+  createdAt?: string;        // NOVO
+  createdInSceneId?: string; // NOVO (para aspectos que migram entre cenas)
 }
 
 export type ActionType = 'superar' | 'criarVantagem' | 'atacar' | 'defender';
@@ -283,6 +297,7 @@ export interface ActiveNPC {
     severe: string | null;
   };
   stunts: string[];
+  situationalAspects?: SituationalAspect[];
   avatar?: string;
 
   // Estado na Sessão

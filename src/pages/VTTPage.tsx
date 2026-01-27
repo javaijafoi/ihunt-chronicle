@@ -27,6 +27,8 @@ import { ActiveNPCSheet } from '@/components/vtt/ActiveNPCSheet';
 import { CompelModal } from '@/components/vtt/CompelModal';
 import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
 import { NewSelfieForm } from '@/components/vtt/NewSelfieForm';
+import { CreateAdvantageModal } from '@/components/vtt/CreateAdvantageModal';
+import { useCreateAdvantage } from '@/hooks/useCreateAdvantage';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -72,7 +74,10 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   }, [campaignId]);
 
   const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(campaignId, isGM);
+
+
   const { allAspects, invokeAspect, revokeInvocation } = useAspects(campaignId || '', activeScene?.id);
+  const { createAdvantage } = useCreateAdvantage(campaignId || '');
 
   const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(campaignId, isGM);
 
@@ -88,6 +93,13 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showNewSelfieForm, setShowNewSelfieForm] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  // Create Advantage State
+  const [showCreateAdvantageModal, setShowCreateAdvantageModal] = useState(false);
+  const [pendingAdvantage, setPendingAdvantage] = useState<{
+    outcome: 'tie' | 'success' | 'style';
+    freeInvokes: number;
+  } | null>(null);
 
   // Derived Viewing Characters
   const viewingPC = useMemo(() => {
@@ -275,6 +287,87 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
     await updateFirebaseCharacter(char.id, { selfies: updatedSelfies });
   };
 
+  const handleSetActiveScene = async (newSceneId: string) => {
+    // 1. Scene Change Logic: Clean up old scene and characters BEFORE switching (or in parallel)
+
+    if (isGM) {
+      // A. Clean Characters
+      for (const char of partyCharacters) {
+        if (!char.situationalAspects || char.situationalAspects.length === 0) continue;
+
+        const keptAspects = char.situationalAspects.filter(a => {
+          // Keep if persistent OR not temporary (legacy support: if isPersistent undefined, assume temporary if logic demands, but here we trust flag)
+          // useCreateAdvantage sets isTemporary = !isPersistent.
+          if (a.isPersistent) return true;
+          // If not persistent, remove it.
+          return false;
+        }).map(a => {
+          if (a.isPersistent) {
+            return { ...a, freeInvokes: Math.max(a.freeInvokes, 1) };
+          }
+          return a;
+        });
+
+        // Only update if changes
+        if (keptAspects.length !== char.situationalAspects.length || keptAspects.some((ka, i) => ka.freeInvokes !== char.situationalAspects![i].freeInvokes)) {
+          await updateFirebaseCharacter(char.id, { situationalAspects: keptAspects });
+        }
+      }
+
+      // B. Clean Current Scene Aspects
+      if (activeScene) {
+        const sceneAspects = activeScene.aspects || [];
+        // Keep if NOT temporary OR isPersistent
+        const cleanSceneAspects = sceneAspects.filter(a => !a.isTemporary || a.isPersistent).map(a => {
+          if (a.isPersistent) return { ...a, freeInvokes: Math.max(a.freeInvokes, 1) };
+          return a;
+        });
+
+        if (cleanSceneAspects.length !== sceneAspects.length || cleanSceneAspects.some((ca, i) => ca.freeInvokes !== sceneAspects[i].freeInvokes)) {
+          await updateScene(activeScene.id, { aspects: cleanSceneAspects });
+        }
+      }
+    }
+
+    // 2. Activate New Scene
+    await setActiveScene(newSceneId);
+  };
+
+  // Create Advantage Handlers
+  const checkMalinaSabeDasCoisas = (char: Character | null) => {
+    if (!char) return false;
+    return char.maneuvers?.includes('sabe-das-coisas') || char.drive === 'malina';
+  };
+
+  const buildTargetList = () => {
+    const targets = [];
+    if (activeScene) targets.push({ id: activeScene.id, name: activeScene.name, type: 'scene' as const });
+    if (activeCharacter) targets.push({ id: activeCharacter.id, name: activeCharacter.name, type: 'character' as const });
+    activeNPCs.filter(n => n.sceneId === activeScene?.id).forEach(npc => {
+      targets.push({ id: npc.id, name: npc.name, type: 'npc' as const });
+    });
+    return targets;
+  };
+
+  const handleCreateAdvantageFromRoll = (outcome: 'tie' | 'success' | 'style', freeInvokes: number) => {
+    setPendingAdvantage({ outcome, freeInvokes });
+    setShowCreateAdvantageModal(true);
+  };
+
+  const handleConfirmAdvantage = async (
+    name: string,
+    targetId: string,
+    targetType: 'scene' | 'character' | 'npc',
+    freeInvokes: number,
+    isBoost: boolean,
+    isPersistent: boolean
+  ) => {
+    if (!activeCharacter && !isGM) return; // Allow GM to create? Assuming activeCharacter context mostly.
+    await createAdvantage(name, targetId, targetType, freeInvokes, isBoost, isPersistent, user?.uid || 'system');
+    setShowCreateAdvantageModal(false);
+    setPendingAdvantage(null);
+  };
+
   // Render (Simplified for brevity, kept structure)
   return (
     <div ref={ref} className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
@@ -427,7 +520,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           scenes={scenes}
           archivedScenes={[]} // TODO
           currentScene={activeScene ?? null}
-          onSetActiveScene={setActiveScene}
+          onSetActiveScene={handleSetActiveScene}
           onCreateScene={createScene}
           onUpdateScene={updateScene}
           onDeleteScene={deleteScene}
@@ -566,6 +659,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                   onRevokeAspect={handleRevokeAspect}
                   onAddLog={addLog}
                   isGM={isGM}
+                  onCreateAdvantage={handleCreateAdvantageFromRoll}
                 />
               </div>
             </div>
@@ -664,6 +758,21 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           onClose={() => setShowNewSelfieForm(false)}
           onSubmit={handleCreateSelfie}
           type="mood"
+        />
+
+      )}
+
+      {showCreateAdvantageModal && pendingAdvantage && (
+        <CreateAdvantageModal
+          isOpen={showCreateAdvantageModal}
+          onClose={() => setShowCreateAdvantageModal(false)}
+          outcome={pendingAdvantage.outcome}
+          freeInvokes={pendingAdvantage.freeInvokes}
+          isBoost={pendingAdvantage.outcome === 'tie'}
+          currentSceneName={activeScene?.name}
+          targets={buildTargetList()}
+          onConfirm={handleConfirmAdvantage}
+          hasPersistentManeuver={checkMalinaSabeDasCoisas(activeCharacter)}
         />
       )}
     </div>
