@@ -4,6 +4,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCampaign } from '@/contexts/CampaignContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobilePlayerView } from '@/components/vtt/mobile/MobilePlayerView';
 
 import { useScenes } from '@/hooks/useScenes';
 import { useActiveNPCs } from '@/hooks/useActiveNPCs';
@@ -54,6 +56,7 @@ import { forwardRef } from 'react';
 export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const navigate = useNavigate();
   const { user, userProfile, signOut } = useAuth();
+  const isMobile = useIsMobile();
 
   // New Context Hooks
   const { campaign, currentScene, isGM, myCharacter, selectCharacter, loading: campaignLoading } = useCampaign();
@@ -175,6 +178,27 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   };
 
   const spendFatePoint = (charId: string) => updateFate(charId, -1, true);
+
+  // Mobile View Integration
+  if (isMobile && !isGM && activeCharacter) {
+    return (
+      <MobilePlayerView
+        character={activeCharacter}
+        campaign={campaign}
+        activeScene={activeScene ?? null}
+        logs={logs}
+        allAspects={allAspects}
+        currentUserId={user?.uid}
+        onRollDice={handleRollDice}
+        onSpendFate={(charId) => updateFate(charId, -1, true)}
+        onToggleStress={handleToggleStress}
+        // Adapt invoke logic to match signature expected by MobilePlayerView vs simplified handler
+        onInvokeAspect={(name, source, free) => handleInvokeAspectFromRoller(name, source, free)}
+        onSendMessage={(msg) => addLog(msg, 'chat', activeCharacter.name, undefined, activeCharacter.avatar)}
+        onTriggerXCard={triggerXCard}
+      />
+    );
+  }
   const gainFatePoint = (charId: string) => updateFate(charId, 1, true);
 
   // Scene Aspects Helper
