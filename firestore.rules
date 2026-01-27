@@ -1,265 +1,120 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // === FUNCOES AUXILIARES SIMPLIFICADAS ===
+    
     function isSignedIn() {
       return request.auth != null;
     }
-
-    // --- NEW CAMPAIGN ARCHITECTURE HELPERS ---
     
-    function isCampaignMember(campaignId) {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid
-      );
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
     
-    // DEBUG HELPER
-    function isMemberOrDebug(campaignId) {
-        return true; // SUPER NUCLEAR: All checks pass
+    function isGM(campaignId) {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid;
     }
-
-    function isCampaignGM(campaignId) {
-      // Check if member doc exists AND role is 'gm', OR if user is the campaign gmId
-      let memberPath = /databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid);
-      return isSignedIn() && (
-        (exists(memberPath) && get(memberPath).data.role == 'gm') ||
-        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid
-      );
-    }
-
-    // --- CAMPAIGNS & SUBCOLLECTIONS ---
-
-    // SYSTEM RULES (Admin controlled, open for dev seeding)
-    match /system_skills/{id} {
-      allow read: if true;
-      allow write: if true;
-    }
-    match /system_maneuvers/{id} {
-      allow read: if true;
-      allow write: if true;
-    }
-    match /system_gifts/{id} {
-      allow read: if true;
-      allow write: if true;
-    }
-    match /system_drives/{id} {
-      allow read: if true;
-      allow write: if true;
-    }
-
+    
+    // === REGRAS DO SISTEMA (Publicas) ===
+    
+    match /system_skills/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /system_maneuvers/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /system_gifts/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /system_drives/{id} { allow read: if true; allow write: if isSignedIn(); }
+    
+    // === CAMPANHAS ===
+    
     match /campaigns/{campaignId} {
-      // Allow read if signed in (for joining via code or listing)
-      // Ideally restrict list to "my campaigns", but "get" needs to be open for joining.
       allow read: if isSignedIn();
-      
       allow create: if isSignedIn() && request.resource.data.gmId == request.auth.uid;
-      allow update: if isCampaignGM(campaignId) && request.resource.data.gmId == resource.data.gmId;
-      allow delete: if isCampaignGM(campaignId);
-
+      allow update: if isGM(campaignId);
+      allow delete: if isGM(campaignId);
+      
+      // --- SUBCOLLECTIONS ---
+      
       match /members/{memberId} {
-        // Simple Read: If you are signed in, you can see who is in the campaign
         allow read: if isSignedIn();
-        
-        // Joining: User creates their own member record
-        allow create: if isSignedIn() && request.auth.uid == memberId;
-        
-        // Updating: GM can update roles, in theory players can update self but usually GM manages roles
-        allow update: if isCampaignGM(campaignId) || request.auth.uid == memberId;
-        
-        // Deleting: GM can kick, User can leave
-        allow delete: if isCampaignGM(campaignId) || request.auth.uid == memberId;
+        allow create: if isOwner(memberId);
+        allow update, delete: if isOwner(memberId) || isGM(campaignId);
       }
-
+      
       match /presence/{userId} {
-        // "Open Floor": Anyone signed in can see who is online
         allow read: if isSignedIn();
-        // Write: Only the user themselves can update their presence
-        allow write: if isSignedIn() && request.auth.uid == userId;
+        allow write: if isOwner(userId);
       }
-
+      
       match /logs/{logId} {
-        // "Open Floor": Any signed in user can see logs
         allow read: if isSignedIn();
-        // Create: Any signed in user can add a log
         allow create: if isSignedIn();
-        // Admin: Only GM can modify logs
-        allow update, delete: if isCampaignGM(campaignId);
+        allow update, delete: if isGM(campaignId);
       }
     }
-
-    // --- ROOT LEVEL COLLECTIONS LINKED BY campaignId ---
-
-    // Seasons
-    match /seasons/{seasonId} {
-      allow read: if isSignedIn();
-      allow create: if isCampaignGM(request.resource.data.campaignId);
-      allow update, delete: if isCampaignGM(resource.data.campaignId);
-    }
-
-    // Stories
-    match /stories/{storyId} {
-      allow read: if isSignedIn();
-      allow create: if isCampaignGM(request.resource.data.campaignId);
-      allow update, delete: if isCampaignGM(resource.data.campaignId);
-    }
-
-    // Episodes
-    // REMOVED: Episodes logic is deprecated
-    // match /episodes/{episodeId} {
-    //   allow read: if isCampaignMember(resource.data.campaignId);
-    //   allow create: if isCampaignGM(request.resource.data.campaignId);
-    //   allow update, delete: if isCampaignGM(resource.data.campaignId);
-    //
-    //   match /logs/{logId} {
-    //     // Logs can be read by any member
-    //     allow read: if isCampaignMember(resource.data.campaignId);
-    //     // Logs can be created by any member (if campaignId matches)
-    //     allow create: if isCampaignMember(request.resource.data.campaignId);
-    //     // Only GM or Creator can delete/update? Usually logs are immutable, but let's allow GM.
-    //     allow update, delete: if isCampaignGM(resource.data.campaignId);
-    //   }
-    // }
-
-    // Scenes (New Schema)
+    
+    // === COLECOES ROOT COM campaignId ===
+    
     match /scenes/{sceneId} {
       allow read: if isSignedIn();
-      allow create: if isCampaignGM(request.resource.data.campaignId);
-      // Members can update (active/inactive/free invokes) - We trust valid members are invoking
-      allow update: if isSignedIn(); 
-      allow delete: if isCampaignGM(resource.data.campaignId);
-    }
-
-    // Active NPCs (New Schema)
-    // Active NPCs (New Schema)
-    match /activeNpcs/{npcId} {
-       allow read: if isSignedIn();
-       allow create: if isCampaignGM(request.resource.data.campaignId);
-       allow update, delete: if isCampaignGM(resource.data.campaignId);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && isGM(resource.data.campaignId);
     }
     
-    // Tokens (New Schema)
-    // Tokens (New Schema)
+    match /activeNpcs/{npcId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+    
     match /tokens/{tokenId} {
-       allow read: if isSignedIn();
-       allow create: if isCampaignGM(request.resource.data.campaignId);
-       // GM can update any token. Players can update their own Character tokens (movement).
-       allow update: if isCampaignGM(resource.data.campaignId) 
-          || (isSignedIn() && resource.data.type == 'character' && resource.data.ownerId == request.auth.uid);
-       allow delete: if isCampaignGM(resource.data.campaignId);
+      allow read: if isSignedIn();
+      allow create, delete: if isSignedIn();
+      allow update: if isSignedIn();
     }
-
-    // --- CHARACTERS (Hybrid / Migration) ---
-    // Characters are root level. New chars have campaignId. Old chars have sessionId.
-    // --- CHARACTERS (Hybrid / Migration) ---
-    // Characters are root level. New chars have campaignId. Old chars have sessionId.
+    
+    // === PERSONAGENS ===
+    
     match /characters/{characterId} {
-      // Explicit inline rules to fix permission issues
-      allow read: if (resource.data.isPublic == true)
-                  || (isSignedIn() && resource.data.get('campaignId', '') == 'library' && (resource.data.userId == request.auth.uid || resource.data.createdBy == request.auth.uid))
-                  || (isSignedIn() && resource.data.campaignId != null && resource.data.campaignId != 'library' && isCampaignMember(resource.data.campaignId))
-                  || (isSignedIn() && resource.data.sessionId != null && canAccessSession(resource.data.sessionId));
-
-      allow create: if (request.resource.data.campaignId == 'library')
-                    || (isSignedIn() && request.resource.data.campaignId != null && request.resource.data.campaignId != 'library' && isCampaignMember(request.resource.data.campaignId))
-                    || (isSignedIn() && request.resource.data.sessionId != null && canAccessSession(request.resource.data.sessionId));
-      
-      allow update: if (isSignedIn() && resource.data.campaignId == 'library' && (resource.data.userId == request.auth.uid || resource.data.createdBy == request.auth.uid))
-                    || (isSignedIn() && resource.data.campaignId != null && resource.data.campaignId != 'library' && (resource.data.userId == request.auth.uid || isCampaignGM(resource.data.campaignId)))
-                    || (isSignedIn() && resource.data.sessionId != null && (resource.data.createdBy == request.auth.uid || isSessionGm(resource.data.sessionId)));
-      
-      // Absolute override: If you created it or own it, you can delete it.
-      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || resource.data.userId == request.auth.uid);
-    }
-
-    // --- LEGACY SESSION LOGIC (Keep for now) ---
-
-    function sessionSnapshot(sessionId) {
-      return get(/databases/$(database)/documents/sessions/$(sessionId));
-    }
-
-    function sessionData(sessionId) {
-      let session = sessionSnapshot(sessionId);
-      return session.data != null ? session.data : {};
-    }
-
-    function sessionExists(sessionId) {
-      return exists(/databases/$(database)/documents/sessions/$(sessionId));
-    }
-
-    function isSessionGm(sessionId) {
-      let session = sessionSnapshot(sessionId);
-      return isSignedIn() && session.data != null && session.data.gmId == request.auth.uid;
-    }
-
-    function isInvitedToSession(sessionId) {
-      let data = sessionData(sessionId);
-      return isSignedIn() && (
-        (data.allowedUserIds != null && data.allowedUserIds.hasAny([request.auth.uid])) ||
-        (data.invitedUserIds != null && data.invitedUserIds.hasAny([request.auth.uid])) ||
-        (data.playerIds != null && data.playerIds.hasAny([request.auth.uid]))
+      allow read: if resource.data.isPublic == true || isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid ||
+        (resource.data.campaignId != null && isGM(resource.data.campaignId))
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid
       );
     }
-
-    function hasSessionPresence(sessionId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/sessions/$(sessionId)/presence/$(request.auth.uid));
-    }
-
-    function canAccessSession(sessionId) {
-      return isSessionGm(sessionId) || hasSessionPresence(sessionId);
-    }
-
-    match /sessions/{sessionId} {
-      allow create: if isSignedIn()
-        && (request.resource.data.gmId == null
-          || request.resource.data.gmId == ''
-          || request.resource.data.gmId == request.auth.uid);
-
+    
+    // === SEASONS/STORIES ===
+    
+    match /seasons/{seasonId} {
       allow read: if isSignedIn();
-
-      allow update, delete: if canAccessSession(sessionId);
-
-      match /presence/{userId} {
-        allow read: if canAccessSession(sessionId);
-
-        allow create: if isSignedIn()
-          && sessionExists(sessionId)
-          && request.resource.data.keys().hasAll(['ownerId', 'characterId'])
-          && request.resource.data.ownerId == userId
-          && request.resource.data.characterId is string
-          && request.resource.data.characterId != ''
-          && (isSessionGm(sessionId)
-            || (request.auth.uid == userId && isInvitedToSession(sessionId)));
-
-        allow update, delete: if isSignedIn()
-          && sessionExists(sessionId)
-          && ((request.auth.uid == userId && isInvitedToSession(sessionId) && hasSessionPresence(sessionId))
-            || isSessionGm(sessionId));
-      }
-
-      // Legacy Subcollections (Only GM can write usually in VTT, except Tokens)
-      match /scenes/{sceneId} {
-        allow read: if canAccessSession(sessionId);
-        allow create, update, delete: if isSessionGm(sessionId);
-      }
+      allow write: if isSignedIn();
+    }
+    
+    match /stories/{storyId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    
+    // === LEGACY SESSIONS (Compatibilidade) ===
+    
+    match /sessions/{sessionId} {
+      allow read, write: if isSignedIn();
       
-      // Note: Archetypes was global or subcollection? Previous rules had it here.
-      match /archetypes/{archetypeId} {
-        allow read: if canAccessSession(sessionId);
-        allow create, update, delete: if isSessionGm(sessionId);
+      match /{subcollection}/{docId} {
+        allow read, write: if isSignedIn();
       }
-
-      match /activeNpcs/{activeNpcId} {
-        allow read: if canAccessSession(sessionId);
-        allow create, update, delete: if isSessionGm(sessionId);
-      }
-
-      match /tokens/{tokenId} {
-        allow read: if canAccessSession(sessionId);
-        allow create, delete: if isSessionGm(sessionId);
-        allow update: if isSessionGm(sessionId) 
-          || (isSignedIn() && resource.data.ownerId == request.auth.uid && resource.data.type == 'character');
-      }
+    }
+    
+    // === USERS ===
+    
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
     }
   }
 }
