@@ -214,6 +214,10 @@ export interface Selfie {
   createdAt: string; // ISO Date
   usedAt?: string; // ISO Date da última utilização
 
+  // Campos opcionais para mural
+  imageUrl?: string; // Alias para url (retrocompatibilidade)
+  likes?: string[]; // Array de userIds que curtiram
+
   // NOVOS CAMPOS
   advancementApplied?: {         // Registro do avanço escolhido
     type: 'swap_skills' | 'rename_aspect' | 'skill_point' | 'clear_severe' | 'refresh' | 'maneuver_swap';

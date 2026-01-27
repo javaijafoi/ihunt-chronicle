@@ -36,6 +36,8 @@ export function LobbyPage() {
   const [myCampaigns, setMyCampaigns] = useState<any[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [joinCode, setJoinCode] = useState("");
+  const [lastVisitedId, setLastVisitedId] = useState<string | null>(null);
+  const [featuredScene, setFeaturedScene] = useState<any>(null); // Details for the highlighted campaign
 
 
   // Fetch Campaigns
@@ -44,6 +46,10 @@ export function LobbyPage() {
       setMyCampaigns([]);
       return;
     }
+
+    // Load local storage
+    const storedLast = localStorage.getItem('ihunt_last_campaign');
+    setLastVisitedId(storedLast);
 
     const fetchCampaigns = async () => {
       setLoadingCampaigns(true);
@@ -55,10 +61,34 @@ export function LobbyPage() {
           where('members', 'array-contains', userProfile.uid)
         );
         const querySnapshot = await getDocs(q);
-        const campaigns = querySnapshot.docs.map(doc => ({
+        let campaigns = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
+
+        // Sort: Last Visited First
+        if (storedLast) {
+          campaigns = campaigns.sort((a, b) => {
+            if (a.id === storedLast) return -1;
+            if (b.id === storedLast) return 1;
+            return 0;
+          });
+
+          // If we have a stored last, fetch its active scene for highlight
+          const campaignId = storedLast;
+          // We can do a quick check if this user is still in that campaign
+          if (campaigns.some(c => c.id === campaignId)) {
+            const sceneQ = query(
+              collection(db, 'scenes'),
+              where('campaignId', '==', campaignId),
+              where('isActive', '==', true)
+            );
+            const sceneSnap = await getDocs(sceneQ);
+            if (!sceneSnap.empty) {
+              setFeaturedScene(sceneSnap.docs[0].data());
+            }
+          }
+        }
 
         setMyCampaigns(campaigns);
       } catch (e) {
@@ -254,12 +284,78 @@ export function LobbyPage() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {myCampaigns.map(camp => (
-                  <div key={camp.id} className="p-4 border rounded-lg bg-card hover:border-primary transition-colors cursor-pointer" onClick={() => navigate(`/campaign/${camp.id}`)}>
-                    <h3 className="font-bold text-lg">{camp.title}</h3>
-                    <p className="text-sm text-muted-foreground">{camp.description}</p>
-                  </div>
-                ))}
+                {myCampaigns.map((camp, index) => {
+                  const isOwner = camp.gmId === userProfile.uid;
+                  const isLastPlayed = camp.id === lastVisitedId;
+                  const showFeatured = isLastPlayed && index === 0;
+
+                  if (showFeatured) {
+                    return (
+                      <div key={camp.id} onClick={() => navigate(`/campaign/${camp.id}`)}
+                        className="relative group cursor-pointer overflow-hidden rounded-xl border border-primary/20 bg-card hover:border-primary transition-all shadow-lg hover:shadow-primary/10">
+
+                        {/* Background Ambient */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-transparent z-10" />
+                        {featuredScene?.backgroundImage && (
+                          <div className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity" style={{ backgroundImage: `url(${featuredScene.backgroundImage})` }} />
+                        )}
+
+                        <div className="relative z-20 p-6 flex flex-col gap-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" /> Continuar
+                              </span>
+                              {isOwner ? (
+                                <span className="bg-amber-500/10 text-amber-500 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-500/20">
+                                  <Crown className="w-3 h-3" /> Mestre
+                                </span>
+                              ) : (
+                                <span className="bg-muted text-muted-foreground text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <UserCircle className="w-3 h-3" /> Jogador
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">ID: {camp.joinCode}</div>
+                          </div>
+
+                          <div>
+                            <h3 className="font-display text-3xl text-glow-white mb-1">{camp.title}</h3>
+                            {featuredScene ? (
+                              <div className="flex items-center gap-2 text-sm text-primary">
+                                <MapPin className="w-4 h-4" />
+                                <span>Em Cena: <b>{featuredScene.title}</b></span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">{camp.description}</p>
+                            )}
+                          </div>
+
+                          <div className="pt-2">
+                            <Button size="sm" className="w-full sm:w-auto">Retomar Sessão</Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={camp.id} className="p-4 border rounded-lg bg-card/50 hover:bg-card hover:border-muted-foreground/50 transition-colors cursor-pointer flex items-center justify-between group" onClick={() => navigate(`/campaign/${camp.id}`)}>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-lg">{camp.title}</h3>
+                          {isOwner && <Crown className="w-3 h-3 text-amber-500" />}
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-1">{camp.description}</p>
+                      </div>
+                      {isOwner ? (
+                        <div title="Mestre da Mesa" className="opacity-50 group-hover:opacity-100 transition-opacity"><Crown className="w-4 h-4 text-amber-500" /></div>
+                      ) : (
+                        <div title="Jogador" className="opacity-50 group-hover:opacity-100 transition-opacity"><UserCircle className="w-4 h-4 text-muted-foreground" /></div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

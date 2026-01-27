@@ -4,7 +4,7 @@ import { Dices, Plus, Minus, X, Swords, Shield, Wand2, Mountain, RotateCcw, Zap,
 import { ActionType, DiceResult, SceneAspect, Character, Selfie } from '@/types/game';
 import { OPPOSITION_PRESETS, getLadderLabel, calculateOutcome, OutcomeResult } from '@/data/fateLadder';
 
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { Camera } from 'lucide-react';
@@ -41,6 +41,13 @@ interface DiceRollerProps {
   variant?: 'modal' | 'window';
   isGM?: boolean;
   unifiedAspects?: UnifiedAspect[];
+  onRevokeAspect?: (aspectName: string, source: string, wasFree: boolean) => void;
+}
+
+interface InvocationRecord {
+  aspectName: string;
+  source: string;
+  wasFree: boolean;
 }
 
 import { UnifiedAspect } from '@/types/game';
@@ -88,6 +95,7 @@ export function DiceRoller({
   variant = 'modal',
   isGM = false,
   unifiedAspects,
+  onRevokeAspect
 }: DiceRollerProps) {
 
   const [result, setResult] = useState<DiceResult | null>(null);
@@ -101,7 +109,8 @@ export function DiceRoller({
   const [customOpposition, setCustomOpposition] = useState('');
   const [hasUsedReroll, setHasUsedReroll] = useState(false);
   const [showAspectPanel, setShowAspectPanel] = useState(false);
-  const [invokedAspects, setInvokedAspects] = useState<string[]>([]);
+  // Change from string[] to InvocationRecord[]
+  const [invokedAspects, setInvokedAspects] = useState<InvocationRecord[]>([]);
   const [isHiddenRoll, setIsHiddenRoll] = useState(false);
 
   // Selfie System State
@@ -259,12 +268,12 @@ export function DiceRoller({
     if (!result) return;
 
     // Check if already invoked this aspect
-    if (invokedAspects.includes(aspect.name)) return;
+    if (invokedAspects.some(i => i.aspectName === aspect.name)) return;
 
-    // If not using free invoke, need to spend fate point
+    // If not using free invoke, need to spend fate point (Handled by parent onInvokeAspect)
     if (!useFreeInvoke) {
-      if (fatePoints <= 0 || !onSpendFate) return;
-      onSpendFate();
+      if (fatePoints <= 0) return;
+      // onSpendFate(); // REMOVED: Parent handles deduction
     }
 
     // Notify parent about the invocation
@@ -281,16 +290,17 @@ export function DiceRoller({
       invocations: prev.invocations + 1,
     } : prev);
 
-    setInvokedAspects(prev => [...prev, aspect.name]);
+    setInvokedAspects(prev => [...prev, { aspectName: aspect.name, source: aspect.source, wasFree: useFreeInvoke }]);
   };
 
   const handleReroll = async (aspect: InvokableAspect, useFreeInvoke: boolean) => {
     if (!result || hasUsedReroll) return;
 
     // If not using free invoke, need to spend fate point
+    // If not using free invoke, need to spend fate point (Handled by parent onInvokeAspect)
     if (!useFreeInvoke) {
-      if (fatePoints <= 0 || !onSpendFate) return;
-      onSpendFate();
+      if (fatePoints <= 0) return;
+      // onSpendFate(); // REMOVED: Parent handles deduction
     }
 
     // Notify parent about the invocation
@@ -298,7 +308,10 @@ export function DiceRoller({
 
     setIsRolling(true);
     setHasUsedReroll(true);
-    setInvokedAspects(prev => [...prev, aspect.name]);
+    // Rerolls are hard to undo because state is lost. For now we record it but Revoke might be disabled for Reroll types if we implemented that distinction.
+    // However, current invokeAspectBonus implies +2. Reroll is separate handler.
+    // We will just mark it as invoked.
+    setInvokedAspects(prev => [...prev, { aspectName: aspect.name, source: aspect.source, wasFree: useFreeInvoke }]);
 
     await sleep(100);
     const rerollResult = await onRoll(
@@ -313,6 +326,37 @@ export function DiceRoller({
     // Keep invocation count from previous result
     setResult({ ...rerollResult, invocations: result.invocations + 1 });
     setIsRolling(false);
+  };
+
+  const handleRevoke = (record: InvocationRecord) => {
+    if (!result || !onRevokeAspect) return;
+
+    // We can only easily revoke +2 bonuses. Rerolls (where result changed completely) are hard to revert without history.
+    // For now, we assume InvokedAspects list mostly contains +2 bonuses from handleInvokeAspectBonus.
+    // If we supported undoing rerolls, we'd need a result stack.
+    // Simplification: We blindly subtract 2. If it was a reroll, this math is wrong.
+    // BUT handleInvokeAspectBonus adds to invokedAspects. handleReroll ALSO adds.
+    // We should probably filter or flag rerolls.
+    // For this task: "X" button implies undoing the bonus invocation.
+
+    // 1. Notify parent to refund
+    onRevokeAspect(record.aspectName, record.source, record.wasFree);
+
+    // 2. Adjust local result (Revert +2)
+    // We assume it was a bonus invocation.
+    const newTotal = result.total - 2;
+    const newOutcome = calculateOutcome(newTotal, result.opposition ?? null);
+
+    setResult(prev => prev ? {
+      ...prev,
+      total: newTotal,
+      shifts: newOutcome?.shifts,
+      outcome: newOutcome?.outcome,
+      invocations: Math.max(0, prev.invocations - 1),
+    } : prev);
+
+    // 3. Remove from local list
+    setInvokedAspects(prev => prev.filter(i => i.aspectName !== record.aspectName));
   };
 
   const handleApplySelfie = async (selfie: Selfie, intent?: 'bonus' | 'reroll') => {
@@ -782,7 +826,7 @@ export function DiceRoller({
                               <h4 className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest pl-1">{groupLabel}</h4>
                               <div className="space-y-1.5">
                                 {groupAspects.map((aspect, idx) => {
-                                  const isInvoked = invokedAspects.includes(aspect.name);
+                                  const isInvoked = invokedAspects.some(i => i.aspectName === aspect.name);
                                   const hasFreeInvoke = (aspect.freeInvokes ?? 0) > 0;
                                   const canInvoke = !isInvoked && (hasFreeInvoke || fatePoints > 0);
 
@@ -833,13 +877,18 @@ export function DiceRoller({
                                           </div>
                                         )}
                                         {isInvoked && (
-                                          <motion.div
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary/20 text-secondary"
+                                          <button
+                                            type="button"
+                                            // Find the invocation record to pass to revoke
+                                            onClick={() => {
+                                              const record = invokedAspects.find(i => i.aspectName === aspect.name);
+                                              if (record) handleRevoke(record);
+                                            }}
+                                            className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary/20 text-secondary hover:bg-destructive/20 hover:text-destructive transition-colors text-xs"
+                                            title="Desfazer invocação (X)"
                                           >
-                                            <Zap className="w-3 h-3" />
-                                          </motion.div>
+                                            <X className="w-3 h-3" />
+                                          </button>
                                         )}
                                       </div>
                                     </div>

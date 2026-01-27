@@ -63,8 +63,15 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters(campaignId);
   const { updateCharacter: updateFirebaseCharacter } = useFirebaseCharacters(undefined); // Removed SessionID dependency? need to check implementation
 
+  // Track Last Visited
+  useEffect(() => {
+    if (campaignId) {
+      localStorage.setItem('ihunt_last_campaign', campaignId);
+    }
+  }, [campaignId]);
+
   const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(campaignId, isGM);
-  const { allAspects, invokeAspect } = useAspects(campaignId || '', activeScene?.id);
+  const { allAspects, invokeAspect, revokeInvocation } = useAspects(campaignId || '', activeScene?.id);
 
   const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(campaignId, isGM);
 
@@ -210,6 +217,19 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
       } else if (!useFreeInvoke && activeCharacter) {
         spendFatePoint(activeCharacter.id);
       }
+    }
+  };
+
+  const handleRevokeAspect = (aspectName: string, source: string, wasFree: boolean) => {
+    // Try to find aspect in unified list
+    const aspect = allAspects.find(a => a.name === aspectName);
+    if (aspect) {
+      revokeInvocation(aspect, wasFree);
+    } else {
+      // Fallback log
+      addLog(`${activeCharacter?.name || 'GM'} desfez invocação de "${aspectName}" manually (no unified match)`, 'system');
+      // If was free, might need manual restoration if not found in list?
+      // Assuming unified list covers it.
     }
   };
 
@@ -521,6 +541,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                   partyCharacters={partyCharacters}
                   unifiedAspects={allAspects}
                   onInvokeAspect={handleInvokeAspectFromRoller}
+                  onRevokeAspect={handleRevokeAspect}
                   onAddLog={addLog}
                   isGM={isGM}
                 />

@@ -31,8 +31,8 @@ export function SelfieMural({ selfies, onAddSelfie, onDeleteSelfie, onViewSelfie
                             key={type}
                             onClick={() => setFilter(type)}
                             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap capitalize ${filter === type
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                                 }`}
                         >
                             {type === 'all' ? 'Todas' : type}
@@ -92,7 +92,7 @@ export function SelfieMural({ selfies, onAddSelfie, onDeleteSelfie, onViewSelfie
                                 className="group relative aspect-[3/4] rounded-lg overflow-hidden bg-black border border-white/10 shadow-sm hover:shadow-md transition-all"
                             >
                                 <img
-                                    src={selfie.imageUrl}
+                                    src={selfie.url}
                                     alt={selfie.description}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
@@ -148,7 +148,7 @@ export function SelfieMural({ selfies, onAddSelfie, onDeleteSelfie, onViewSelfie
                             {/* Image Container */}
                             <div className="flex-1 relative bg-black flex items-center justify-center">
                                 <img
-                                    src={selectedSelfie.imageUrl}
+                                    src={selectedSelfie.url}
                                     alt={selectedSelfie.description}
                                     className="max-h-full max-w-full object-contain"
                                 />
@@ -178,17 +178,7 @@ export function SelfieMural({ selfies, onAddSelfie, onDeleteSelfie, onViewSelfie
                                         <p>{new Date(selectedSelfie.createdAt).toLocaleString()}</p>
                                     </div>
 
-                                    {selectedSelfie.likes && selectedSelfie.likes.length > 0 && (
-                                        <div>
-                                            <h4 className="text-xs font-bold uppercase text-white/50 mb-1">Likes ({selectedSelfie.likes.length})</h4>
-                                            <div className="flex -space-x-2 overflow-hidden py-1">
-                                                {/* Placeholder for likes avatars if we had them */}
-                                                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary font-bold">
-                                                    {selectedSelfie.likes.length}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+
                                 </div>
 
                                 <div className="mt-auto pt-6">

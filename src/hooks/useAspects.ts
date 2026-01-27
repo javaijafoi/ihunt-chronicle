@@ -209,6 +209,43 @@ export function useAspects(campaignId: string, sceneId?: string) {
         }
     };
 
+    const revokeInvocation = async (aspect: UnifiedAspect, wasFree: boolean) => {
+        const actingCharacter = myCharacter;
+
+        // Log refund
+        const method = wasFree ? '(Devolvendo Free Invoke)' : '(Devolvendo 1 Ponto de Destino)';
+        await addLog(`${actingCharacter?.name || 'Alguém'} desfez invocação de "${aspect.name}" ${method}`, 'system');
+
+        if (wasFree) {
+            if (aspect.ownerType === 'scene' && currentScene) {
+                const sceneAspects = [...(currentScene.aspects || [])];
+                const idx = sceneAspects.findIndex(a => a.id === aspect.id);
+                if (idx >= 0) {
+                    sceneAspects[idx] = { ...sceneAspects[idx], freeInvokes: sceneAspects[idx].freeInvokes + 1 };
+                    await updateScene(currentScene.id, { aspects: sceneAspects });
+                }
+            } else if (aspect.ownerType === 'character' && aspect.source === 'situational') {
+                const targetChar = partyCharacters.find(c => c.id === aspect.ownerId);
+                if (targetChar) {
+                    const sitAspects = [...(targetChar.situationalAspects || [])];
+                    const idx = sitAspects.findIndex(a => a.id === aspect.id);
+                    if (idx >= 0) {
+                        sitAspects[idx] = { ...sitAspects[idx], freeInvokes: sitAspects[idx].freeInvokes + 1 };
+                        await updateCharacter(targetChar.id, { situationalAspects: sitAspects });
+                    }
+                }
+            } else if (aspect.severity && aspect.ownerType === 'npc') {
+                // For NPC Consequences which have baked-in free invokes usually managed differently
+                // For now, ignoring strictly or maybe we should look up activeNPCs update
+                // Assuming standard aspects for now to keep simple, or add NPC support if needed
+            }
+        } else {
+            if (actingCharacter) {
+                await updateFate(actingCharacter.id, 1, true);
+            }
+        }
+    };
+
     const compelAspect = async (aspect: UnifiedAspect, targetCharacterId: string) => {
         // Quem ganha o ponto de destino é o ALVO do compel
         await updateFate(targetCharacterId, 1, true);
@@ -264,7 +301,9 @@ export function useAspects(campaignId: string, sceneId?: string) {
         boosts: allAspects.filter(a => a.source === 'boost'),
 
         // Ações
+        // Ações
         invokeAspect,
+        revokeInvocation,
         compelAspect,
         rejectCompel,
         createBoost

@@ -10,7 +10,8 @@ import {
     query,
     where,
     getDocs,
-    setDoc
+    setDoc,
+    increment
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +31,7 @@ interface CampaignContextValue {
     joinCampaign: (code: string) => Promise<boolean>;
     selectCharacter: (characterId: string) => Promise<void>;
     updateCampaign: (data: Partial<Campaign>) => Promise<void>;
+    updateGmFatePool: (amount: number) => Promise<void>;
 }
 
 const CampaignContext = createContext<CampaignContextValue | undefined>(undefined);
@@ -91,7 +93,7 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
     // Types/game.ts: Scene has campaignId. 
     // Maybe we just query for 'isActive=true' scenes?
     useEffect(() => {
-        if (!campaignId) return;
+        if (!campaignId || !user) return;
         // Query for active scenes in this campaign
         const scenesRef = collection(db, 'scenes');
         const q = query(
@@ -110,7 +112,7 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
             }
         });
         return () => unsubScene();
-    }, [campaignId]);
+    }, [campaignId, user]);
 
     // 3. Subscribe to My Character
     useEffect(() => {
@@ -176,6 +178,17 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
         await updateDoc(doc(db, 'campaigns', campaign.id), data);
     }, [campaign?.id]);
 
+    const updateGmFatePool = useCallback(async (amount: number) => {
+        if (!campaign?.id) return;
+        // Optional: Check if GM? The rule might enforce it, but good to check here too if we have isGM
+        // "isGM" is derived in render but we can recalc or use campaign.gmId
+        if (campaign.gmId !== user?.uid) return;
+
+        await updateDoc(doc(db, 'campaigns', campaign.id), {
+            gmFatePool: increment(amount)
+        });
+    }, [campaign?.id, user?.uid, campaign?.gmId]);
+
     return (
         <CampaignContext.Provider value={{
             campaign,
@@ -186,7 +199,8 @@ export function CampaignProvider({ children, campaignId }: { children: ReactNode
             loading,
             joinCampaign,
             selectCharacter,
-            updateCampaign
+            updateCampaign,
+            updateGmFatePool
         }}>
             {children}
         </CampaignContext.Provider>

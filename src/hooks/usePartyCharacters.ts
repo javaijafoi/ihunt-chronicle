@@ -24,7 +24,7 @@ export function usePartyCharacters(campaignId: string | undefined) {
 
   // 1. Listen to presence (Active Sessions)
   useEffect(() => {
-    if (!campaignId) {
+    if (!campaignId || !user) {
       setPresenceMap({});
       return;
     }
@@ -49,11 +49,11 @@ export function usePartyCharacters(campaignId: string | undefined) {
     );
 
     return () => unsubscribe();
-  }, [campaignId]);
+  }, [campaignId, user]);
 
   // 2. Listen to Campaign Players (for offline name resolution)
   useEffect(() => {
-    if (!campaignId) return;
+    if (!campaignId || !user) return;
 
     const unsubCampaign = onSnapshot(doc(db, 'campaigns', campaignId), (snap) => {
       if (snap.exists()) {
@@ -68,12 +68,12 @@ export function usePartyCharacters(campaignId: string | undefined) {
     });
 
     return () => unsubCampaign();
-  }, [campaignId]);
+  }, [campaignId, user]);
 
 
   // 3. Listen to Characters and Map Names
   useEffect(() => {
-    if (!campaignId) {
+    if (!campaignId || !user) {
       setPartyCharacters([]);
       setLoading(false);
       return;
@@ -116,7 +116,7 @@ export function usePartyCharacters(campaignId: string | undefined) {
     });
 
     return () => unsubscribeChars();
-  }, [campaignId, presenceMap, playerMap]);
+  }, [campaignId, presenceMap, playerMap, user]);
 
   // Separate active and archived characters
   const activePartyCharacters = partyCharacters.filter(c => !c.isArchived);
