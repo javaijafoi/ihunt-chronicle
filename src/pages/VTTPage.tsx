@@ -26,6 +26,7 @@ import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
 import { ActiveNPCSheet } from '@/components/vtt/ActiveNPCSheet';
 import { CompelModal } from '@/components/vtt/CompelModal';
 import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
+import { NewSelfieForm } from '@/components/vtt/NewSelfieForm';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -41,7 +42,7 @@ import {
 import { SafetyControls } from '@/components/vtt/safety/SafetyControls';
 import { XCardOverlay } from '@/components/vtt/safety/XCardOverlay';
 
-import { ActionType, Character, Token } from '@/types/game';
+import { ActionType, Character, Token, Selfie } from '@/types/game';
 import { PartyCharacter } from '@/types/session';
 
 const appVersion = import.meta.env.APP_VERSION;
@@ -85,6 +86,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const [showArchetypes, setShowArchetypes] = useState(false);
   const [showSelfieAlbum, setShowSelfieAlbum] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showNewSelfieForm, setShowNewSelfieForm] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
   // Derived Viewing Characters
@@ -252,6 +254,25 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
         [track]: newTrack
       }
     });
+  };
+
+  // Selfie Handlers
+  const handleDeleteSelfie = async (selfieId: string) => {
+    const char = activeCharacter || viewingPC;
+    if (!char) return;
+    if (!confirm('Tem certeza que deseja apagar esta selfie?')) return;
+
+    const updatedSelfies = (char.selfies || []).filter(s => s.id !== selfieId);
+    await updateFirebaseCharacter(char.id, { selfies: updatedSelfies });
+    toast({ title: 'Selfie removida' });
+  };
+
+  const handleCreateSelfie = async (newSelfie: Selfie) => {
+    const char = activeCharacter || viewingPC;
+    if (!char) return;
+
+    const updatedSelfies = [newSelfie, ...(char.selfies || [])];
+    await updateFirebaseCharacter(char.id, { selfies: updatedSelfies });
   };
 
   // Render (Simplified for brevity, kept structure)
@@ -501,7 +522,8 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                       });
                     }}
                     onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(activeCharacter?.name || 'Personagem', aspectName)}
-
+                    onAddSelfie={() => setShowNewSelfieForm(true)}
+                    onDeleteSelfie={handleDeleteSelfie}
                   />
                 </div>
               </div>
@@ -614,6 +636,8 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                   onUpdateNotes={async (notes) => {
                     await updateFirebaseCharacter(viewingPC.id, { notes });
                   }}
+                  onAddSelfie={(!isGM && viewingPC.id !== myCharacter?.id) ? undefined : () => setShowNewSelfieForm(true)}
+                  onDeleteSelfie={(!isGM && viewingPC.id !== myCharacter?.id) ? undefined : handleDeleteSelfie}
                 />
               </div>
             </div>
@@ -632,6 +656,16 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
 
       {/* Other viewing modals omitted for brevity, add back as needed */}
       <CompelModal campaignId={campaignId || ''} myCharacterId={myCharacter?.id} />
+
+      {showNewSelfieForm && (activeCharacter || viewingPC) && (
+        <NewSelfieForm
+          characterId={(activeCharacter || viewingPC)!.id}
+          isOpen={showNewSelfieForm}
+          onClose={() => setShowNewSelfieForm(false)}
+          onSubmit={handleCreateSelfie}
+          type="mood"
+        />
+      )}
     </div>
   );
 });
