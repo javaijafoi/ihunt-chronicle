@@ -38,7 +38,7 @@ export function MobileCharacterCard({ character, onRollSkill, onToggleStress, on
 
                 <div className="flex-1 min-w-0">
                     <h2 className="font-display text-xl font-bold truncate">{character.name}</h2>
-                    <p className="text-sm text-muted-foreground italic truncate mb-2">{character.highConcept}</p>
+                    <p className="text-sm text-muted-foreground italic truncate mb-2">{character.aspects.highConcept}</p>
 
                     <button
                         onClick={onSpendFate}

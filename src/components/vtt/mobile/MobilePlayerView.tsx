@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Character, Campaign, Scene, LogEntry, UnifiedAspect, ResultType, DiceResult, ActionType } from '@/types/game';
+import { Character, Scene, LogEntry, UnifiedAspect, DiceResult, ActionType } from '@/types/game';
+import { Campaign } from '@/types/schema';
 import { MobileHeader } from './MobileHeader';
 import { MobileBottomNav, MobileTab } from './MobileBottomNav';
 import { MobileCharacterCard } from './MobileCharacterCard';

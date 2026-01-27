@@ -1,6 +1,6 @@
 import { Copy, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { Campaign } from '@/types/game';
+import { Campaign } from '@/types/schema';
 
 interface MobileHeaderProps {
     campaign: Campaign;

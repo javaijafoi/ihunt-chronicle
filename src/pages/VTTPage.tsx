@@ -179,6 +179,27 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
 
   const spendFatePoint = (charId: string) => updateFate(charId, -1, true);
 
+  const handleToggleStress = async (characterId: string, track: 'physical' | 'mental', index: number) => {
+    // Find character to get current state
+    // We can use partyCharacters or activeCharacter if it matches
+    const char = partyCharacters.find(c => c.id === characterId) || (activeCharacter?.id === characterId ? activeCharacter : null);
+    if (!char) return;
+
+    const currentTrack = char.stress?.[track] || [];
+    // Ensure track is long enough
+    const newTrack = [...currentTrack];
+    while (newTrack.length <= index) newTrack.push(false);
+
+    newTrack[index] = !newTrack[index];
+
+    await updateFirebaseCharacter(characterId, {
+      stress: {
+        ...char.stress,
+        [track]: newTrack
+      }
+    });
+  };
+
   // Mobile View Integration
   if (isMobile && !isGM && activeCharacter) {
     return (
@@ -194,7 +215,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
         onToggleStress={handleToggleStress}
         // Adapt invoke logic to match signature expected by MobilePlayerView vs simplified handler
         onInvokeAspect={(name, source, free) => handleInvokeAspectFromRoller(name, source, free)}
-        onSendMessage={(msg) => addLog(msg, 'chat', activeCharacter.name, undefined, activeCharacter.avatar)}
+        onSendMessage={(msg) => addLog(msg, 'chat', { avatar: activeCharacter.avatar })}
         onTriggerXCard={triggerXCard}
       />
     );
@@ -271,26 +292,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
     }
   };
 
-  const handleToggleStress = async (characterId: string, track: 'physical' | 'mental', index: number) => {
-    // Find character to get current state
-    // We can use partyCharacters or activeCharacter if it matches
-    const char = partyCharacters.find(c => c.id === characterId) || (activeCharacter?.id === characterId ? activeCharacter : null);
-    if (!char) return;
 
-    const currentTrack = char.stress?.[track] || [];
-    // Ensure track is long enough
-    const newTrack = [...currentTrack];
-    while (newTrack.length <= index) newTrack.push(false);
-
-    newTrack[index] = !newTrack[index];
-
-    await updateFirebaseCharacter(characterId, {
-      stress: {
-        ...char.stress,
-        [track]: newTrack
-      }
-    });
-  };
 
   // Selfie Handlers
   const handleDeleteSelfie = async (selfieId: string) => {
