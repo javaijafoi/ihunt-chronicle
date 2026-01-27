@@ -8,7 +8,7 @@ const buildCharacter = (overrides: Partial<Character> = {}): Character => {
     id: 'character-id',
     campaignId: 'campaign-id',
     userId: 'user-id',
-    sessionId: 'session-id',
+
     createdBy: 'user-id',
     name: 'Test Character',
     drive: undefined,

@@ -81,30 +81,30 @@ export function migrateCharacter(data: LegacyCharacter): Partial<Character> {
     name: data.name ?? '',
     avatarUrl: data.avatarUrl ?? '',
     drive: isValidDrive(data.drive) ? data.drive : undefined,
-    
+
     // Aspectos migrados
     aspects,
-    
+
     // Skills (pode ser vazio)
     skills: data.skills ?? {},
-    
+
     // Manobras de tara/gerais (campo original)
     maneuvers: data.maneuvers ?? [],
-    
+
     // Stress e consequências migrados
     stress,
     consequences,
-    
+
     // Fate points
     fatePoints: data.fatePoints ?? 3,
     refresh: data.refresh ?? 3,
-    
+
     // IDs de campanha/sessão
     campaignId: data.campaignId,
-    sessionId: data.sessionId,
+
     createdBy: data.createdBy,
     userId: data.userId,
-    
+
     // NOVOS CAMPOS - adicionados com valores default se não existirem
     skillManeuvers: data.skillManeuvers ?? [],
     gifts: data.gifts ?? [],
@@ -119,9 +119,9 @@ export function isValidCharacterData(data: unknown): data is LegacyCharacter {
   if (!data || typeof data !== 'object') {
     return false;
   }
-  
+
   const obj = data as Record<string, unknown>;
-  
+
   // Pelo menos o nome deve existir ou aspects ou skills
   return (
     typeof obj.name === 'string' ||
@@ -136,12 +136,12 @@ export function isValidCharacterData(data: unknown): data is LegacyCharacter {
 export function importCharacterFromJson(jsonString: string): Partial<Character> | null {
   try {
     const parsed = JSON.parse(jsonString);
-    
+
     if (!isValidCharacterData(parsed)) {
       console.error('JSON não contém dados válidos de personagem');
       return null;
     }
-    
+
     return migrateCharacter(parsed);
   } catch (error) {
     console.error('Erro ao fazer parse do JSON:', error);
@@ -162,6 +162,6 @@ export function exportCharacterToJson(character: Partial<Character>): string {
     // Versão do schema para migrações futuras
     _schemaVersion: 2
   };
-  
+
   return JSON.stringify(exportData, null, 2);
 }
