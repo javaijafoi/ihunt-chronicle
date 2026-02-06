@@ -1,36 +1,25 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Crown, Shield, Dices, X, BookOpen, Home, Database, Zap, Pencil, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useCampaign } from '@/contexts/CampaignContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { MobilePlayerView } from '@/components/vtt/mobile/MobilePlayerView';
-
-import { useScenes } from '@/hooks/useScenes';
-import { useActiveNPCs } from '@/hooks/useActiveNPCs';
-import { useTokens } from '@/hooks/useTokens';
-import { usePartyCharacters } from '@/hooks/usePartyCharacters';
-import { useGameActions } from '@/hooks/useGameActions';
-import { useSafetyTools } from '@/hooks/useSafetyTools';
-import { useFirebaseCharacters } from '@/hooks/useFirebaseCharacters';
-import { isPresenceRecent } from '@/utils/presence';
+import { LogOut, Dices, X, BookOpen, Home, Zap, Camera, Copy, Menu, UserCircle, Book, Info, Sparkles } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useAspects } from '@/hooks/useAspects';
 
+// Controller
+import { useGameController } from '@/hooks/useGameController';
+
+// Components
+import { MobilePlayerView } from '@/components/vtt/mobile/MobilePlayerView';
 import { AspectHub } from '@/components/vtt/AspectHub';
 import { SceneCanvas } from '@/components/vtt/SceneCanvas';
 import { DiceRoller } from '@/components/vtt/DiceRoller';
 import { CharacterSheet } from '@/components/vtt/CharacterSheet';
 import { CharacterSelect } from '@/components/vtt/CharacterSelect';
-import { CharacterCreator } from '@/components/vtt/CharacterCreator';
 import { ArchetypeDatabase } from '@/components/vtt/ArchetypeDatabase';
 import { ActiveNPCSheet } from '@/components/vtt/ActiveNPCSheet';
 import { CompelModal } from '@/components/vtt/CompelModal';
 import { SelfieTimeline } from '@/components/vtt/SelfieTimeline';
 import { NewSelfieForm } from '@/components/vtt/NewSelfieForm';
 import { CreateAdvantageModal } from '@/components/vtt/CreateAdvantageModal';
-import { useCreateAdvantage } from '@/hooks/useCreateAdvantage';
 import { LeftSidebar } from '@/components/vtt/LeftSidebar';
 import { RightSidebar } from '@/components/vtt/RightSidebar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -46,323 +35,68 @@ import {
 import { SafetyControls } from '@/components/vtt/safety/SafetyControls';
 import { XCardOverlay } from '@/components/vtt/safety/XCardOverlay';
 
-import { ActionType, Character, Token, Selfie } from '@/types/game';
-import { PartyCharacter } from '@/types/session';
-
-const appVersion = import.meta.env.APP_VERSION;
-
-import { forwardRef } from 'react';
-
 export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
   const navigate = useNavigate();
-  const { user, userProfile, signOut } = useAuth();
-  const isMobile = useIsMobile();
+  const controller = useGameController();
 
-  // New Context Hooks
-  const { campaign, currentScene, isGM, myCharacter, selectCharacter, loading: campaignLoading } = useCampaign();
-  const { campaignId } = { campaignId: campaign?.id };
+  // Destructure Controller
+  const {
+    user, signOut, isMobile,
+    campaign, campaignId, isGM, myCharacter, activeCharacter, selectCharacter, campaignLoading,
+    scenes, activeScene, activeNPCs, tokens, partyCharacters, archivedCharacters, mergedTokens,
+    allAspects, logs, safetyState, mySettings, aggregatedLevels,
+    handleRollDice,
+    spendFatePoint,
+    gainFatePoint,
+    handleToggleStress,
+    handleInvokeAspect,
+    handleManualInvoke,
+    handleRevokeAspect,
+    handleDeleteSelfie,
+    handleCreateSelfie,
+    handleSetActiveScene,
+    handleConfirmAdvantage,
+    checkMalinaSabeDasCoisas,
+    createToken, updateTokenPosition, updateToken, deleteToken,
+    createScene, updateScene, deleteScene, archiveScene, unarchiveScene, sceneSearchQuery, setSceneSearchQuery, MIN_ASPECTS,
+    updateNPC, addLog, triggerXCard, resolveXCard, togglePause, updateMySetting, updateFirebaseCharacter
+  } = controller;
 
-  // Derived Hooks
-  const { scenes, activeScene, createScene, updateScene, deleteScene, setActiveScene, archiveScene, unarchiveScene, searchQuery: sceneSearchQuery, setSearchQuery: setSceneSearchQuery, MIN_ASPECTS } = useScenes(campaignId, isGM);
-  const { activeNPCs, updateNPC } = useActiveNPCs(campaignId);
-  const { tokens, createToken, updateTokenPosition, updateToken, deleteToken } = useTokens(activeScene?.id, campaignId);
-  const { partyCharacters, archivedCharacters, presenceMap } = usePartyCharacters(campaignId);
-  const { updateCharacter: updateFirebaseCharacter } = useFirebaseCharacters(undefined); // Removed SessionID dependency? need to check implementation
-
-  // Track Last Visited
-  useEffect(() => {
-    if (campaignId) {
-      localStorage.setItem('ihunt_last_campaign', campaignId);
-    }
-  }, [campaignId]);
-
-  const { logs, addLog, createRollLog, updateFate, rollDice } = useGameActions(campaignId, isGM);
-
-
-  const { allAspects, invokeAspect, revokeInvocation } = useAspects(campaignId || '', activeScene?.id);
-  const { createAdvantage } = useCreateAdvantage(campaignId || '');
-
-  const { safetyState, mySettings, aggregatedLevels, updateMySetting, triggerXCard, resolveXCard, togglePause } = useSafetyTools(campaignId, isGM);
-
-  // Local State
+  // Local UI State
   const [viewingCharacterId, setViewingCharacterId] = useState<string | null>(null);
-  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null); // Kept if needed, or remove? Left for safety
   const [presetSkill, setPresetSkill] = useState<string | null>(null);
   const [showAspects, setShowAspects] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showArchetypes, setShowArchetypes] = useState(false);
   const [showSelfieAlbum, setShowSelfieAlbum] = useState(false);
-  const [showTimeline, setShowTimeline] = useState(false);
   const [showNewSelfieForm, setShowNewSelfieForm] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
-  // Create Advantage State
   const [showCreateAdvantageModal, setShowCreateAdvantageModal] = useState(false);
   const [pendingAdvantage, setPendingAdvantage] = useState<{
     outcome: 'tie' | 'success' | 'style';
     freeInvokes: number;
   } | null>(null);
 
-  // Derived Viewing Characters
-  const viewingPC = useMemo(() => {
-    if (!viewingCharacterId) return null;
-    return partyCharacters.find(c => c.id === viewingCharacterId) || null;
-  }, [viewingCharacterId, partyCharacters]);
+  // Computed Views
+  const viewingPC = useMemo(() => partyCharacters.find(c => c.id === viewingCharacterId) || null, [viewingCharacterId, partyCharacters]);
+  const viewingNPC = useMemo(() => activeNPCs.find(c => c.id === viewingCharacterId) || null, [viewingCharacterId, activeNPCs]);
 
-  const viewingNPC = useMemo(() => {
-    if (!viewingCharacterId) return null;
-    return activeNPCs.find(c => c.id === viewingCharacterId) || null;
-  }, [viewingCharacterId, activeNPCs]);
-
-  // Merge Tokens
-  const mergedTokens = useMemo(() => {
-    return tokens.map(token => {
-      if (token.type === 'npc' && token.npcId) {
-        const npc = activeNPCs.find(n => n.id === token.npcId);
-        if (npc) {
-          return {
-            ...token,
-            name: npc.name,
-            avatar: npc.avatar,
-            currentStress: npc.currentStress,
-            maxStress: npc.stress,
-            npcKind: npc.kind
-          };
-        }
-      }
-      return token;
-    });
-  }, [tokens, activeNPCs]);
-
-  // Loading Check
-  if (campaignLoading || !campaign) {
-    return <div className="flex h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  }
-
-  // Character Selection Force
-  if (!myCharacter && !isGM) {
-    return (
-      <div className="flex flex-col h-screen items-center justify-center space-y-4">
-        <h2 className="text-xl">Selecione seu Personagem</h2>
-        <CharacterSelect onSelectCharacter={async (c) => {
-          await selectCharacter(c.id);
-        }} />
-      </div>
-    );
-  }
-
-  const activeCharacter = myCharacter as Character | null; // Cast for now
-
-  // Actions
-  const handleRollDice = async (
-    modifier: number = 0,
-    skill: string | undefined,
-    action: ActionType | undefined,
-    type: 'normal' | 'advantage' = 'normal',
-    opposition?: number,
-    isHidden?: boolean,
-    characterNameOverride?: string
-  ) => {
-    try {
-      const diceResult = rollDice(modifier, skill, action, type, opposition);
-      diceResult.character = characterNameOverride || activeCharacter?.name || 'GM';
-      await createRollLog(diceResult);
-
-      return diceResult;
-    } catch (e) {
-      console.error("Roll failed:", e);
-      toast({ title: "Erro na rolagem", variant: "destructive" });
-      throw e;
-    }
+  // Wrappers
+  const onHandleCreateAdvantageFromRoll = (outcome: 'tie' | 'success' | 'style', freeInvokes: number) => {
+    setPendingAdvantage({ outcome, freeInvokes });
+    setShowCreateAdvantageModal(true);
   };
 
-  const spendFatePoint = (charId: string) => updateFate(charId, -1, true);
-
-  const handleToggleStress = async (characterId: string, track: 'physical' | 'mental', index: number) => {
-    // Find character to get current state
-    // We can use partyCharacters or activeCharacter if it matches
-    const char = partyCharacters.find(c => c.id === characterId) || (activeCharacter?.id === characterId ? activeCharacter : null);
-    if (!char) return;
-
-    const currentTrack = char.stress?.[track] || [];
-    // Ensure track is long enough
-    const newTrack = [...currentTrack];
-    while (newTrack.length <= index) newTrack.push(false);
-
-    newTrack[index] = !newTrack[index];
-
-    await updateFirebaseCharacter(characterId, {
-      stress: {
-        ...char.stress,
-        [track]: newTrack
-      }
-    });
+  const onConfirmAdvantage = async (name: string, targetId: string, targetType: 'scene' | 'character' | 'npc', freeInvokes: number, isBoost: boolean, isPersistent: boolean) => {
+    await handleConfirmAdvantage(name, targetId, targetType, freeInvokes, isBoost, isPersistent, user?.uid || 'system');
+    setShowCreateAdvantageModal(false);
+    setPendingAdvantage(null);
   };
 
-  // Mobile View Integration
-  if (isMobile && !isGM && activeCharacter) {
-    return (
-      <MobilePlayerView
-        character={activeCharacter}
-        campaign={campaign}
-        activeScene={activeScene ?? null}
-        logs={logs}
-        allAspects={allAspects}
-        currentUserId={user?.uid}
-        onRollDice={handleRollDice}
-        onSpendFate={(charId) => updateFate(charId, -1, true)}
-        onToggleStress={handleToggleStress}
-        // Adapt invoke logic to match signature expected by MobilePlayerView vs simplified handler
-        onInvokeAspect={(name, source, free) => handleInvokeAspectFromRoller(name, source, free)}
-        onSendMessage={(msg) => addLog(msg, 'chat', { avatar: activeCharacter.avatar })}
-        onTriggerXCard={triggerXCard}
-      />
-    );
-  }
-  const gainFatePoint = (charId: string) => updateFate(charId, 1, true);
-
-  // Scene Aspects Helper
-  const handleInvokeAspectFromSidebar = (characterName: string, aspectName: string) => {
-    // Legacy support or just log if aspect object not found
-    const aspect = allAspects.find(a => a.name === aspectName && (a.ownerName === characterName || a.ownerType === 'character')); // Loose match
-    if (aspect) {
-      invokeAspect(aspect, false);
-    } else {
-      // Fallback
-      addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${characterName}`, 'aspect');
-      updateFate(activeCharacter?.id || '', -1, true);
-    }
-  };
-
-  const handleInvokeAspectFromRoller = (aspectName: string, source: string, useFreeInvoke: boolean) => {
-    const aspect = allAspects.find(a => a.name === aspectName);
-    if (aspect) {
-      invokeAspect(aspect, useFreeInvoke);
-    } else {
-      // Fallback logic if aspect not found in unified list
-      if (useFreeInvoke) {
-        addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" (GRÁTIS)`, 'aspect');
-        // Manual decrement logic fallback...
-        if (activeScene) {
-          const aspectIndex = activeScene.aspects.findIndex(a => a.name === aspectName);
-          if (aspectIndex >= 0 && activeScene.aspects[aspectIndex].freeInvokes > 0) {
-            const newAspects = [...activeScene.aspects];
-            newAspects[aspectIndex] = { ...newAspects[aspectIndex], freeInvokes: newAspects[aspectIndex].freeInvokes - 1 };
-            updateScene(activeScene.id, { aspects: newAspects });
-          }
-        }
-      } else {
-        addLog(`${activeCharacter?.name || 'GM'} invocou "${aspectName}" de ${source}`, 'aspect');
-        if (activeCharacter) spendFatePoint(activeCharacter.id);
-      }
-    }
-  };
-
-  const handleInvokeSceneAspect = (aspectName: string, useFreeInvoke: boolean = false) => {
-    const aspect = allAspects.find(a => a.name === aspectName && a.ownerType === 'scene');
-    if (aspect) {
-      invokeAspect(aspect, useFreeInvoke);
-    } else {
-      // Fallback
-      addLog(`${activeCharacter?.name || 'GM'} invocou aspecto de cena "${aspectName}"`, 'aspect');
-      if (useFreeInvoke && activeScene) {
-        const aspectIndex = activeScene.aspects.findIndex(a => a.name === aspectName);
-        if (aspectIndex >= 0 && activeScene.aspects[aspectIndex].freeInvokes > 0) {
-          const newAspects = [...activeScene.aspects];
-          newAspects[aspectIndex] = { ...newAspects[aspectIndex], freeInvokes: newAspects[aspectIndex].freeInvokes - 1 };
-          updateScene(activeScene.id, { aspects: newAspects });
-        }
-      } else if (!useFreeInvoke && activeCharacter) {
-        spendFatePoint(activeCharacter.id);
-      }
-    }
-  };
-
-  const handleRevokeAspect = (aspectName: string, source: string, wasFree: boolean) => {
-    // Try to find aspect in unified list
-    const aspect = allAspects.find(a => a.name === aspectName);
-    if (aspect) {
-      revokeInvocation(aspect, wasFree);
-    } else {
-      // Fallback log
-      addLog(`${activeCharacter?.name || 'GM'} desfez invocação de "${aspectName}" manually (no unified match)`, 'system');
-      // If was free, might need manual restoration if not found in list?
-      // Assuming unified list covers it.
-    }
-  };
-
-
-
-  // Selfie Handlers
-  const handleDeleteSelfie = async (selfieId: string) => {
-    const char = activeCharacter || viewingPC;
-    if (!char) return;
-    if (!confirm('Tem certeza que deseja apagar esta selfie?')) return;
-
-    const updatedSelfies = (char.selfies || []).filter(s => s.id !== selfieId);
-    await updateFirebaseCharacter(char.id, { selfies: updatedSelfies });
-    toast({ title: 'Selfie removida' });
-  };
-
-  const handleCreateSelfie = async (newSelfie: Selfie) => {
-    const char = activeCharacter || viewingPC;
-    if (!char) return;
-
-    const updatedSelfies = [newSelfie, ...(char.selfies || [])];
-    await updateFirebaseCharacter(char.id, { selfies: updatedSelfies });
-  };
-
-  const handleSetActiveScene = async (newSceneId: string) => {
-    // 1. Scene Change Logic: Clean up old scene and characters BEFORE switching (or in parallel)
-
-    if (isGM) {
-      // A. Clean Characters
-      for (const char of partyCharacters) {
-        if (!char.situationalAspects || char.situationalAspects.length === 0) continue;
-
-        const keptAspects = char.situationalAspects.filter(a => {
-          // Keep if persistent OR not temporary (legacy support: if isPersistent undefined, assume temporary if logic demands, but here we trust flag)
-          // useCreateAdvantage sets isTemporary = !isPersistent.
-          if (a.isPersistent) return true;
-          // If not persistent, remove it.
-          return false;
-        }).map(a => {
-          if (a.isPersistent) {
-            return { ...a, freeInvokes: Math.max(a.freeInvokes, 1) };
-          }
-          return a;
-        });
-
-        // Only update if changes
-        if (keptAspects.length !== char.situationalAspects.length || keptAspects.some((ka, i) => ka.freeInvokes !== char.situationalAspects![i].freeInvokes)) {
-          await updateFirebaseCharacter(char.id, { situationalAspects: keptAspects });
-        }
-      }
-
-      // B. Clean Current Scene Aspects
-      if (activeScene) {
-        const sceneAspects = activeScene.aspects || [];
-        // Keep if NOT temporary OR isPersistent
-        const cleanSceneAspects = sceneAspects.filter(a => !a.isTemporary || a.isPersistent).map(a => {
-          if (a.isPersistent) return { ...a, freeInvokes: Math.max(a.freeInvokes, 1) };
-          return a;
-        });
-
-        if (cleanSceneAspects.length !== sceneAspects.length || cleanSceneAspects.some((ca, i) => ca.freeInvokes !== sceneAspects[i].freeInvokes)) {
-          await updateScene(activeScene.id, { aspects: cleanSceneAspects });
-        }
-      }
-    }
-
-    // 2. Activate New Scene
-    await setActiveScene(newSceneId);
-  };
-
-  // Create Advantage Handlers
-  const checkMalinaSabeDasCoisas = (char: Character | null) => {
-    if (!char) return false;
-    return char.maneuvers?.includes('sabe-das-coisas') || char.drive === 'malina';
+  const handleSceneCanvasInvoke = (aspectName: string, useFreeInvoke: boolean = false) => {
+    handleInvokeAspect(aspectName, 'scene', useFreeInvoke);
   };
 
   const buildTargetList = () => {
@@ -375,26 +109,41 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
     return targets;
   };
 
-  const handleCreateAdvantageFromRoll = (outcome: 'tie' | 'success' | 'style', freeInvokes: number) => {
-    setPendingAdvantage({ outcome, freeInvokes });
-    setShowCreateAdvantageModal(true);
-  };
+  // Loading
+  if (campaignLoading || !campaign) {
+    return <div className="flex h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
 
-  const handleConfirmAdvantage = async (
-    name: string,
-    targetId: string,
-    targetType: 'scene' | 'character' | 'npc',
-    freeInvokes: number,
-    isBoost: boolean,
-    isPersistent: boolean
-  ) => {
-    if (!activeCharacter && !isGM) return; // Allow GM to create? Assuming activeCharacter context mostly.
-    await createAdvantage(name, targetId, targetType, freeInvokes, isBoost, isPersistent, user?.uid || 'system');
-    setShowCreateAdvantageModal(false);
-    setPendingAdvantage(null);
-  };
+  // Force Selection
+  if (!myCharacter && !isGM) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center space-y-4">
+        <h2 className="text-xl">Selecione seu Personagem</h2>
+        <CharacterSelect onSelectCharacter={async (c) => { await selectCharacter(c.id); }} />
+      </div>
+    );
+  }
 
-  // Render (Simplified for brevity, kept structure)
+  // Mobile View
+  if (isMobile && !isGM && activeCharacter) {
+    return (
+      <MobilePlayerView
+        character={activeCharacter}
+        campaign={campaign}
+        activeScene={activeScene ?? null}
+        logs={logs}
+        allAspects={allAspects}
+        currentUserId={user?.uid}
+        onRollDice={handleRollDice}
+        onSpendFate={spendFatePoint}
+        onToggleStress={handleToggleStress}
+        onInvokeAspect={handleInvokeAspect}
+        onSendMessage={(msg) => addLog(msg, 'chat', { avatar: activeCharacter.avatar })}
+        onTriggerXCard={triggerXCard}
+      />
+    );
+  }
+
   return (
     <div ref={ref} className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
@@ -436,10 +185,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => {
-                  signOut();
-                  navigate('/');
-                }}
+                onClick={() => { signOut(); navigate('/'); }}
                 className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
@@ -455,23 +201,11 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
             <TooltipTrigger asChild>
               <button
                 onClick={() => {
-                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                  try {
                     navigator.clipboard.writeText(campaign.joinCode)
-                      .then(() => toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." }))
-                      .catch(() => toast({ title: "Erro ao copiar", description: "Tente copiar manualmente.", variant: "destructive" }));
-                  } else {
-                    // Fallback for non-secure contexts
-                    try {
-                      const textArea = document.createElement("textarea");
-                      textArea.value = campaign.joinCode;
-                      document.body.appendChild(textArea);
-                      textArea.select();
-                      document.execCommand('copy');
-                      document.body.removeChild(textArea);
-                      toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." });
-                    } catch (err) {
-                      toast({ title: "Erro ao copiar", description: "Seu navegador não suporta cópia automática.", variant: "destructive" });
-                    }
+                      .then(() => toast({ title: "Código copiado!", description: "Compartilhe com seus jogadores." }));
+                  } catch (e) {
+                    toast({ title: "Erro ao copiar", description: "Copia manual.", variant: "destructive" });
                   }
                 }}
                 className="glass-panel px-2 py-1.5 flex items-center gap-1.5 hover:bg-muted/50 transition-colors group"
@@ -483,37 +217,23 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                 <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Clique para copiar o código da sala</p>
-            </TooltipContent>
+            <TooltipContent><p>Clique para copiar</p></TooltipContent>
           </Tooltip>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Fast Roll */}
           <button onClick={() => handleRollDice(0, undefined, undefined, 'normal')} className="p-2 glass-panel" title="Rolagem Rápida (4dF)">
             <Zap className="w-5 h-5" />
           </button>
-
-          {/* Aspects - New Button */}
           <button onClick={() => setShowAspects(!showAspects)} className="p-2 glass-panel" title="Aspectos em Jogo">
             <Sparkles className="w-5 h-5 text-amber-500" />
           </button>
-
-          {/* Dice & Sheet */}
           <button onClick={() => setShowDice(!showDice)} className="p-2 glass-panel" title="Rolador de Dados"><Dices className="w-5 h-5" /></button>
           <button onClick={() => setShowSheet(!showSheet)} className="p-2 glass-panel" title="Ficha do Personagem"><BookOpen className="w-5 h-5" /></button>
-
-          {/* Selfie */}
           <button onClick={() => setShowSelfieAlbum(!showSelfieAlbum)} className="p-2 glass-panel" title="Álbum de Selfies"><Camera className="w-5 h-5" /></button>
-
-          {/* Safety / Others */}
           <SafetyControls mySettings={mySettings} aggregatedLevels={aggregatedLevels} onUpdateSetting={updateMySetting} onTriggerXCard={triggerXCard} onTogglePause={togglePause} />
         </div>
       </motion.header>
-
-      {/* Active Episode Warning */}
-      {/* Active Episode Warning - Removed */}
 
       <XCardOverlay safetyState={safetyState} currentUserId={user?.uid} isGM={isGM} onResolve={resolveXCard} />
 
@@ -531,7 +251,6 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
       </Dialog>
 
       <div className="flex-1 flex min-h-0">
-        {/* Left Sidebar */}
         <LeftSidebar
           sessionId={campaign?.joinCode || ''}
           campaignId={campaign?.id || ''}
@@ -539,29 +258,19 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           archivedCharacters={archivedCharacters}
           myCharacterId={myCharacter?.id}
           onViewCharacter={(char) => setViewingCharacterId(char.id)}
-          onInvokeAspect={handleInvokeAspectFromSidebar}
-
-          // GM Props
+          onInvokeAspect={(charName, aspectName) => handleManualInvoke(aspectName, charName)}
           isGM={isGM}
           scenes={scenes}
-          archivedScenes={[]} // TODO
+          archivedScenes={[]}
           currentScene={activeScene ?? null}
           onSetActiveScene={handleSetActiveScene}
           onCreateScene={createScene}
           onUpdateScene={updateScene}
           onDeleteScene={deleteScene}
-
-          // Computed GM Info
-          gm={campaign?.gmId ? {
-            id: campaign.gmId,
-            name: Object.values(presenceMap).find(p => p.ownerId === campaign.gmId)?.ownerName || 'Mestre',
-            isOnline: Object.values(presenceMap).some(p => p.ownerId === campaign.gmId && isPresenceRecent(p.lastSeen))
-          } : undefined}
-
+          gm={controller.gmInfo}
           onAddCharacterToScene={async (characterId) => {
             const char = partyCharacters.find(c => c.id === characterId);
             if (!char || !activeScene) return;
-            // Default position center-ish
             await createToken({
               type: 'character',
               characterId: char.id,
@@ -571,17 +280,16 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
               y: 300,
               isVisible: true
             });
-            toast({ title: "Token adicionado", description: `${char.name} entrou em cena.` });
+            toast({ title: "Token adicionado" });
           }}
           onRemoveCharacterFromScene={async (characterId) => {
             const t = tokens.find(tk => tk.characterId === characterId);
             if (t) {
               await deleteToken(t.id);
-              toast({ title: "Token removido", description: "Saiu de cena." });
+              toast({ title: "Token removido" });
             }
           }}
           isCharacterInScene={(characterId) => tokens.some(t => t.characterId === characterId)}
-
           sceneSearchQuery={sceneSearchQuery}
           onSceneSearchChange={setSceneSearchQuery}
           onArchiveScene={archiveScene}
@@ -591,7 +299,6 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           onUpdateCharacter={updateFirebaseCharacter}
         />
 
-        {/* Main Area */}
         <main className="flex-1 relative min-h-0">
           <AnimatePresence mode="wait">
             {showSheet && activeCharacter ? (
@@ -608,41 +315,22 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                     readOnly={false}
                     onSkillClick={(s) => { setPresetSkill(s); setShowDice(true); }}
                     onAddSituationalAspect={async (name, freeInvokes) => {
-                      if (!activeCharacter) return;
-                      const newAspect = {
-                        id: crypto.randomUUID(),
-                        name,
-                        freeInvokes
-                      };
+                      const newAspect = { id: crypto.randomUUID(), name, freeInvokes };
                       const currentAspects = activeCharacter.situationalAspects || [];
-                      await updateFirebaseCharacter(activeCharacter.id, {
-                        situationalAspects: [...currentAspects, newAspect]
-                      });
+                      await updateFirebaseCharacter(activeCharacter.id, { situationalAspects: [...currentAspects, newAspect] });
                     }}
                     onRemoveSituationalAspect={async (id) => {
-                      if (!activeCharacter) return;
                       const currentAspects = activeCharacter.situationalAspects || [];
-                      await updateFirebaseCharacter(activeCharacter.id, {
-                        situationalAspects: currentAspects.filter(a => a.id !== id)
-                      });
+                      await updateFirebaseCharacter(activeCharacter.id, { situationalAspects: currentAspects.filter(a => a.id !== id) });
                     }}
-                    onUpdateNotes={async (notes) => {
-                      if (!activeCharacter) return;
-                      await updateFirebaseCharacter(activeCharacter.id, { notes });
-                    }}
+                    onUpdateNotes={async (notes) => updateFirebaseCharacter(activeCharacter.id, { notes })}
                     onUpdateSituationalAspect={async (id, updates) => {
-                      if (!activeCharacter) return;
-                      const currentAspects = activeCharacter.situationalAspects || [];
-                      const updatedAspects = currentAspects.map(a =>
-                        a.id === id ? { ...a, ...updates } : a
-                      );
-                      await updateFirebaseCharacter(activeCharacter.id, {
-                        situationalAspects: updatedAspects
-                      });
+                      const updated = (activeCharacter.situationalAspects || []).map(a => a.id === id ? { ...a, ...updates } : a);
+                      await updateFirebaseCharacter(activeCharacter.id, { situationalAspects: updated });
                     }}
-                    onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(activeCharacter?.name || 'Personagem', aspectName)}
+                    onInvokeAspect={(aspectName) => handleManualInvoke(aspectName, activeCharacter?.name || 'Personagem')}
                     onAddSelfie={() => setShowNewSelfieForm(true)}
-                    onDeleteSelfie={handleDeleteSelfie}
+                    onDeleteSelfie={(id) => handleDeleteSelfie(id, activeCharacter)}
                   />
                 </div>
               </div>
@@ -651,7 +339,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                 scene={activeScene ?? null}
                 tokens={mergedTokens}
                 aspects={activeScene?.aspects || []}
-                onInvokeAspect={handleInvokeSceneAspect}
+                onInvokeAspect={handleSceneCanvasInvoke}
                 isGM={isGM}
                 currentUserId={user?.uid}
                 activeCharacterId={activeCharacter?.id}
@@ -664,7 +352,6 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
             )}
           </AnimatePresence>
 
-          {/* Dice Roller Overlay */}
           {showDice && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[400px]">
               <div className="glass-panel p-3">
@@ -681,22 +368,20 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                   myCharacter={activeCharacter}
                   partyCharacters={partyCharacters}
                   unifiedAspects={allAspects}
-                  onInvokeAspect={handleInvokeAspectFromRoller}
+                  onInvokeAspect={handleInvokeAspect}
                   onRevokeAspect={handleRevokeAspect}
                   onAddLog={addLog}
                   isGM={isGM}
-                  onCreateAdvantage={handleCreateAdvantageFromRoll}
+                  onCreateAdvantage={onHandleCreateAdvantageFromRoll}
                 />
               </div>
             </div>
           )}
         </main>
 
-        {/* Right Sidebar (Chat) */}
         <RightSidebar logs={logs} onSendMessage={addLog} />
       </div>
 
-      {/* Modals */}
       <Dialog open={showAspects} onOpenChange={setShowAspects}>
         <DialogContent className="max-w-md h-[80vh] p-0 bg-transparent border-none overflow-hidden shadow-2xl">
           <DialogTitle className="sr-only">Hub de Aspectos</DialogTitle>
@@ -707,7 +392,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
       <Dialog open={!!viewingCharacterId} onOpenChange={(open) => !open && setViewingCharacterId(null)}>
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background overflow-hidden">
           <DialogTitle className="sr-only">
-            {viewingPC ? `Ficha de ${viewingPC.name}` : viewingNPC ? `Ficha de ${viewingNPC.name}` : 'Visualizar Personagem'}
+            Visualizar Personagem
           </DialogTitle>
           {viewingPC && (
             <div className="flex flex-col h-full bg-card">
@@ -718,25 +403,19 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                   onClose={() => setViewingCharacterId(null)}
                   readOnly={!isGM && viewingPC.id !== myCharacter?.id}
                   variant="modal"
-                  onInvokeAspect={(aspectName) => handleInvokeAspectFromSidebar(viewingPC.name, aspectName)}
-                  onSkillClick={(skill) => {
-                    handleRollDice(viewingPC.skills[skill], skill, undefined, 'normal', undefined, false, viewingPC.name);
-                  }}
-                  onToggleStress={async (track, index) => {
-                    await handleToggleStress(viewingPC.id, track, index);
-                  }}
+                  onInvokeAspect={(aspectName) => handleManualInvoke(aspectName, viewingPC.name)}
+                  onSkillClick={(skill) => handleRollDice(viewingPC.skills[skill], skill, undefined, 'normal', undefined, false, viewingPC.name)}
+                  onToggleStress={(track, index) => handleToggleStress(viewingPC.id, track, index)}
                   onSetConsequence={async (severity, value) => {
-                    await updateFirebaseCharacter(viewingPC.id, {
-                      consequences: { ...viewingPC.consequences, [severity]: value }
-                    });
+                    await updateFirebaseCharacter(viewingPC.id, { consequences: { ...viewingPC.consequences, [severity]: value } });
                     addLog(`${viewingPC.name} definiu consequência ${severity}: ${value || 'Removida'}`, 'fate');
                   }}
                   onSpendFate={async () => {
-                    await updateFate(viewingPC.id, -1, true);
+                    spendFatePoint(viewingPC.id);
                     addLog(`${viewingPC.name} gastou 1 Ponto de Destino`, 'fate');
                   }}
                   onGainFate={async () => {
-                    await updateFate(viewingPC.id, 1, true);
+                    gainFatePoint(viewingPC.id);
                     addLog(`${viewingPC.name} ganhou 1 Ponto de Destino`, 'fate');
                   }}
                   onAddSituationalAspect={async (name, freeInvokes) => {
@@ -749,15 +428,12 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
                     await updateFirebaseCharacter(viewingPC.id, { situationalAspects: currentAspects.filter(a => a.id !== id) });
                   }}
                   onUpdateSituationalAspect={async (id, updates) => {
-                    const currentAspects = viewingPC.situationalAspects || [];
-                    const updatedAspects = currentAspects.map(a => a.id === id ? { ...a, ...updates } : a);
-                    await updateFirebaseCharacter(viewingPC.id, { situationalAspects: updatedAspects });
+                    const updated = (viewingPC.situationalAspects || []).map(a => a.id === id ? { ...a, ...updates } : a);
+                    await updateFirebaseCharacter(viewingPC.id, { situationalAspects: updated });
                   }}
-                  onUpdateNotes={async (notes) => {
-                    await updateFirebaseCharacter(viewingPC.id, { notes });
-                  }}
+                  onUpdateNotes={async (notes) => updateFirebaseCharacter(viewingPC.id, { notes })}
                   onAddSelfie={(!isGM && viewingPC.id !== myCharacter?.id) ? undefined : () => setShowNewSelfieForm(true)}
-                  onDeleteSelfie={(!isGM && viewingPC.id !== myCharacter?.id) ? undefined : handleDeleteSelfie}
+                  onDeleteSelfie={(!isGM && viewingPC.id !== myCharacter?.id) ? undefined : (id) => handleDeleteSelfie(id, viewingPC)}
                 />
               </div>
             </div>
@@ -774,7 +450,6 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
 
       <Dialog open={showArchetypes} onOpenChange={setShowArchetypes}><DialogContent><DialogTitle>Base de Arquétipos</DialogTitle><ArchetypeDatabase sessionId={campaign.id} /></DialogContent></Dialog>
 
-      {/* Other viewing modals omitted for brevity, add back as needed */}
       <CompelModal campaignId={campaignId || ''} myCharacterId={myCharacter?.id} />
 
       {showNewSelfieForm && (activeCharacter || viewingPC) && (
@@ -782,10 +457,9 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           characterId={(activeCharacter || viewingPC)!.id}
           isOpen={showNewSelfieForm}
           onClose={() => setShowNewSelfieForm(false)}
-          onSubmit={handleCreateSelfie}
+          onSubmit={(selfie) => handleCreateSelfie(selfie, (activeCharacter || viewingPC)!)}
           type="mood"
         />
-
       )}
 
       {showCreateAdvantageModal && pendingAdvantage && (
@@ -797,7 +471,7 @@ export const VTTPage = forwardRef<HTMLDivElement>((props, ref) => {
           isBoost={pendingAdvantage.outcome === 'tie'}
           currentSceneName={activeScene?.name}
           targets={buildTargetList()}
-          onConfirm={handleConfirmAdvantage}
+          onConfirm={onConfirmAdvantage}
           hasPersistentManeuver={checkMalinaSabeDasCoisas(activeCharacter)}
         />
       )}
